@@ -89,39 +89,26 @@ const getAllMaterials = async (req, res) => {
 
         const total = await prisma.material.count({ where })
 
-        // Transform the data to match frontend expectations
+        // Return materials with schema fields (no transformation needed)
         const transformedMaterials = materials.map(material => ({
             id: material.id,
             name: material.name,
             description: material.description,
             code: material.code,
-            sku: material.code, // Use code as SKU
-            fabricTypeColor: material.attributeType || '', // Map attributeType to fabricTypeColor for frontend compatibility
-            attributeType: material.attributeType || '',
-            attributeValue: material.attributeValue || '',
             unit: material.unit,
             qtyOnHand: parseFloat(material.qtyOnHand),
-            safetyStock: parseFloat(material.minStock),
-            price: parseFloat(material.pricePerUnit),
+            pricePerUnit: parseFloat(material.pricePerUnit),
             supplier: material.supplier || '',
-            store: material.location || '',
+            minStock: parseFloat(material.minStock),
+            maxStock: parseFloat(material.maxStock),
+            reorderPoint: parseFloat(material.reorderPoint),
+            reorderQty: parseFloat(material.reorderQty),
             location: material.location || '',
-            image: '', // No image field in schema
+            attributeType: material.attributeType || '',
+            attributeValue: material.attributeValue || '',
+            isActive: material.isActive,
             createdAt: material.createdAt,
-            updatedAt: material.updatedAt,
-            // Add some calculated fields that frontend expects
-            calculatedStock: {
-                totalCalculated: parseFloat(material.qtyOnHand),
-                movementStock: parseFloat(material.qtyOnHand),
-                purchaseStock: 0
-            },
-            stockStatus: material.qtyOnHand <= material.minStock ? 'low' : 'adequate',
-            needsRestock: material.qtyOnHand <= material.minStock,
-            purchaseHistory: {
-                purchaseCount: 0,
-                totalPurchased: 0,
-                lastPurchaseDate: null
-            }
+            updatedAt: material.updatedAt
         }))
 
         const result = {
@@ -213,24 +200,17 @@ const createMaterial = async (req, res) => {
             name,
             description,
             unit = 'pcs',
-            quantity = 0,
-            qtyOnHand = quantity, // frontend sends qtyOnHand
-            minQuantity = 0,
-            safetyStock = minQuantity, // frontend sends safetyStock
-            price = 0,
+            qtyOnHand = 0,
+            pricePerUnit = 0,
             supplier,
+            minStock = 0,
+            maxStock = 0,
+            reorderPoint = 0,
+            reorderQty = 0,
             location,
-            store = location, // frontend sends store
             attributeType,
-            attributeValue,
-            fabricTypeColor // Map to attributeType for backward compatibility
+            attributeValue
         } = req.body
-
-        // Use the frontend field values
-        const actualQuantity = qtyOnHand !== undefined ? qtyOnHand : quantity
-        const actualMinQuantity = safetyStock !== undefined ? safetyStock : minQuantity
-        const actualLocation = store !== undefined ? store : location
-        const actualAttributeType = attributeType || fabricTypeColor || ''
 
         // Validate required fields
         if (!name) {
@@ -271,12 +251,15 @@ const createMaterial = async (req, res) => {
                 description,
                 code: generatedCode,
                 unit,
-                qtyOnHand: parseFloat(actualQuantity),
-                minStock: parseFloat(actualMinQuantity),
-                pricePerUnit: parseFloat(price),
+                qtyOnHand: parseFloat(qtyOnHand),
+                pricePerUnit: parseFloat(pricePerUnit),
                 supplier,
-                location: actualLocation,
-                attributeType: actualAttributeType,
+                minStock: parseFloat(minStock),
+                maxStock: parseFloat(maxStock),
+                reorderPoint: parseFloat(reorderPoint),
+                reorderQty: parseFloat(reorderQty),
+                location,
+                attributeType: attributeType || null,
                 attributeValue: attributeValue || null
             }
         })
@@ -316,29 +299,13 @@ const updateMaterial = async (req, res) => {
             return res.status(404).json({ message: 'Material not found' })
         }
 
-        // If SKU is being updated, check for duplicates
-        if (updateData.sku && updateData.sku !== existingMaterial.sku) {
-            const existingSku = await prisma.material.findUnique({
-                where: { sku: updateData.sku }
-            })
-
-            if (existingSku) {
-                return res.status(400).json({
-                    message: 'SKU already exists'
-                })
-            }
-        }
-
-        // Handle backward compatibility for fabricTypeColor
-        if (updateData.fabricTypeColor && !updateData.attributeType) {
-            updateData.attributeType = updateData.fabricTypeColor
-            delete updateData.fabricTypeColor
-        }
-
-        // Convert numeric fields
-        if (updateData.quantity !== undefined) updateData.quantity = parseFloat(updateData.quantity)
-        if (updateData.minQuantity !== undefined) updateData.minQuantity = parseFloat(updateData.minQuantity)
-        if (updateData.price !== undefined) updateData.price = parseFloat(updateData.price)
+        // Convert numeric fields to proper types
+        if (updateData.qtyOnHand !== undefined) updateData.qtyOnHand = parseFloat(updateData.qtyOnHand)
+        if (updateData.pricePerUnit !== undefined) updateData.pricePerUnit = parseFloat(updateData.pricePerUnit)
+        if (updateData.minStock !== undefined) updateData.minStock = parseFloat(updateData.minStock)
+        if (updateData.maxStock !== undefined) updateData.maxStock = parseFloat(updateData.maxStock)
+        if (updateData.reorderPoint !== undefined) updateData.reorderPoint = parseFloat(updateData.reorderPoint)
+        if (updateData.reorderQty !== undefined) updateData.reorderQty = parseFloat(updateData.reorderQty)
 
         const material = await prisma.material.update({
             where: { id: parseInt(id) },
@@ -510,35 +477,17 @@ const bulkUpdateMaterials = async (req, res) => {
                     continue
                 }
 
-                // Convert numeric fields and map field names
-                if (updateData.quantity !== undefined) {
-                    updateData.qtyOnHand = parseFloat(updateData.quantity)
-                    delete updateData.quantity
-                }
+                // Convert numeric fields to proper types
                 if (updateData.qtyOnHand !== undefined) updateData.qtyOnHand = parseFloat(updateData.qtyOnHand)
-                if (updateData.minQuantity !== undefined) {
-                    updateData.minStock = parseFloat(updateData.minQuantity)
-                    delete updateData.minQuantity
-                }
-                if (updateData.safetyStock !== undefined) {
-                    updateData.minStock = parseFloat(updateData.safetyStock)
-                    delete updateData.safetyStock
-                }
-                if (updateData.price !== undefined) {
-                    updateData.pricePerUnit = parseFloat(updateData.price)
-                    delete updateData.price
-                }
-                if (updateData.store !== undefined) {
-                    updateData.location = updateData.store
-                    delete updateData.store
-                }
+                if (updateData.pricePerUnit !== undefined) updateData.pricePerUnit = parseFloat(updateData.pricePerUnit)
+                if (updateData.minStock !== undefined) updateData.minStock = parseFloat(updateData.minStock)
+                if (updateData.maxStock !== undefined) updateData.maxStock = parseFloat(updateData.maxStock)
+                if (updateData.reorderPoint !== undefined) updateData.reorderPoint = parseFloat(updateData.reorderPoint)
+                if (updateData.reorderQty !== undefined) updateData.reorderQty = parseFloat(updateData.reorderQty)
 
                 const updatedMaterial = await prisma.material.update({
                     where: { id: parseInt(id) },
-                    data: updateData,
-                    include: {
-                        materialType: true
-                    }
+                    data: updateData
                 })
 
                 results.push(updatedMaterial)
@@ -570,25 +519,26 @@ const bulkUpdateMaterials = async (req, res) => {
 const exportMaterials = async (req, res) => {
     try {
         const materials = await prisma.material.findMany({
-            include: {
-                materialType: true
-            },
             orderBy: { name: 'asc' }
         })
 
         // Create CSV content
-        const csvHeader = 'ID,Name,Description,SKU,Material Type,Unit,Quantity,Min Quantity,Price,Supplier,Location,Created At\n'
+        const csvHeader = 'ID,Name,Description,Code,Attribute Type,Attribute Value,Unit,Qty On Hand,Min Stock,Max Stock,Reorder Point,Reorder Qty,Price Per Unit,Supplier,Location,Created At\n'
         const csvRows = materials.map(material => {
             return [
                 material.id,
                 `"${material.name}"`,
                 `"${material.description || ''}"`,
-                material.sku,
-                `"${material.materialType.name}"`,
+                material.code,
+                `"${material.attributeType || ''}"`,
+                `"${material.attributeValue || ''}"`,
                 material.unit,
-                material.quantity,
-                material.minQuantity,
-                material.price,
+                material.qtyOnHand,
+                material.minStock,
+                material.maxStock,
+                material.reorderPoint,
+                material.reorderQty,
+                material.pricePerUnit,
                 `"${material.supplier || ''}"`,
                 `"${material.location || ''}"`,
                 material.createdAt.toISOString()
@@ -630,40 +580,45 @@ const importMaterials = async (req, res) => {
                 const {
                     name,
                     description,
-                    sku,
-                    materialTypeName,
+                    attributeType,
+                    attributeValue,
                     unit = 'pcs',
-                    quantity = 0,
-                    minQuantity = 0,
-                    price = 0,
+                    qtyOnHand = 0,
+                    minStock = 0,
+                    maxStock = 0,
+                    reorderPoint = 0,
+                    reorderQty = 0,
+                    pricePerUnit = 0,
                     supplier,
                     location
                 } = materialData
 
                 // Validate required fields
-                if (!name || !sku || !materialTypeName) {
-                    errors.push({ material: materialData, error: 'Name, SKU, and Material Type are required' })
+                if (!name) {
+                    errors.push({ material: materialData, error: 'Name is required' })
                     continue
                 }
 
-                // Find or create material type
-                let materialType = await prisma.materialType.findFirst({
-                    where: { name: materialTypeName }
-                })
+                // Get total materials count for code generation
+                const totalMaterials = await prisma.material.count()
+                const totalUnits = totalMaterials + 1
 
-                if (!materialType) {
-                    materialType = await prisma.materialType.create({
-                        data: { name: materialTypeName, color: '#808080' }
+                // Generate unique code
+                let generatedCode
+                let isCodeUnique = false
+                let attempts = 0
+
+                while (!isCodeUnique && attempts < 10) {
+                    generatedCode = generateMaterialCode(totalUnits, supplier)
+                    const existingMaterial = await prisma.material.findUnique({
+                        where: { code: generatedCode }
                     })
+                    isCodeUnique = !existingMaterial
+                    attempts++
                 }
 
-                // Check if SKU already exists
-                const existingSku = await prisma.material.findUnique({
-                    where: { sku }
-                })
-
-                if (existingSku) {
-                    errors.push({ material: materialData, error: 'SKU already exists' })
+                if (!isCodeUnique) {
+                    errors.push({ material: materialData, error: 'Failed to generate unique code' })
                     continue
                 }
 
@@ -671,17 +626,18 @@ const importMaterials = async (req, res) => {
                     data: {
                         name,
                         description,
-                        sku,
-                        materialTypeId: materialType.id,
+                        code: generatedCode,
                         unit,
-                        quantity: parseFloat(quantity),
-                        minQuantity: parseFloat(minQuantity),
-                        price: parseFloat(price),
+                        qtyOnHand: parseFloat(qtyOnHand),
+                        minStock: parseFloat(minStock),
+                        maxStock: parseFloat(maxStock),
+                        reorderPoint: parseFloat(reorderPoint),
+                        reorderQty: parseFloat(reorderQty),
+                        pricePerUnit: parseFloat(pricePerUnit),
                         supplier,
-                        location
-                    },
-                    include: {
-                        materialType: true
+                        location,
+                        attributeType: attributeType || null,
+                        attributeValue: attributeValue || null
                     }
                 })
 
@@ -1001,43 +957,7 @@ const adjustStock = async (req, res) => {
     }
 }
 
-// @desc    Validate material type
-// @route   POST /api/materials-management/validate/material-type
-// @access  Private
-const validateMaterialType = async (req, res) => {
-    try {
-        const { materialTypeId } = req.body
-
-        if (!materialTypeId) {
-            return res.status(400).json({
-                message: 'Material type ID is required'
-            })
-        }
-
-        const materialType = await prisma.materialType.findUnique({
-            where: { id: parseInt(materialTypeId) }
-        })
-
-        if (!materialType) {
-            return res.status(404).json({
-                message: 'Material type not found',
-                valid: false
-            })
-        }
-
-        res.json({
-            message: 'Material type is valid',
-            valid: true,
-            materialType
-        })
-    } catch (error) {
-        console.error('Error validating material type:', error)
-        res.status(500).json({
-            message: 'Error validating material type',
-            error: error.message
-        })
-    }
-}
+// Note: validateMaterialType function removed as MaterialType model no longer exists
 
 module.exports = {
     getAllMaterials,
@@ -1053,6 +973,5 @@ module.exports = {
     getInventoryAnalytics,
     getStockMovements,
     updateStockLevel,
-    adjustStock,
-    validateMaterialType
+    adjustStock
 } 

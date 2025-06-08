@@ -28,15 +28,18 @@ function MaterialsManagementPage() {
   // Form data
   const [formData, setFormData] = useState({
     name: '',
-    code: '',
-    fabricTypeColor: '',
-    unit: 'meter',
+    description: '',
+    unit: 'pcs',
     qtyOnHand: 0,
-    safetyStock: 0,
-    price: '',
-    store: '',
-    image: '',
-    description: ''
+    pricePerUnit: 0,
+    supplier: '',
+    minStock: 0,
+    maxStock: 0,
+    reorderPoint: 0,
+    reorderQty: 0,
+    location: '',
+    attributeType: '',
+    attributeValue: ''
   });
 
   // Load materials
@@ -50,7 +53,7 @@ function MaterialsManagementPage() {
       });
 
       const token = localStorage.getItem('token');
-      
+
       // Try the API first
       try {
         const response = await fetch(`http://localhost:8080/api/materials-management?${queryParams}`, {
@@ -62,11 +65,11 @@ function MaterialsManagementPage() {
 
         if (response.ok) {
           const data = await response.json();
-          
+
           if (data.success) {
             // Handle API data properly
             const apiMaterials = data.data.materials || [];
-            
+
             console.log('API materials loaded:', apiMaterials.length);
             setMaterials(apiMaterials);
             setTotalPages(data.data.pagination?.totalPages || 1);
@@ -90,7 +93,7 @@ function MaterialsManagementPage() {
       }
 
       // Removed demo data fallback - show actual API errors instead
-      
+
     } catch (error) {
       console.error('Error loading materials:', error);
       setError(error.message);
@@ -105,15 +108,15 @@ function MaterialsManagementPage() {
       alert('Material ID not found');
       return null;
     }
-    
+
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('Authentication required. Please login again.');
         return null;
       }
-      
+
       const response = await fetch(`http://localhost:8080/api/materials-management/${materialId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -132,7 +135,7 @@ function MaterialsManagementPage() {
       }
 
       const data = await response.json();
-      
+
       if (data.success) {
         return data.data;
       } else {
@@ -149,21 +152,21 @@ function MaterialsManagementPage() {
   // Create material
   const handleCreateMaterial = async (e) => {
     e.preventDefault();
-    
+
     // Basic validation
-    if (!formData.name || !formData.code) {
-      alert('Please fill in required fields: Name and Code');
+    if (!formData.name) {
+      alert('Please fill in required fields: Name');
       return;
     }
-    
+
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('Authentication required. Please login again.');
         return;
       }
-      
+
       const response = await fetch('http://localhost:8080/api/materials-management', {
         method: 'POST',
         headers: {
@@ -203,33 +206,33 @@ function MaterialsManagementPage() {
   // Update material
   const handleUpdateMaterial = async (e) => {
     e.preventDefault();
-    
+
     // Basic validation
-    if (!formData.name || !formData.code) {
-      alert('Please fill in required fields: Name and Code');
+    if (!formData.name) {
+      alert('Please fill in required fields: Name');
       return;
     }
-    
+
     if (!selectedMaterial) {
       alert('No material selected for update');
       return;
     }
-    
+
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('Authentication required. Please login again.');
         return;
       }
-      
+
       const materialId = selectedMaterial.id || selectedMaterial.material?.id;
-      
+
       if (!materialId) {
         alert('Material ID not found');
         return;
       }
-      
+
       const response = await fetch(`http://localhost:8080/api/materials-management/${materialId}`, {
         method: 'PUT',
         headers: {
@@ -275,19 +278,19 @@ function MaterialsManagementPage() {
       alert('Material ID not found');
       return;
     }
-    
+
     if (!confirm('Are you sure you want to delete this material? This action cannot be undone.')) {
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('Authentication required. Please login again.');
         return;
       }
-      
+
       const response = await fetch(`http://localhost:8080/api/materials-management/${materialId}`, {
         method: 'DELETE',
         headers: {
@@ -338,16 +341,19 @@ function MaterialsManagementPage() {
     if (details) {
       setSelectedMaterial(details);
       setFormData({
-        name: details.material?.name || details.name || '',
-        code: details.material?.code || details.code || '',
-        fabricTypeColor: details.material?.fabricTypeColor || details.fabricTypeColor || '',
-        unit: details.material?.unit || details.unit || 'meter',
-        qtyOnHand: details.material?.qtyOnHand || details.qtyOnHand || 0,
-        safetyStock: details.material?.safetyStock || details.safetyStock || 0,
-        price: details.material?.price || details.price || '',
-        store: details.material?.store || details.store || '',
-        image: details.material?.image || details.image || '',
-        description: details.material?.description || details.description || ''
+        name: details.name || '',
+        description: details.description || '',
+        unit: details.unit || 'pcs',
+        qtyOnHand: details.qtyOnHand || 0,
+        pricePerUnit: details.pricePerUnit || 0,
+        supplier: details.supplier || '',
+        minStock: details.minStock || 0,
+        maxStock: details.maxStock || 0,
+        reorderPoint: details.reorderPoint || 0,
+        reorderQty: details.reorderQty || 0,
+        location: details.location || '',
+        attributeType: details.attributeType || '',
+        attributeValue: details.attributeValue || ''
       });
       setShowEditModal(true);
     }
@@ -357,34 +363,32 @@ function MaterialsManagementPage() {
   const resetForm = () => {
     setFormData({
       name: '',
-      code: '',
-      fabricTypeColor: '',
-      unit: 'meter',
+      description: '',
+      unit: 'pcs',
       qtyOnHand: 0,
-      safetyStock: 0,
-      price: '',
-      store: '',
-      image: '',
-      description: ''
+      pricePerUnit: 0,
+      supplier: '',
+      minStock: 0,
+      maxStock: 0,
+      reorderPoint: 0,
+      reorderQty: 0,
+      location: '',
+      attributeType: '',
+      attributeValue: ''
     });
   };
 
   // Get stock status badge
   const getStockStatusBadge = (material) => {
-    const stockStatus = material.stockStatus;
-    const stockValue = material.calculatedStock?.totalCalculated || 0;
+    const currentStock = material.qtyOnHand || 0;
+    const minStock = material.minStock || 0;
 
-    switch (stockStatus) {
-      case 'out_of_stock':
-        return <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Out of Stock</span>;
-      case 'critical':
-        return <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Critical</span>;
-      case 'low':
-        return <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">Low Stock</span>;
-      case 'adequate':
-        return <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Adequate</span>;
-      default:
-        return <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">Unknown</span>;
+    if (currentStock === 0) {
+      return <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Out of Stock</span>;
+    } else if (currentStock <= minStock) {
+      return <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">Low Stock</span>;
+    } else {
+      return <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Adequate</span>;
     }
   };
 
@@ -449,7 +453,7 @@ function MaterialsManagementPage() {
               <div>
                 <p className="text-sm text-gray-600">Low Stock</p>
                 <p className="text-xl font-bold">
-                  {materials.filter(m => m.needsRestock).length}
+                  {materials.filter(m => m.qtyOnHand <= m.minStock).length}
                 </p>
               </div>
             </div>
@@ -460,7 +464,7 @@ function MaterialsManagementPage() {
               <div>
                 <p className="text-sm text-gray-600">Total Value</p>
                 <p className="text-xl font-bold">
-                  Rp {materials.reduce((sum, m) => sum + (m.qtyOnHand * (m.price || 0)), 0).toLocaleString()}
+                  Rp {materials.reduce((sum, m) => sum + (m.qtyOnHand * (m.pricePerUnit || 0)), 0).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -471,7 +475,7 @@ function MaterialsManagementPage() {
               <div>
                 <p className="text-sm text-gray-600">Categories</p>
                 <p className="text-xl font-bold">
-                  {new Set(materials.map(m => m.fabricTypeColor?.split(' ')[0]).filter(Boolean)).size}
+                  {new Set(materials.map(m => m.attributeType).filter(Boolean)).size}
                 </p>
               </div>
             </div>
@@ -495,14 +499,14 @@ function MaterialsManagementPage() {
               />
             </div>
           </div>
-          
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Attribute Type</label>
             <input
               type="text"
               value={filters.category}
               onChange={(e) => handleFilterChange('category', e.target.value)}
-              placeholder="Filter by category..."
+              placeholder="Filter by attribute type..."
               className="px-3 py-2 border border-gray-300 rounded-md w-full focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -517,7 +521,8 @@ function MaterialsManagementPage() {
               <option value="name">Name</option>
               <option value="code">Code</option>
               <option value="qtyOnHand">Stock</option>
-              <option value="safetyStock">Safety Stock</option>
+              <option value="minStock">Min Stock</option>
+              <option value="pricePerUnit">Price</option>
               <option value="createdAt">Created Date</option>
             </select>
           </div>
@@ -559,7 +564,7 @@ function MaterialsManagementPage() {
                   Inventory
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Purchase History
+                  Details
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -585,7 +590,7 @@ function MaterialsManagementPage() {
                           {material.name}
                         </div>
                         <div className="text-sm text-gray-500">
-                          Code: {material.code || 'N/A'} | {material.fabricTypeColor || 'No category'}
+                          Code: {material.code || 'N/A'} | {material.attributeType || 'No category'}: {material.attributeValue || 'N/A'}
                         </div>
                       </div>
                     </div>
@@ -593,7 +598,7 @@ function MaterialsManagementPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="space-y-1">
                       {getStockStatusBadge(material)}
-                      {material.needsRestock && (
+                      {material.qtyOnHand <= material.minStock && (
                         <div className="flex items-center text-red-600 text-xs">
                           <FiAlertTriangle size={12} className="mr-1" />
                           Needs Restock
@@ -604,30 +609,28 @@ function MaterialsManagementPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div>
                       <div className="font-medium">
-                        Current: {material.calculatedStock?.totalCalculated || 0} {material.unit}
+                        Current: {material.qtyOnHand || 0} {material.unit}
                       </div>
                       <div className="text-gray-500">
-                        Safety: {material.safetyStock || 0} {material.unit}
+                        Min Stock: {material.minStock || 0} {material.unit}
                       </div>
                       <div className="text-xs text-gray-400">
-                        Movement: {material.calculatedStock?.movementStock || 0} | 
-                        Purchase: {material.calculatedStock?.purchaseStock || 0}
+                        Supplier: {material.supplier || 'N/A'} |
+                        Location: {material.location || 'N/A'}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div>
                       <div className="font-medium">
-                        {material.purchaseHistory?.purchaseCount || 0} purchases
+                        Price: Rp {(material.pricePerUnit || 0).toLocaleString()}
                       </div>
                       <div className="text-gray-500">
-                        Total: {material.purchaseHistory?.totalPurchased || 0} {material.unit}
+                        Reorder: {material.reorderPoint || 0} / {material.reorderQty || 0}
                       </div>
-                      {material.purchaseHistory?.lastPurchaseDate && (
-                        <div className="text-xs text-gray-400">
-                          Last: {new Date(material.purchaseHistory.lastPurchaseDate).toLocaleDateString()}
-                        </div>
-                      )}
+                      <div className="text-xs text-gray-400">
+                        Value: Rp {((material.qtyOnHand || 0) * (material.pricePerUnit || 0)).toLocaleString()}
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -670,11 +673,10 @@ function MaterialsManagementPage() {
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 text-sm rounded-md ${
-                  page === currentPage
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                }`}
+                className={`px-3 py-2 text-sm rounded-md ${page === currentPage
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                  }`}
               >
                 {page}
               </button>
@@ -707,33 +709,9 @@ function MaterialsManagementPage() {
                     <input
                       type="text"
                       value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Material Code
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.code}
-                      onChange={(e) => setFormData({...formData, code: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category/Color
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.fabricTypeColor}
-                      onChange={(e) => setFormData({...formData, fabricTypeColor: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
@@ -743,16 +721,43 @@ function MaterialsManagementPage() {
                     </label>
                     <select
                       value={formData.unit}
-                      onChange={(e) => setFormData({...formData, unit: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
                     >
+                      <option value="pcs">Pieces</option>
                       <option value="meter">Meter</option>
                       <option value="yard">Yard</option>
                       <option value="roll">Roll</option>
-                      <option value="pcs">Pieces</option>
                       <option value="kg">Kilogram</option>
+                      <option value="liter">Liter</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Attribute Type
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.attributeType}
+                      onChange={(e) => setFormData({ ...formData, attributeType: e.target.value })}
+                      placeholder="e.g., Raw Materials, Components"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Attribute Value
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.attributeValue}
+                      onChange={(e) => setFormData({ ...formData, attributeValue: e.target.value })}
+                      placeholder="e.g., Steel, Plastic, Electronic"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
                   </div>
 
                   <div>
@@ -763,20 +768,59 @@ function MaterialsManagementPage() {
                       type="number"
                       step="0.01"
                       value={formData.qtyOnHand}
-                      onChange={(e) => setFormData({...formData, qtyOnHand: parseFloat(e.target.value) || 0})}
+                      onChange={(e) => setFormData({ ...formData, qtyOnHand: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Safety Stock
+                      Min Stock
                     </label>
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.safetyStock}
-                      onChange={(e) => setFormData({...formData, safetyStock: parseFloat(e.target.value) || 0})}
+                      value={formData.minStock}
+                      onChange={(e) => setFormData({ ...formData, minStock: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Stock
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.maxStock}
+                      onChange={(e) => setFormData({ ...formData, maxStock: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reorder Point
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.reorderPoint}
+                      onChange={(e) => setFormData({ ...formData, reorderPoint: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reorder Quantity
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.reorderQty}
+                      onChange={(e) => setFormData({ ...formData, reorderQty: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -788,35 +832,35 @@ function MaterialsManagementPage() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.price}
-                      onChange={(e) => setFormData({...formData, price: e.target.value})}
+                      value={formData.pricePerUnit}
+                      onChange={(e) => setFormData({ ...formData, pricePerUnit: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Store Location
+                      Supplier
                     </label>
                     <input
                       type="text"
-                      value={formData.store}
-                      onChange={(e) => setFormData({...formData, store: e.target.value})}
+                      value={formData.supplier}
+                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Image URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.image}
-                    onChange={(e) => setFormData({...formData, image: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -825,7 +869,7 @@ function MaterialsManagementPage() {
                   </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows="3"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -879,33 +923,9 @@ function MaterialsManagementPage() {
                     <input
                       type="text"
                       value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Material Code
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.code}
-                      onChange={(e) => setFormData({...formData, code: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category/Color
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.fabricTypeColor}
-                      onChange={(e) => setFormData({...formData, fabricTypeColor: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
@@ -915,16 +935,43 @@ function MaterialsManagementPage() {
                     </label>
                     <select
                       value={formData.unit}
-                      onChange={(e) => setFormData({...formData, unit: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
                     >
+                      <option value="pcs">Pieces</option>
                       <option value="meter">Meter</option>
                       <option value="yard">Yard</option>
                       <option value="roll">Roll</option>
-                      <option value="pcs">Pieces</option>
                       <option value="kg">Kilogram</option>
+                      <option value="liter">Liter</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Attribute Type
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.attributeType}
+                      onChange={(e) => setFormData({ ...formData, attributeType: e.target.value })}
+                      placeholder="e.g., Raw Materials, Components"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Attribute Value
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.attributeValue}
+                      onChange={(e) => setFormData({ ...formData, attributeValue: e.target.value })}
+                      placeholder="e.g., Steel, Plastic, Electronic"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
                   </div>
 
                   <div>
@@ -935,20 +982,59 @@ function MaterialsManagementPage() {
                       type="number"
                       step="0.01"
                       value={formData.qtyOnHand}
-                      onChange={(e) => setFormData({...formData, qtyOnHand: parseFloat(e.target.value) || 0})}
+                      onChange={(e) => setFormData({ ...formData, qtyOnHand: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Safety Stock
+                      Min Stock
                     </label>
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.safetyStock}
-                      onChange={(e) => setFormData({...formData, safetyStock: parseFloat(e.target.value) || 0})}
+                      value={formData.minStock}
+                      onChange={(e) => setFormData({ ...formData, minStock: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Stock
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.maxStock}
+                      onChange={(e) => setFormData({ ...formData, maxStock: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reorder Point
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.reorderPoint}
+                      onChange={(e) => setFormData({ ...formData, reorderPoint: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reorder Quantity
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.reorderQty}
+                      onChange={(e) => setFormData({ ...formData, reorderQty: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -960,35 +1046,35 @@ function MaterialsManagementPage() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.price}
-                      onChange={(e) => setFormData({...formData, price: e.target.value})}
+                      value={formData.pricePerUnit}
+                      onChange={(e) => setFormData({ ...formData, pricePerUnit: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Store Location
+                      Supplier
                     </label>
                     <input
                       type="text"
-                      value={formData.store}
-                      onChange={(e) => setFormData({...formData, store: e.target.value})}
+                      value={formData.supplier}
+                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Image URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.image}
-                    onChange={(e) => setFormData({...formData, image: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -997,7 +1083,7 @@ function MaterialsManagementPage() {
                   </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows="3"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -1046,29 +1132,41 @@ function MaterialsManagementPage() {
                 {/* Basic Info */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold border-b pb-2">Basic Information</h3>
-                  
+
                   <div className="space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Name</label>
-                      <p className="text-gray-900">{selectedMaterial.material?.name || selectedMaterial.name}</p>
+                      <p className="text-gray-900">{selectedMaterial.name}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Code</label>
-                      <p className="text-gray-900">{selectedMaterial.material?.code || selectedMaterial.code || 'N/A'}</p>
+                      <p className="text-gray-900">{selectedMaterial.code || 'Auto-generated'}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Category</label>
-                      <p className="text-gray-900">{selectedMaterial.material?.fabricTypeColor || selectedMaterial.fabricTypeColor || 'N/A'}</p>
+                      <label className="block text-sm font-medium text-gray-700">Attribute Type</label>
+                      <p className="text-gray-900">{selectedMaterial.attributeType || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Attribute Value</label>
+                      <p className="text-gray-900">{selectedMaterial.attributeValue || 'N/A'}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Unit</label>
-                      <p className="text-gray-900">{selectedMaterial.material?.unit || selectedMaterial.unit}</p>
+                      <p className="text-gray-900">{selectedMaterial.unit}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Price</label>
+                      <label className="block text-sm font-medium text-gray-700">Price per Unit</label>
                       <p className="text-gray-900">
-                        {(selectedMaterial.material?.price || selectedMaterial.price) ? `Rp ${(selectedMaterial.material?.price || selectedMaterial.price).toLocaleString()}` : 'N/A'}
+                        {selectedMaterial.pricePerUnit ? `Rp ${selectedMaterial.pricePerUnit.toLocaleString()}` : 'N/A'}
                       </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Supplier</label>
+                      <p className="text-gray-900">{selectedMaterial.supplier || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Location</label>
+                      <p className="text-gray-900">{selectedMaterial.location || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -1076,32 +1174,35 @@ function MaterialsManagementPage() {
                 {/* Stock Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold border-b pb-2">Stock Information</h3>
-                  
+
                   <div className="space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Stock Status</label>
-                      {getStockStatusBadge({ 
-                        stockStatus: selectedMaterial.stockStatus,
-                        calculatedStock: selectedMaterial.calculatedStock 
+                      {getStockStatusBadge({
+                        stockStatus: selectedMaterial.qtyOnHand <= selectedMaterial.minStock ? 'low' : 'adequate'
                       })}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Current Stock</label>
                       <p className="text-gray-900 font-semibold">
-                        {selectedMaterial.calculatedStock.totalCalculated} {selectedMaterial.material?.unit || selectedMaterial.unit}
+                        {selectedMaterial.qtyOnHand} {selectedMaterial.unit}
                       </p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Safety Stock</label>
-                      <p className="text-gray-900">{selectedMaterial.material?.safetyStock || selectedMaterial.safetyStock || 0} {selectedMaterial.material?.unit || selectedMaterial.unit}</p>
+                      <label className="block text-sm font-medium text-gray-700">Min Stock</label>
+                      <p className="text-gray-900">{selectedMaterial.minStock || 0} {selectedMaterial.unit}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Movement Stock</label>
-                      <p className="text-gray-900">{selectedMaterial.calculatedStock.movementStock} {selectedMaterial.material?.unit || selectedMaterial.unit}</p>
+                      <label className="block text-sm font-medium text-gray-700">Max Stock</label>
+                      <p className="text-gray-900">{selectedMaterial.maxStock || 0} {selectedMaterial.unit}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Purchase Stock</label>
-                      <p className="text-gray-900">{selectedMaterial.calculatedStock.purchaseStock} {selectedMaterial.material?.unit || selectedMaterial.unit}</p>
+                      <label className="block text-sm font-medium text-gray-700">Reorder Point</label>
+                      <p className="text-gray-900">{selectedMaterial.reorderPoint || 0} {selectedMaterial.unit}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Reorder Quantity</label>
+                      <p className="text-gray-900">{selectedMaterial.reorderQty || 0} {selectedMaterial.unit}</p>
                     </div>
                   </div>
                 </div>
@@ -1129,7 +1230,7 @@ function MaterialsManagementPage() {
                       </p>
                     </div>
                   </div>
-                  
+
                   {selectedMaterial.purchaseHistory.purchases.length > 0 && (
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
@@ -1154,11 +1255,10 @@ function MaterialsManagementPage() {
                                 {purchase.supplier || 'N/A'}
                               </td>
                               <td className="px-4 py-2 text-sm">
-                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                  purchase.status === 'diterima' ? 'bg-green-100 text-green-800' :
+                                <span className={`px-2 py-1 text-xs rounded-full ${purchase.status === 'diterima' ? 'bg-green-100 text-green-800' :
                                   purchase.status === 'dikirim' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-yellow-100 text-yellow-800'
-                                }`}>
+                                    'bg-yellow-100 text-yellow-800'
+                                  }`}>
                                   {purchase.status}
                                 </span>
                               </td>
@@ -1175,12 +1275,11 @@ function MaterialsManagementPage() {
               {selectedMaterial.restockRecommendation && (
                 <div className="mt-6">
                   <h3 className="text-lg font-semibold border-b pb-2 mb-4">Restock Recommendation</h3>
-                  <div className={`p-4 rounded-lg ${
-                    selectedMaterial.restockRecommendation.priority === 'critical' ? 'bg-red-50 border border-red-200' :
+                  <div className={`p-4 rounded-lg ${selectedMaterial.restockRecommendation.priority === 'critical' ? 'bg-red-50 border border-red-200' :
                     selectedMaterial.restockRecommendation.priority === 'high' ? 'bg-orange-50 border border-orange-200' :
-                    selectedMaterial.restockRecommendation.priority === 'medium' ? 'bg-yellow-50 border border-yellow-200' :
-                    'bg-green-50 border border-green-200'
-                  }`}>
+                      selectedMaterial.restockRecommendation.priority === 'medium' ? 'bg-yellow-50 border border-yellow-200' :
+                        'bg-green-50 border border-green-200'
+                    }`}>
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">
@@ -1195,12 +1294,11 @@ function MaterialsManagementPage() {
                           </p>
                         )}
                       </div>
-                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                        selectedMaterial.restockRecommendation.priority === 'critical' ? 'bg-red-100 text-red-800' :
+                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${selectedMaterial.restockRecommendation.priority === 'critical' ? 'bg-red-100 text-red-800' :
                         selectedMaterial.restockRecommendation.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                        selectedMaterial.restockRecommendation.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
+                          selectedMaterial.restockRecommendation.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                        }`}>
                         {selectedMaterial.restockRecommendation.priority.toUpperCase()}
                       </span>
                     </div>

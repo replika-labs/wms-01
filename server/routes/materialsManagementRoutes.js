@@ -15,8 +15,7 @@ const {
   getInventoryAnalytics,
   getStockMovements,
   updateStockLevel,
-  adjustStock,
-  validateMaterialType
+  adjustStock
 } = require('../controllers/materialsManagementController');
 
 // Authentication middleware will be applied when implementing
@@ -35,9 +34,6 @@ router.post('/import', importMaterials);
 
 // Analytics
 router.get('/analytics/inventory', getInventoryAnalytics);
-
-// Validation
-router.post('/validate/material-type', validateMaterialType);
 
 // Core CRUD operations (/:id routes must come after specific routes)
 router.get('/', getAllMaterials);
