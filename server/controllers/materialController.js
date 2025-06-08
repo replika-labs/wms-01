@@ -1,16 +1,26 @@
 const asyncHandler = require('express-async-handler');
-const { Material, FabricType } = require('../models');
-const { Op } = require('sequelize');
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient();
 
 // @desc    Get all materials
 // @route   GET /api/materials
 // @access  Private
 const getMaterials = asyncHandler(async (req, res) => {
     try {
-        const materials = await Material.findAll({
-            order: [['createdAt', 'DESC']]
+        const materials = await prisma.material.findMany({
+            include: {
+                materialType: {
+                    select: {
+                        id: true,
+                        name: true,
+                        category: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
         });
-        
+
         res.status(200).json(materials);
     } catch (error) {
         console.error('Error fetching materials:', error);
@@ -23,12 +33,23 @@ const getMaterials = asyncHandler(async (req, res) => {
 // @access  Private
 const getMaterialById = asyncHandler(async (req, res) => {
     try {
-        const material = await Material.findByPk(req.params.id);
-        
+        const material = await prisma.material.findUnique({
+            where: { id: parseInt(req.params.id) },
+            include: {
+                materialType: {
+                    select: {
+                        id: true,
+                        name: true,
+                        category: true
+                    }
+                }
+            }
+        });
+
         if (!material) {
             return res.status(404).json({ message: 'Material not found' });
         }
-        
+
         res.status(200).json(material);
     } catch (error) {
         console.error('Error fetching material:', error);
@@ -43,83 +64,72 @@ const createMaterial = asyncHandler(async (req, res) => {
     try {
         const {
             name,
-            fabricTypeColor,
-            purchaseDate,
-            numberOfRolls,
-            totalUnits,
-            unit,
-            store,
-            image,
-            price,
-            qtyOnHand,
-            safetyStock,
+            materialTypeId,
             description,
-            code // Optional manual code override
+            unit,
+            qtyOnHand,
+            pricePerUnit,
+            supplier,
+            minStock,
+            maxStock,
+            reorderPoint,
+            reorderQty,
+            location
         } = req.body;
-        
-        // Validation - only require new fields for new materials with enhanced structure
+
+        // Validation
         if (!name) {
-            return res.status(400).json({ 
-                message: 'Name is required' 
+            return res.status(400).json({
+                message: 'Name is required'
             });
         }
-        
-        // If any of the new fields are provided, require all of them
-        const hasNewFields = fabricTypeColor || purchaseDate || totalUnits || store;
-        if (hasNewFields && (!fabricTypeColor || !purchaseDate || !totalUnits || !store)) {
-            return res.status(400).json({ 
-                message: 'For enhanced materials, all fields are required: fabricTypeColor, purchaseDate, totalUnits, store' 
+
+        // Validate material type exists if provided
+        if (materialTypeId) {
+            const materialType = await prisma.materialType.findUnique({
+                where: { id: parseInt(materialTypeId) }
             });
-        }
-        
-        // Validate fabric type exists if provided
-        if (fabricTypeColor) {
-            const fabricCode = await FabricType.findByFabricName(fabricTypeColor);
-            if (!fabricCode) {
-                return res.status(400).json({ 
-                    message: `Fabric type "${fabricTypeColor}" not found. Please add it to fabric types first.` 
+            if (!materialType) {
+                return res.status(400).json({
+                    message: `Material type not found. Please select a valid material type.`
                 });
             }
         }
-        
-        // Check if manual code is unique
-        if (code) {
-            const existingMaterial = await Material.findOne({ where: { code } });
-            if (existingMaterial) {
-                return res.status(400).json({ 
-                    message: 'Material code already exists' 
-                });
-            }
-        }
-        
+
         const materialData = {
             name,
-            fabricTypeColor,
-            purchaseDate,
-            numberOfRolls: numberOfRolls || 1,
-            totalUnits,
+            materialTypeId: materialTypeId ? parseInt(materialTypeId) : null,
+            description,
             unit: unit || 'pcs',
-            store,
-            image,
-            price,
-            qtyOnHand: qtyOnHand !== undefined ? qtyOnHand : totalUnits, // Default to totalUnits
-            safetyStock: safetyStock || 0,
-            description
+            qtyOnHand: qtyOnHand !== undefined ? parseFloat(qtyOnHand) : 0,
+            pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : 0,
+            supplier,
+            minStock: minStock ? parseFloat(minStock) : 0,
+            maxStock: maxStock ? parseFloat(maxStock) : 0,
+            reorderPoint: reorderPoint ? parseFloat(reorderPoint) : 0,
+            reorderQty: reorderQty ? parseFloat(reorderQty) : 0,
+            location
         };
-        
-        // Add manual code if provided
-        if (code) {
-            materialData.code = code;
-        }
-        
-        const material = await Material.create(materialData);
-        
+
+        const material = await prisma.material.create({
+            data: materialData,
+            include: {
+                materialType: {
+                    select: {
+                        id: true,
+                        name: true,
+                        category: true
+                    }
+                }
+            }
+        });
+
         res.status(201).json(material);
     } catch (error) {
         console.error('Error creating material:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             message: 'Failed to create material',
-            error: error.message 
+            error: error.message
         });
     }
 });
@@ -129,74 +139,76 @@ const createMaterial = asyncHandler(async (req, res) => {
 // @access  Private
 const updateMaterial = asyncHandler(async (req, res) => {
     try {
-        const material = await Material.findByPk(req.params.id);
+        const materialId = parseInt(req.params.id);
+        const material = await prisma.material.findUnique({
+            where: { id: materialId }
+        });
+
         if (!material) {
             return res.status(404).json({ message: 'Material not found' });
         }
-        
+
         const {
             name,
-            fabricTypeColor,
-            purchaseDate,
-            numberOfRolls,
-            totalUnits,
-            unit,
-            store,
-            image,
-            price,
-            qtyOnHand,
-            safetyStock,
+            materialTypeId,
             description,
-            code
+            unit,
+            qtyOnHand,
+            pricePerUnit,
+            supplier,
+            minStock,
+            maxStock,
+            reorderPoint,
+            reorderQty,
+            location
         } = req.body;
-        
-        // Validate fabric type if changed
-        if (fabricTypeColor && fabricTypeColor !== material.fabricTypeColor) {
-            const fabricCode = await FabricType.findByFabricName(fabricTypeColor);
-            if (!fabricCode) {
-                return res.status(400).json({ 
-                    message: `Fabric type "${fabricTypeColor}" not found. Please add it to fabric types first.` 
-                });
-            }
-        }
-        
-        // Check if code is unique if being updated manually
-        if (code && code !== material.code) {
-            const existingMaterial = await Material.findOne({ 
-                where: { 
-                    code,
-                    id: { [Op.ne]: req.params.id }
-                } 
+
+        // Validate material type if changed
+        if (materialTypeId && parseInt(materialTypeId) !== material.materialTypeId) {
+            const materialType = await prisma.materialType.findUnique({
+                where: { id: parseInt(materialTypeId) }
             });
-            if (existingMaterial) {
-                return res.status(400).json({ 
-                    message: 'Material code already exists' 
+            if (!materialType) {
+                return res.status(400).json({
+                    message: `Material type not found. Please select a valid material type.`
                 });
             }
         }
-        
-        await material.update({
-            name: name !== undefined ? name : material.name,
-            fabricTypeColor: fabricTypeColor !== undefined ? fabricTypeColor : material.fabricTypeColor,
-            purchaseDate: purchaseDate !== undefined ? purchaseDate : material.purchaseDate,
-            numberOfRolls: numberOfRolls !== undefined ? numberOfRolls : material.numberOfRolls,
-            totalUnits: totalUnits !== undefined ? totalUnits : material.totalUnits,
-            unit: unit !== undefined ? unit : material.unit,
-            store: store !== undefined ? store : material.store,
-            image: image !== undefined ? image : material.image,
-            price: price !== undefined ? price : material.price,
-            qtyOnHand: qtyOnHand !== undefined ? qtyOnHand : material.qtyOnHand,
-            safetyStock: safetyStock !== undefined ? safetyStock : material.safetyStock,
-            description: description !== undefined ? description : material.description,
-            code: code !== undefined ? code : material.code
+
+        const updateData = {};
+        if (name !== undefined) updateData.name = name;
+        if (materialTypeId !== undefined) updateData.materialTypeId = materialTypeId ? parseInt(materialTypeId) : null;
+        if (description !== undefined) updateData.description = description;
+        if (unit !== undefined) updateData.unit = unit;
+        if (qtyOnHand !== undefined) updateData.qtyOnHand = parseFloat(qtyOnHand);
+        if (pricePerUnit !== undefined) updateData.pricePerUnit = pricePerUnit ? parseFloat(pricePerUnit) : 0;
+        if (supplier !== undefined) updateData.supplier = supplier;
+        if (minStock !== undefined) updateData.minStock = parseFloat(minStock);
+        if (maxStock !== undefined) updateData.maxStock = parseFloat(maxStock);
+        if (reorderPoint !== undefined) updateData.reorderPoint = parseFloat(reorderPoint);
+        if (reorderQty !== undefined) updateData.reorderQty = parseFloat(reorderQty);
+        if (location !== undefined) updateData.location = location;
+
+        const updatedMaterial = await prisma.material.update({
+            where: { id: materialId },
+            data: updateData,
+            include: {
+                materialType: {
+                    select: {
+                        id: true,
+                        name: true,
+                        category: true
+                    }
+                }
+            }
         });
-        
-        res.status(200).json(material);
+
+        res.status(200).json(updatedMaterial);
     } catch (error) {
         console.error('Error updating material:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             message: 'Failed to update material',
-            error: error.message 
+            error: error.message
         });
     }
 });
@@ -206,13 +218,19 @@ const updateMaterial = asyncHandler(async (req, res) => {
 // @access  Private
 const deleteMaterial = asyncHandler(async (req, res) => {
     try {
-        const material = await Material.findByPk(req.params.id);
+        const materialId = parseInt(req.params.id);
+        const material = await prisma.material.findUnique({
+            where: { id: materialId }
+        });
+
         if (!material) {
             return res.status(404).json({ message: 'Material not found' });
         }
-        
-        await material.destroy();
-        
+
+        await prisma.material.delete({
+            where: { id: materialId }
+        });
+
         res.status(200).json({ message: 'Material deleted successfully' });
     } catch (error) {
         console.error('Error deleting material:', error);
@@ -226,24 +244,43 @@ const deleteMaterial = asyncHandler(async (req, res) => {
 const updateMaterialStock = asyncHandler(async (req, res) => {
     try {
         const { quantity, operation = 'add' } = req.body;
-        
+
         if (quantity === undefined || quantity === null) {
             return res.status(400).json({ message: 'Quantity is required' });
         }
-        
-        const material = await Material.findByPk(req.params.id);
+
+        const materialId = parseInt(req.params.id);
+        const material = await prisma.material.findUnique({
+            where: { id: materialId }
+        });
+
         if (!material) {
             return res.status(404).json({ message: 'Material not found' });
         }
-        
-        const newStock = material.updateStock(quantity, operation);
-        await material.save();
-        
+
+        const quantityNum = parseFloat(quantity);
+        let newStock;
+
+        if (operation === 'add') {
+            newStock = (material.qtyOnHand || 0) + quantityNum;
+        } else if (operation === 'subtract') {
+            newStock = (material.qtyOnHand || 0) - quantityNum;
+        } else {
+            newStock = quantityNum; // Set operation
+        }
+
+        // Ensure stock doesn't go below 0
+        newStock = Math.max(0, newStock);
+
+        const updatedMaterial = await prisma.material.update({
+            where: { id: materialId },
+            data: { qtyOnHand: newStock }
+        });
+
         res.status(200).json({
             message: 'Stock updated successfully',
-            material,
-            previousStock: operation === 'add' ? newStock - quantity : 
-                          operation === 'subtract' ? newStock + quantity : material.qtyOnHand,
+            material: updatedMaterial,
+            previousStock: material.qtyOnHand,
             newStock: newStock
         });
     } catch (error) {
@@ -257,19 +294,39 @@ const updateMaterialStock = asyncHandler(async (req, res) => {
 // @access  Private
 const getLowStockMaterials = asyncHandler(async (req, res) => {
     try {
-        const materials = await Material.findAll({
+        const materials = await prisma.material.findMany({
             where: {
                 qtyOnHand: {
-                    [Op.lte]: sequelize.col('safetyStock')
+                    lte: prisma.material.fields.minStock
                 }
             },
-            order: [['qtyOnHand', 'ASC']]
+            include: {
+                materialType: {
+                    select: {
+                        id: true,
+                        name: true,
+                        category: true
+                    }
+                }
+            },
+            orderBy: { qtyOnHand: 'asc' }
         });
-        
+
         res.status(200).json(materials);
     } catch (error) {
         console.error('Error fetching low stock materials:', error);
-        res.status(500).json({ message: 'Failed to fetch low stock materials' });
+        // Fallback: get materials where qtyOnHand <= minStock using raw query approach
+        try {
+            const materials = await prisma.$queryRaw`
+                SELECT * FROM "materials" 
+                WHERE "qtyOnHand" <= "minStock" 
+                ORDER BY "qtyOnHand" ASC
+            `;
+            res.status(200).json(materials);
+        } catch (fallbackError) {
+            console.error('Fallback query also failed:', fallbackError);
+            res.status(500).json({ message: 'Failed to fetch low stock materials' });
+        }
     }
 });
 
@@ -278,26 +335,38 @@ const getLowStockMaterials = asyncHandler(async (req, res) => {
 // @access  Private
 const regenerateMaterialCode = asyncHandler(async (req, res) => {
     try {
-        const material = await Material.findByPk(req.params.id);
+        const materialId = parseInt(req.params.id);
+        const material = await prisma.material.findUnique({
+            where: { id: materialId }
+        });
+
         if (!material) {
             return res.status(404).json({ message: 'Material not found' });
         }
-        
+
         const oldCode = material.code;
-        const newCode = await material.regenerateCode();
-        await material.save();
-        
+
+        // Generate new code based on material properties
+        const timestamp = Date.now().toString().slice(-6);
+        const namePrefix = material.name ? material.name.substring(0, 3).toUpperCase() : 'MAT';
+        const newCode = `${namePrefix}-${timestamp}`;
+
+        const updatedMaterial = await prisma.material.update({
+            where: { id: materialId },
+            data: { code: newCode }
+        });
+
         res.status(200).json({
             message: 'Code regenerated successfully',
             oldCode,
             newCode,
-            material
+            material: updatedMaterial
         });
     } catch (error) {
         console.error('Error regenerating material code:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             message: 'Failed to regenerate code',
-            error: error.message 
+            error: error.message
         });
     }
 });

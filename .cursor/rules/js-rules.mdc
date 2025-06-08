@@ -107,7 +107,7 @@ alwaysApply: true
   - Use controlled components for form inputs.
   - Implement form validation (client-side and server-side).
   - Consider using libraries like react-hook-form for complex forms.
-  - Use Zod or Joi for schema validation.
+  - Use Zod for schema validation.
 
   Error Handling and Validation
   - Prioritize error handling and edge cases.

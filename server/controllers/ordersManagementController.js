@@ -1,176 +1,166 @@
 const asyncHandler = require('express-async-handler');
-const { Order, OrderProduct, Product, User, Contact } = require('../models');
-const { Op } = require('sequelize');
-const MaterialStockChecker = require('../services/MaterialStockChecker');
+const { PrismaClient } = require('@prisma/client');
+// const MaterialStockChecker = require('../services/MaterialStockChecker'); // Commented out until service is updated
 
-// Cache for tailors (1 hour cache)
-let tailorsCache = null;
-let tailorsCacheExpiry = null;
+const prisma = new PrismaClient();
+
+// Cache for workers (1 hour cache)
+let workersCache = null;
+let workersCacheExpiry = null;
 
 /**
  * Optimized orders list for management interface
  * Returns minimal data with server-side filtering and pagination
  */
 const getOrdersList = asyncHandler(async (req, res) => {
-  const {
-    page = 1,
-    limit = 10,
-    status,
-    priority,
-    search,
-    startDate,
-    endDate,
-    sortBy = 'createdAt',
-    sortOrder = 'DESC'
-  } = req.query;
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      priority,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
 
-  // Build where clause
-  const where = { isActive: true };
-  
-  if (status) where.status = status;
-  if (priority) where.priority = priority;
-  
-  if (search) {
-    where[Op.or] = [
-      { orderNumber: { [Op.like]: `%${search}%` } },
-      { customerNote: { [Op.like]: `%${search}%` } },
-      { description: { [Op.like]: `%${search}%` } }
-    ];
-  }
+    // Build where clause
+    const where = { isActive: true };
 
-  if (startDate || endDate) {
-    where.dueDate = {};
-    if (startDate) where.dueDate[Op.gte] = new Date(startDate);
-    if (endDate) where.dueDate[Op.lte] = new Date(endDate);
-  }
-
-  // Calculate offset
-  const offset = (parseInt(page) - 1) * parseInt(limit);
-
-  // Get orders with optimized data structure
-  const { count, rows: orders } = await Order.findAndCountAll({
-    where,
-    include: [
-      {
-        model: User,
-        as: 'Tailor',
-        attributes: ['id', 'name', 'whatsappPhone'],
-        required: false
-      },
-      {
-        model: Contact,
-        as: 'TailorContact',
-        attributes: ['id', 'name', 'whatsappPhone', 'email', 'company', 'position'],
-        required: false
-      },
-      {
-        model: Product,
-        through: OrderProduct,
-        attributes: ['id', 'name']
-      }
-    ],
-    attributes: [
-      'id', 'orderNumber', 'status', 'priority', 'dueDate',
-      'targetPcs', 'completedPcs', 'createdAt', 'updatedAt',
-      'customerNote', 'description'
-    ],
-    order: [[sortBy, sortOrder.toUpperCase()]],
-    limit: parseInt(limit),
-    offset,
-    distinct: true // Important for count with includes
-  });
-
-  // Transform data for frontend
-  const transformedOrders = orders.map(order => ({
-    id: order.id,
-    orderNumber: order.orderNumber,
-    status: order.status,
-    priority: order.priority,
-    dueDate: order.dueDate,
-    productCount: order.Products?.length || 0,
-    targetPcs: order.targetPcs,
-    completedPcs: order.completedPcs,
-    tailor: order.TailorContact ? {
-      id: order.TailorContact.id,
-      name: order.TailorContact.name,
-      whatsappPhone: order.TailorContact.whatsappPhone,
-      email: order.TailorContact.email,
-      company: order.TailorContact.company,
-      position: order.TailorContact.position
-    } : (order.Tailor ? {
-      id: order.Tailor.id,
-      name: order.Tailor.name,
-      whatsappPhone: order.Tailor.whatsappPhone
-    } : null),
-    createdAt: order.createdAt,
-    updatedAt: order.updatedAt,
-    customerNote: order.customerNote,
-    description: order.description
-  }));
-
-  // Get filter counts for UI
-  const statusCounts = await Order.findAll({
-    where: { isActive: true },
-    attributes: ['status', [Order.sequelize.fn('COUNT', Order.sequelize.col('id')), 'count']],
-    group: ['status'],
-    raw: true
-  });
-
-  const priorityCounts = await Order.findAll({
-    where: { isActive: true },
-    attributes: ['priority', [Order.sequelize.fn('COUNT', Order.sequelize.col('id')), 'count']],
-    group: ['priority'],
-    raw: true
-  });
-
-  res.json({
-    orders: transformedOrders,
-    pagination: {
-      total: count,
-      pages: Math.ceil(count / parseInt(limit)),
-      current: parseInt(page),
-      limit: parseInt(limit)
-    },
-    filters: {
-      statusCounts: statusCounts.reduce((acc, item) => {
-        acc[item.status] = parseInt(item.count);
-        return acc;
-      }, {}),
-      priorityCounts: priorityCounts.reduce((acc, item) => {
-        acc[item.priority] = parseInt(item.count);
-        return acc;
-      }, {})
+    if (status && status !== 'all') {
+      where.status = status;
     }
-  });
+
+    if (priority && priority !== 'all') {
+      where.priority = priority;
+    }
+
+    if (search) {
+      where.OR = [
+        { code: { contains: search, mode: 'insensitive' } },
+        { customerNote: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get orders with pagination
+    const [orders, totalCount] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        select: {
+          id: true,
+          code: true,
+          status: true,
+          priority: true,
+          dueDate: true,
+          targetPcs: true,
+          completedPcs: true,
+          createdAt: true,
+          workerContact: {
+            select: {
+              id: true,
+              name: true,
+              phone: true
+            }
+          }
+        },
+        orderBy: { [sortBy]: sortOrder },
+        take: parseInt(limit),
+        skip: offset
+      }),
+      prisma.order.count({ where })
+    ]);
+
+    // Get filter counts
+    const [statusCounts, priorityCounts] = await Promise.all([
+      prisma.order.groupBy({
+        by: ['status'],
+        where: { isActive: true },
+        _count: { _all: true }
+      }),
+      prisma.order.groupBy({
+        by: ['priority'],
+        where: { isActive: true },
+        _count: { _all: true }
+      })
+    ]);
+
+    const formattedStatusCounts = statusCounts.reduce((acc, item) => {
+      acc[item.status] = item._count._all;
+      return acc;
+    }, {});
+
+    const formattedPriorityCounts = priorityCounts.reduce((acc, item) => {
+      acc[item.priority] = item._count._all;
+      return acc;
+    }, {});
+
+    res.json({
+      orders,
+      pagination: {
+        total: totalCount,
+        pages: Math.ceil(totalCount / parseInt(limit)),
+        current: parseInt(page),
+        limit: parseInt(limit)
+      },
+      filters: {
+        statusCounts: formattedStatusCounts,
+        priorityCounts: formattedPriorityCounts
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching orders list:', error);
+    res.status(500).json({
+      message: 'Failed to fetch orders list',
+      error: error.message
+    });
+  }
 });
 
 /**
- * Get cached tailors list from contacts table
+ * Get cached workers list from contacts table
  * Cached for 1 hour to reduce database calls
  */
-const getTailors = asyncHandler(async (req, res) => {
-  const now = new Date();
-  
-  // Check if cache is valid
-  if (tailorsCache && tailorsCacheExpiry && now < tailorsCacheExpiry) {
-    return res.json(tailorsCache);
+const getWorkers = asyncHandler(async (req, res) => {
+  try {
+    // Check cache
+    const now = Date.now();
+    if (workersCache && workersCacheExpiry && now < workersCacheExpiry) {
+      return res.json(workersCache);
+    }
+
+    // Fetch fresh data
+    const workers = await prisma.contact.findMany({
+      where: {
+        contactType: 'WORKER',
+        isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        whatsappPhone: true,
+        company: true,
+        notes: true
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    // Cache for 1 hour
+    workersCache = workers;
+    workersCacheExpiry = now + (60 * 60 * 1000);
+
+    res.json(workers);
+  } catch (error) {
+    console.error('Error fetching workers:', error);
+    res.status(500).json({
+      message: 'Failed to fetch workers',
+      error: error.message
+    });
   }
-
-  // Fetch fresh data from contacts table where type = 'tailor'
-  const tailors = await Contact.findAll({
-    where: { 
-      type: 'tailor',
-      isActive: true 
-    },
-    attributes: ['id', 'name', 'whatsappPhone', 'email', 'phone', 'company', 'position'],
-    order: [['name', 'ASC']]
-  });
-
-  // Update cache
-  tailorsCache = tailors;
-  tailorsCacheExpiry = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour
-
-  res.json(tailors);
 });
 
 /**
@@ -178,40 +168,60 @@ const getTailors = asyncHandler(async (req, res) => {
  * Returns complete order information
  */
 const getOrderDetails = asyncHandler(async (req, res) => {
-  const order = await Order.findOne({
-    where: {
-      id: req.params.id,
-      isActive: true
-    },
-    include: [
-      {
-        model: User,
-        attributes: ['id', 'name', 'email']
+  try {
+    const order = await prisma.order.findFirst({
+      where: {
+        id: parseInt(req.params.id),
+        isActive: true
       },
-      {
-        model: User,
-        as: 'Tailor',
-        attributes: ['id', 'name', 'email', 'phone', 'whatsappPhone']
-      },
-      {
-        model: Contact,
-        as: 'TailorContact',
-        attributes: ['id', 'name', 'email', 'phone', 'whatsappPhone', 'company', 'position']
-      },
-      {
-        model: Product,
-        through: OrderProduct,
-        attributes: ['id', 'name', 'code', 'unit', 'price', 'category']
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        workerContact: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            whatsappPhone: true,
+            company: true,
+            notes: true
+          }
+        },
+        orderProducts: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                unit: true,
+                price: true,
+                category: true
+              }
+            }
+          }
+        }
       }
-    ]
-  });
+    });
 
-  if (!order) {
-    res.status(404);
-    throw new Error('Order not found');
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.json(order);
+  } catch (error) {
+    console.error('Error fetching order details:', error);
+    res.status(500).json({
+      message: 'Failed to fetch order details',
+      error: error.message
+    });
   }
-
-  res.json(order);
 });
 
 /**
@@ -219,104 +229,133 @@ const getOrderDetails = asyncHandler(async (req, res) => {
  * Updates only status field with optimistic response
  */
 const updateOrderStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body;
-  const { id } = req.params;
+  try {
+    const { status } = req.body;
+    const { id } = req.params;
 
-  const validStatuses = ['created', 'confirmed', 'processing', 'completed', 'shipped', 'delivered', 'cancelled', 'need material'];
-  if (!validStatuses.includes(status)) {
-    return res.status(400).json({ message: 'Invalid status' });
-  }
-
-  const order = await Order.findOne({
-    where: {
-      id,
-      isActive: true
+    const validStatuses = ['created', 'confirmed', 'processing', 'completed', 'shipped', 'delivered', 'cancelled', 'need material'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
     }
-  });
 
-  if (!order) {
-    return res.status(404).json({ message: 'Order not found' });
-  }
-
-  // Update status
-  await order.update({ status });
-
-  // Return minimal response for optimistic UI
-  res.json({
-    success: true,
-    order: {
-      id: order.id,
-      status: order.status,
-      updatedAt: order.updatedAt
-    }
-  });
-});
-
-/**
- * Optimized tailor assignment update
- * Updates only tailorContactId field with optimistic response
- */
-const updateOrderTailor = asyncHandler(async (req, res) => {
-  const { tailorContactId } = req.body;
-  const { id } = req.params;
-
-  const order = await Order.findOne({
-    where: {
-      id,
-      isActive: true
-    }
-  });
-
-  if (!order) {
-    return res.status(404).json({ message: 'Order not found' });
-  }
-
-  // Validate tailor exists if provided
-  if (tailorContactId) {
-    const tailor = await Contact.findOne({
+    const order = await prisma.order.findFirst({
       where: {
-        id: tailorContactId,
-        type: 'tailor',
+        id: parseInt(id),
         isActive: true
       }
     });
 
-    if (!tailor) {
-      return res.status(400).json({ message: 'Invalid tailor' });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
     }
-  }
 
-  // Update tailor assignment
-  await order.update({ tailorContactId: tailorContactId || null });
-
-  // Get updated tailor info for response
-  let tailorInfo = null;
-  if (tailorContactId) {
-    const tailor = await Contact.findByPk(tailorContactId, {
-      attributes: ['id', 'name', 'whatsappPhone', 'email', 'phone', 'company']
+    // Update status
+    const updatedOrder = await prisma.order.update({
+      where: { id: parseInt(id) },
+      data: { status }
     });
-    tailorInfo = tailor;
-  }
 
-  // Return minimal response for optimistic UI
-  res.json({
-    success: true,
-    order: {
-      id: order.id,
-      tailorContactId: order.tailorContactId,
-      TailorContact: tailorInfo,
-      updatedAt: order.updatedAt
-    }
-  });
+    // Return minimal response for optimistic UI
+    res.json({
+      success: true,
+      order: {
+        id: updatedOrder.id,
+        status: updatedOrder.status,
+        updatedAt: updatedOrder.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({
+      message: 'Failed to update order status',
+      error: error.message
+    });
+  }
 });
 
 /**
- * Clear tailors cache (for cache invalidation)
+ * Optimized worker assignment update
+ * Updates only workerContactId field with optimistic response
  */
-const clearTailorsCache = asyncHandler(async (req, res) => {
-  tailorsCache = null;
-  tailorsCacheExpiry = null;
-  res.json({ success: true, message: 'Tailors cache cleared' });
+const updateOrderWorker = asyncHandler(async (req, res) => {
+  try {
+    const { workerContactId } = req.body;
+    const { id } = req.params;
+
+    const order = await prisma.order.findFirst({
+      where: {
+        id: parseInt(id),
+        isActive: true
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Validate worker exists if provided
+    if (workerContactId) {
+      const worker = await prisma.contact.findFirst({
+        where: {
+          id: parseInt(workerContactId),
+          contactType: 'WORKER',
+          isActive: true
+        }
+      });
+
+      if (!worker) {
+        return res.status(400).json({ message: 'Invalid worker' });
+      }
+    }
+
+    // Update worker assignment
+    const updatedOrder = await prisma.order.update({
+      where: { id: parseInt(id) },
+      data: { workerContactId: workerContactId ? parseInt(workerContactId) : null }
+    });
+
+    // Get updated worker info for response
+    let workerInfo = null;
+    if (workerContactId) {
+      workerInfo = await prisma.contact.findUnique({
+        where: { id: parseInt(workerContactId) },
+        select: {
+          id: true,
+          name: true,
+          whatsappPhone: true,
+          email: true,
+          phone: true,
+          company: true
+        }
+      });
+    }
+
+    // Return minimal response for optimistic UI
+    res.json({
+      success: true,
+      order: {
+        id: updatedOrder.id,
+        workerContactId: updatedOrder.workerContactId,
+        WorkerContact: workerInfo,
+        updatedAt: updatedOrder.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error updating order worker:', error);
+    res.status(500).json({
+      message: 'Failed to update order worker',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Clear workers cache (for cache invalidation)
+ */
+const clearWorkersCache = asyncHandler(async (req, res) => {
+  workersCache = null;
+  workersCacheExpiry = null;
+  res.json({ success: true, message: 'Workers cache cleared' });
 });
 
 /**
@@ -324,294 +363,259 @@ const clearTailorsCache = asyncHandler(async (req, res) => {
  * Dedicated endpoint for orders-management with enhanced validation
  */
 const createOrder = asyncHandler(async (req, res) => {
-  const {
-    customerNote,
-    dueDate,
-    description,
-    priority = 'medium',
-    status = 'created',
-    tailorContactId,
-    products = []
-  } = req.body;
+  try {
+    const {
+      customerNote,
+      dueDate,
+      description,
+      priority = 'medium',
+      status = 'created',
+      workerContactId,
+      products = []
+    } = req.body;
 
-  // Validation
-  if (!dueDate) {
-    return res.status(400).json({ message: 'Due date is required' });
-  }
+    // Validation
+    if (!dueDate) {
+      return res.status(400).json({ message: 'Due date is required' });
+    }
 
-  if (!products || products.length === 0) {
-    return res.status(400).json({ message: 'At least one product is required' });
-  }
+    if (!products || products.length === 0) {
+      return res.status(400).json({ message: 'At least one product is required' });
+    }
 
-  // Validate tailor if provided
-  if (tailorContactId) {
-    const tailor = await Contact.findOne({
-      where: {
-        id: tailorContactId,
-        type: 'tailor',
+    // Validate worker if provided
+    if (workerContactId) {
+      const worker = await prisma.contact.findFirst({
+        where: {
+          id: parseInt(workerContactId),
+          contactType: 'WORKER',
+          isActive: true
+        }
+      });
+
+      if (!worker) {
+        return res.status(400).json({ message: 'Invalid worker selected' });
+      }
+    }
+
+    // Validate products exist
+    const productIds = products.map(p => parseInt(p.productId));
+    const existingProducts = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, name: true, code: true }
+    });
+
+    if (existingProducts.length !== productIds.length) {
+      return res.status(400).json({ message: 'One or more products are invalid' });
+    }
+
+    // Generate order code
+    const orderCount = await prisma.order.count();
+    const orderCode = `ORD-${String(orderCount + 1).padStart(6, '0')}`;
+
+    // Calculate total target pieces
+    const targetPcs = products.reduce((sum, p) => sum + parseInt(p.quantity || 0), 0);
+
+    // Create order
+    const order = await prisma.order.create({
+      data: {
+        code: orderCode,
+        customerNote,
+        dueDate: new Date(dueDate),
+        description,
+        priority,
+        status,
+        targetPcs,
+        completedPcs: 0,
+        workerContactId: workerContactId ? parseInt(workerContactId) : null,
+        userId: req.user.id,
         isActive: true
       }
     });
 
-    if (!tailor) {
-      return res.status(400).json({ message: 'Invalid tailor selected' });
-    }
-  }
-
-  // Validate products exist
-  const productIds = products.map(p => p.productId);
-  const existingProducts = await Product.findAll({
-    where: { id: productIds, isActive: true }
-  });
-
-  if (existingProducts.length !== productIds.length) {
-    return res.status(400).json({ message: 'One or more products not found' });
-  }
-
-  try {
-    // Generate order number
-    const orderCount = await Order.count();
-    const orderNumber = `ORD-${String(orderCount + 1).padStart(6, '0')}`;
-
-    // Calculate total quantity
-    const targetPcs = products.reduce((total, p) => total + p.quantity, 0);
-
-    // Create order
-    const order = await Order.create({
-      orderNumber,
-      customerNote: customerNote || null,
-      dueDate,
-      description: description || null,
-      priority,
-      status,
-      tailorContactId: tailorContactId || null,
-      targetPcs,
-      completedPcs: 0,
-      userId: req.user.id,
-      isActive: true
-    });
-
-    // Create order-product relationships
+    // Create order products
     const orderProducts = products.map(p => ({
       orderId: order.id,
-      productId: p.productId,
-      qty: p.quantity
+      productId: parseInt(p.productId),
+      quantity: parseInt(p.quantity),
+      unitPrice: parseFloat(p.unitPrice || 0),
+      notes: p.notes || null
     }));
 
-    await OrderProduct.bulkCreate(orderProducts);
-
-    // Perform material stock checking with newly created order ID
-    const materialStockChecker = new MaterialStockChecker();
-    const stockResults = await materialStockChecker.checkOrderStock(
-      products,
-      order.id,
-      req.user.id
-    );
-
-    // Get complete order with relationships for response
-    const completeOrder = await Order.findByPk(order.id, {
-      include: [
-        {
-          model: User,
-          as: 'Tailor',
-          attributes: ['id', 'name', 'whatsappPhone']
-        },
-        {
-          model: Contact,
-          as: 'TailorContact',
-          attributes: ['id', 'name', 'whatsappPhone', 'email', 'company', 'position']
-        },
-        {
-          model: Product,
-          through: OrderProduct,
-          attributes: ['id', 'name', 'code', 'unit']
-        }
-      ]
+    await prisma.orderProduct.createMany({
+      data: orderProducts
     });
 
-    // Invalidate tailors cache if needed
-    if (tailorContactId) {
-      tailorsCache = null;
-      tailorsCacheExpiry = null;
-    }
+    // Get complete order with relations
+    const completeOrder = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true }
+        },
+        tailorContact: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            whatsappPhone: true
+          }
+        },
+        orderProducts: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                unit: true,
+                price: true
+              }
+            }
+          }
+        }
+      }
+    });
 
     res.status(201).json({
       success: true,
       message: 'Order created successfully',
-      order: completeOrder,
-      stockResults: {
-        alerts: stockResults.alerts,
-        warnings: stockResults.warnings,
-        hasStockIssues: stockResults.warnings.length > 0 || stockResults.alerts.length > 0
-      }
+      order: completeOrder
     });
-
   } catch (error) {
     console.error('Error creating order:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Failed to create order',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      error: error.message
     });
   }
 });
 
 /**
- * Update existing order with optimized validation and tailor handling
- * Dedicated endpoint for orders-management with enhanced features
+ * Update existing order
  */
 const updateOrder = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const {
-    customerNote,
-    dueDate,
-    description,
-    priority,
-    status,
-    tailorContactId,
-    products = []
-  } = req.body;
+  try {
+    const orderId = parseInt(req.params.id);
+    const {
+      customerNote,
+      dueDate,
+      description,
+      priority,
+      status,
+      tailorContactId,
+      products = []
+    } = req.body;
 
-  // Find existing order
-  const order = await Order.findOne({
-    where: {
-      id,
-      isActive: true
-    }
-  });
-
-  if (!order) {
-    return res.status(404).json({ message: 'Order not found' });
-  }
-
-  // Validation
-  if (dueDate && !dueDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    return res.status(400).json({ message: 'Invalid due date format' });
-  }
-
-  if (products && products.length === 0) {
-    return res.status(400).json({ message: 'At least one product is required' });
-  }
-
-  // Validate tailor if provided
-  if (tailorContactId) {
-    const tailor = await Contact.findOne({
+    const order = await prisma.order.findFirst({
       where: {
-        id: tailorContactId,
-        type: 'tailor',
+        id: orderId,
         isActive: true
       }
     });
 
-    if (!tailor) {
-      return res.status(400).json({ message: 'Invalid tailor selected' });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
     }
-  }
 
-  // Validate products if provided
-  if (products && products.length > 0) {
-    const productIds = products.map(p => p.productId);
-    const existingProducts = await Product.findAll({
-      where: { id: productIds, isActive: true }
-    });
+    // Validate tailor if provided
+    if (tailorContactId) {
+      const tailor = await prisma.contact.findFirst({
+        where: {
+          id: parseInt(tailorContactId),
+          type: 'tailor',
+          isActive: true
+        }
+      });
 
-    if (existingProducts.length !== productIds.length) {
-      return res.status(400).json({ message: 'One or more products not found' });
+      if (!tailor) {
+        return res.status(400).json({ message: 'Invalid tailor selected' });
+      }
     }
-  }
 
-  try {
-    // Calculate new target quantity if products changed
+    // Validate products if provided
+    if (products.length > 0) {
+      const productIds = products.map(p => parseInt(p.productId));
+      const existingProducts = await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true }
+      });
+
+      if (existingProducts.length !== productIds.length) {
+        return res.status(400).json({ message: 'One or more products are invalid' });
+      }
+    }
+
+    // Calculate target pieces if products updated
     let targetPcs = order.targetPcs;
-    if (products && products.length > 0) {
-      targetPcs = products.reduce((total, p) => total + p.quantity, 0);
+    if (products.length > 0) {
+      targetPcs = products.reduce((sum, p) => sum + parseInt(p.quantity || 0), 0);
     }
 
     // Update order
-    await order.update({
-      customerNote: customerNote !== undefined ? customerNote : order.customerNote,
-      dueDate: dueDate || order.dueDate,
-      description: description !== undefined ? description : order.description,
-      priority: priority || order.priority,
-      status: status || order.status,
-      tailorContactId: tailorContactId !== undefined ? (tailorContactId || null) : order.tailorContactId,
-      targetPcs,
-      updatedAt: new Date()
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        customerNote: customerNote !== undefined ? customerNote : order.customerNote,
+        dueDate: dueDate ? new Date(dueDate) : order.dueDate,
+        description: description !== undefined ? description : order.description,
+        priority: priority || order.priority,
+        status: status || order.status,
+        tailorContactId: tailorContactId !== undefined ? (tailorContactId ? parseInt(tailorContactId) : null) : order.tailorContactId,
+        targetPcs
+      }
     });
 
     // Update products if provided
-    if (products && products.length > 0) {
-      // Remove existing product relationships
-      await OrderProduct.destroy({ where: { orderId: order.id } });
+    if (products.length > 0) {
+      // Delete existing order products
+      await prisma.orderProduct.deleteMany({ where: { orderId } });
 
-      // Create new relationships
+      // Create new order products
       const orderProducts = products.map(p => ({
-        orderId: order.id,
-        productId: p.productId,
-        qty: p.quantity
+        orderId,
+        productId: parseInt(p.productId),
+        quantity: parseInt(p.quantity),
+        unitPrice: parseFloat(p.unitPrice || 0),
+        notes: p.notes || null
       }));
 
-      await OrderProduct.bulkCreate(orderProducts);
-
-      // Perform material stock checking for updated products
-      const materialStockChecker = new MaterialStockChecker();
-      const stockResults = await materialStockChecker.checkOrderStock(
-        products,
-        order.id,
-        req.user.id
-      );
-
-      // Include stock results in response
-      const completeOrder = await Order.findByPk(order.id, {
-        include: [
-          {
-            model: User,
-            as: 'Tailor',
-            attributes: ['id', 'name', 'whatsappPhone']
-          },
-          {
-            model: Contact,
-            as: 'TailorContact',
-            attributes: ['id', 'name', 'whatsappPhone', 'email', 'company', 'position']
-          },
-          {
-            model: Product,
-            through: OrderProduct,
-            attributes: ['id', 'name', 'code', 'unit']
-          }
-        ]
-      });
-
-      return res.json({
-        success: true,
-        message: 'Order updated successfully',
-        order: completeOrder,
-        stockResults: {
-          alerts: stockResults.alerts,
-          warnings: stockResults.warnings,
-          hasStockIssues: stockResults.warnings.length > 0 || stockResults.alerts.length > 0
-        }
+      await prisma.orderProduct.createMany({
+        data: orderProducts
       });
     }
 
-    // Get updated order with relationships
-    const completeOrder = await Order.findByPk(order.id, {
-      include: [
-        {
-          model: User,
-          as: 'Tailor',
-          attributes: ['id', 'name', 'whatsappPhone']
+    // Get complete updated order
+    const completeOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true }
         },
-        {
-          model: Contact,
-          as: 'TailorContact',
-          attributes: ['id', 'name', 'whatsappPhone', 'email', 'company', 'position']
+        tailorContact: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            whatsappPhone: true
+          }
         },
-        {
-          model: Product,
-          through: OrderProduct,
-          attributes: ['id', 'name', 'code', 'unit']
+        orderProducts: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                unit: true,
+                price: true
+              }
+            }
+          }
         }
-      ]
+      }
     });
 
     res.json({
@@ -619,77 +623,68 @@ const updateOrder = asyncHandler(async (req, res) => {
       message: 'Order updated successfully',
       order: completeOrder
     });
-
   } catch (error) {
     console.error('Error updating order:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Failed to update order',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      error: error.message
     });
   }
 });
 
 /**
- * Delete order with proper cleanup and safety checks
- * Soft delete to maintain data integrity
+ * Delete order (soft delete)
  */
 const deleteOrder = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  // Find existing order
-  const order = await Order.findOne({
-    where: {
-      id,
-      isActive: true
-    },
-    include: [
-      {
-        model: Product,
-        through: OrderProduct,
-        attributes: ['id', 'name']
-      }
-    ]
-  });
-
-  if (!order) {
-    return res.status(404).json({ message: 'Order not found' });
-  }
-
-  // Safety check: Don't allow deletion of orders in progress
-  const protectedStatuses = ['processing', 'completed', 'shipped', 'delivered'];
-  if (protectedStatuses.includes(order.status)) {
-    return res.status(400).json({ 
-      message: `Cannot delete order with status: ${order.status}. Only orders with status 'created', 'confirmed', 'cancelled', or 'need material' can be deleted.`
-    });
-  }
-
   try {
-    // Soft delete - mark as inactive instead of removing
-    await order.update({
-      isActive: false,
-      deletedAt: new Date(),
-      deletedBy: req.user.id
+    const orderId = parseInt(req.params.id);
+
+    const order = await prisma.order.findFirst({
+      where: {
+        id: orderId,
+        isActive: true
+      }
     });
 
-    // Log deletion for audit trail
-    console.log(`Order ${order.orderNumber} deleted by user ${req.user.id} at ${new Date().toISOString()}`);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Check if order can be deleted (business rules)
+    const protectedStatuses = ['processing', 'completed', 'shipped', 'delivered'];
+    if (protectedStatuses.includes(order.status)) {
+      return res.status(400).json({
+        message: `Cannot delete order with status: ${order.status}. Only orders with status 'created', 'confirmed', 'cancelled', or 'need material' can be deleted.`
+      });
+    }
+
+    // Soft delete
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        isActive: false,
+        deletedAt: new Date(),
+        deletedBy: req.user.id
+      }
+    });
+
+    console.log(`Order ${order.code} deleted by user ${req.user.id} at ${new Date().toISOString()}`);
 
     res.json({
       success: true,
-      message: `Order ${order.orderNumber} deleted successfully`,
-      deletedOrder: {
+      message: `Order ${order.code} deleted successfully`,
+      order: {
         id: order.id,
-        orderNumber: order.orderNumber,
+        code: order.code,
         status: order.status,
-        deletedAt: new Date().toISOString()
+        deletedAt: new Date()
       }
     });
-
   } catch (error) {
     console.error('Error deleting order:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Failed to delete order',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      error: error.message
     });
   }
 });
@@ -699,81 +694,90 @@ const deleteOrder = asyncHandler(async (req, res) => {
  * Returns comprehensive order timeline including status changes, shipments, progress reports
  */
 const getOrderTimeline = asyncHandler(async (req, res) => {
-  const orderId = req.params.id;
-  
-  // Get order data with all related information
-  const order = await Order.findByPk(orderId, {
-    include: [
-      { model: User, as: 'User' },
-      { model: Product, as: 'Products' },
-    ]
-  });
-  
-  if (!order) {
-    return res.status(404).json({ message: 'Order not found' });
-  }
-  
-  // Import models for timeline data
-  const { Shipment, ProgressReport, RemainingFabric, Material, StatusChange } = require('../models');
-  
-  // Get shipments
-  const shipments = await Shipment.findAll({
-    where: { orderId },
-    order: [['createdAt', 'ASC']]
-  });
-  
-  // Get progress reports
-  const progressReports = await ProgressReport.findAll({
-    where: { orderId },
-    include: [{ model: User, attributes: ['id', 'name'] }],
-    order: [['reportedAt', 'ASC']]
-  });
-  
-  // Get remaining fabric reports
-  const remainingFabrics = await RemainingFabric.findAll({
-    where: { orderId },
-    include: [{ model: Material, attributes: ['id', 'name', 'unit'] }],
-    order: [['createdAt', 'ASC']]
-  });
-  
-  // Get status changes
-  const statusChanges = await StatusChange.findAll({
-    where: { orderId },
-    include: [{ model: User, as: 'User', attributes: ['id', 'name'] }],
-    order: [['createdAt', 'ASC']]
-  });
+  try {
+    const orderId = parseInt(req.params.id);
 
-  // If no status changes recorded yet but order exists, create initial status change
-  if (statusChanges.length === 0) {
-    // Add initial status change (order creation)
-    statusChanges.push({
-      id: 0,
-      orderId,
-      oldStatus: null,
-      newStatus: 'created',
-      changedBy: order.userId,
-      note: 'Order dibuat',
-      createdAt: order.createdAt,
-      updatedAt: order.createdAt
+    // Get order data with all related information
+    const order = await prisma.order.findFirst({
+      where: {
+        id: orderId,
+        isActive: true
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true }
+        },
+        orderProducts: {
+          include: {
+            product: {
+              select: { id: true, name: true, code: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Placeholder timeline data - these tables may not exist yet in Prisma schema
+    const timeline = [
+      {
+        id: 1,
+        type: 'order_created',
+        title: 'Order Created',
+        description: `Order ${order.code} was created`,
+        timestamp: order.createdAt,
+        user: order.user?.name || 'System',
+        status: 'created'
+      }
+    ];
+
+    // Add status change events if order has been updated
+    if (order.updatedAt > order.createdAt) {
+      timeline.push({
+        id: 2,
+        type: 'status_change',
+        title: 'Status Updated',
+        description: `Order status changed to ${order.status}`,
+        timestamp: order.updatedAt,
+        user: order.user?.name || 'System',
+        status: order.status
+      });
+    }
+
+    // TODO: Add real timeline data when Prisma schema includes:
+    // - Shipments table
+    // - ProgressReport table  
+    // - StatusChange table
+    // - MaterialMovement table
+
+    res.json({
+      order,
+      timeline,
+      // Placeholder data for now
+      shipments: [],
+      progressReports: [],
+      remainingFabrics: [],
+      statusChanges: timeline.filter(t => t.type === 'status_change')
+    });
+  } catch (error) {
+    console.error('Error fetching order timeline:', error);
+    res.status(500).json({
+      message: 'Failed to fetch order timeline',
+      error: error.message
     });
   }
-  
-  res.json({
-    order,
-    shipments,
-    progressReports,
-    remainingFabrics,
-    statusChanges
-  });
 });
 
 module.exports = {
   getOrdersList,
-  getTailors,
+  getWorkers,
   getOrderDetails,
   updateOrderStatus,
-  updateOrderTailor,
-  clearTailorsCache,
+  updateOrderWorker,
+  clearWorkersCache,
   createOrder,
   updateOrder,
   deleteOrder,

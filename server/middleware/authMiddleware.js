@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
-const { User } = require('../models');
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient();
 
 const protect = asyncHandler(async (req, res, next) => {
   let token;
@@ -17,13 +19,27 @@ const protect = asyncHandler(async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       // Get user from the token (exclude password hash)
-      req.user = await User.findByPk(decoded.id, { attributes: { exclude: ['passwordHash'] } });
+      req.user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          whatsappPhone: true,
+          role: true,
+          isActive: true,
+          loginEnabled: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
 
       if (!req.user) {
-          return res.status(401).json({
-            success: false,
-            message: 'Not authorized, user not found'
-          });
+        return res.status(401).json({
+          success: false,
+          message: 'Not authorized, user not found'
+        });
       }
 
       next();
@@ -43,14 +59,14 @@ const protect = asyncHandler(async (req, res, next) => {
 });
 
 const adminOnly = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
-        next();
-    } else {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized as an admin'
-        });
-    }
+  if (req.user && req.user.role === 'ADMIN') {
+    next();
+  } else {
+    return res.status(403).json({
+      success: false,
+      message: 'Not authorized as an admin'
+    });
+  }
 };
 
 module.exports = { protect, adminOnly }; 

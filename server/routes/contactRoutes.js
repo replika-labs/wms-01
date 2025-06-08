@@ -9,9 +9,7 @@ const {
   toggleContactStatus,
   getContactsByType,
   searchContacts,
-  getContactNotes,
-  createContactNote,
-  getFollowUpReminders
+  addContactNote
 } = require('../controllers/contactController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -36,11 +34,21 @@ router.get('/type/:type', getContactsByType);
 router.get('/search/:searchTerm', searchContacts);
 
 // Notes management
-router.route('/:id/notes')
-  .get(getContactNotes)
-  .post(createContactNote);
+router.post('/:id/notes', addContactNote);
 
-// Follow-up reminders
-router.get('/follow-ups/reminders', getFollowUpReminders);
+// Placeholder routes for future implementation
+router.get('/:id/notes', (req, res) => {
+  res.status(501).json({
+    message: 'Get contact notes functionality temporarily disabled during Prisma migration',
+    error: 'Not Implemented'
+  });
+});
+
+router.get('/follow-ups/reminders', (req, res) => {
+  res.status(501).json({
+    message: 'Follow-up reminders functionality temporarily disabled during Prisma migration',
+    error: 'Not Implemented'
+  });
+});
 
 module.exports = router; 

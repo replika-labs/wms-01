@@ -1,40 +1,46 @@
 const express = require('express');
 const router = express.Router();
-const {
-  getPurchaseLogs,
-  getPurchaseLogById,
-  createPurchaseLog,
-  updatePurchaseLog,
-  updatePurchaseLogStatus,
-  deletePurchaseLog,
-  getPurchaseLogsByMaterial,
-  getPurchaseLogsBySupplier,
-  getPurchaseAnalytics
-} = require('../controllers/purchaseLogController');
+// const { protect, adminOnly } = require('../middleware/authMiddleware'); // COMMENTED OUT - will be uncommented when implementing
+// const {
+//   getAllPurchaseLogs,
+//   getPurchaseLogById,
+//   createPurchaseLog,
+//   updatePurchaseLog,
+//   deletePurchaseLog,
+//   updatePurchaseLogStatus,
+//   getPurchaseLogsByMaterial,
+//   getPurchaseLogsBySupplier,
+//   getPurchaseLogsByDateRange,
+//   getPurchaseLogAnalytics
+// } = require('../controllers/purchaseLogController'); // DELETED - Controller not implemented in Prisma yet
 
-const { protect, adminOnly } = require('../middleware/authMiddleware');
+// Temporary 501 responses for all routes until Prisma implementation
+const notImplemented = (req, res) => {
+  res.status(501).json({
+    message: 'This endpoint is temporarily disabled during Sequelize to Prisma migration',
+    error: 'Not Implemented'
+  });
+};
 
-// Protect all routes
-router.use(protect);
+// Authentication middleware will be applied when implementing
+// router.use(protect);
 
-// Main CRUD routes
-router.route('/')
-  .get(getPurchaseLogs)
-  .post(adminOnly, createPurchaseLog);
-
-router.route('/:id')
-  .get(getPurchaseLogById)
-  .put(adminOnly, updatePurchaseLog)
-  .delete(adminOnly, deletePurchaseLog);
+// Core CRUD routes
+router.get('/', notImplemented);
+router.get('/:id', notImplemented);
+router.post('/', notImplemented);
+router.put('/:id', notImplemented);
+router.delete('/:id', notImplemented);
 
 // Status update route
-router.put('/:id/status', adminOnly, updatePurchaseLogStatus);
+router.patch('/:id/status', notImplemented);
 
 // Filter routes
-router.get('/material/:materialId', getPurchaseLogsByMaterial);
-router.get('/supplier/:supplier', getPurchaseLogsBySupplier);
+router.get('/material/:materialId', notImplemented);
+router.get('/supplier/:supplierId', notImplemented);
+router.get('/date-range', notImplemented);
 
 // Analytics route
-router.get('/analytics', adminOnly, getPurchaseAnalytics);
+router.get('/analytics', notImplemented);
 
 module.exports = router; 

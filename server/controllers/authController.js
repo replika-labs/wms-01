@@ -1,7 +1,9 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { PrismaClient } = require('@prisma/client');
 const asyncHandler = require('express-async-handler');
+
+const prisma = new PrismaClient();
 
 // Helper function to generate JWT
 const generateToken = (id) => {
@@ -26,7 +28,9 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   // Check if user exists
-  const userExists = await User.findOne({ where: { email } });
+  const userExists = await prisma.user.findUnique({
+    where: { email }
+  });
 
   if (userExists) {
     res.status(400);
@@ -38,11 +42,13 @@ const registerUser = asyncHandler(async (req, res) => {
   const passwordHash = await bcrypt.hash(password, salt);
 
   // Create user
-  const user = await User.create({
-    name,
-    email,
-    passwordHash,
-    role: role,
+  const user = await prisma.user.create({
+    data: {
+      name,
+      email,
+      passwordHash,
+      role: role,
+    },
   });
 
   if (user) {
@@ -63,7 +69,7 @@ const registerUser = asyncHandler(async (req, res) => {
 // @access  Public
 const loginUser = asyncHandler(async (req, res) => {
   console.log('Login attempt:', { email: req.body.email });
-  
+
   const { email, password } = req.body;
 
   // Validate input
@@ -78,8 +84,10 @@ const loginUser = asyncHandler(async (req, res) => {
 
   try {
     // Check for user email
-    const user = await User.findOne({ where: { email } });
-    
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
     if (!user) {
       console.log('Login failed: User not found', { email });
       res.status(401).json({
@@ -91,7 +99,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    
+
     if (!isPasswordValid) {
       console.log('Login failed: Invalid password', { email });
       res.status(401).json({

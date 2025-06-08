@@ -1,66 +1,40 @@
 const express = require('express');
-const { protect, adminOnly } = require('../middleware/authMiddleware');
-const {
-  getOrderProductProgress,
-  getProductDetailedProgress,
-  updateProductProgress,
-  deleteProductProgress,
-  getProductAnalytics
-} = require('../controllers/productProgressController');
-const {
-  upload,
-  uploadProductProgressPhotos,
-  updateProductProgressPhoto,
-  deleteProductProgressPhoto,
-  getProductProgressPhotos
-} = require('../controllers/photoUploadController');
-
 const router = express.Router();
+// const { protect } = require('../middleware/authMiddleware'); // COMMENTED OUT - will be uncommented when implementing
+// const {
+//   getProgressReports,
+//   getProgressReportById,
+//   createProgressReport,
+//   updateProgressReport,
+//   deleteProgressReport
+// } = require('../controllers/productProgressController'); // DELETED - Controller not implemented in Prisma yet
+// const {
+//   uploadProgressPhoto,
+//   getProgressPhotos,
+//   deleteProgressPhoto
+// } = require('../controllers/photoUploadController'); // DELETED - Controller not implemented in Prisma yet
 
-// @route   GET /api/product-progress/order/:orderId
-// @desc    Get per-product progress for an order
-// @access  Private
-router.get('/order/:orderId', protect, getOrderProductProgress);
+// Temporary 501 responses for all routes until Prisma implementation
+const notImplemented = (req, res) => {
+  res.status(501).json({
+    message: 'This endpoint is temporarily disabled during Sequelize to Prisma migration',
+    error: 'Not Implemented'
+  });
+};
 
-// @route   GET /api/product-progress/product/:productId/order/:orderId
-// @desc    Get detailed progress for a specific product in an order
-// @access  Private
-router.get('/product/:productId/order/:orderId', protect, getProductDetailedProgress);
+// Authentication middleware will be applied when implementing
+// router.use(protect);
 
-// @route   PUT /api/product-progress/:id
-// @desc    Update product progress report
-// @access  Private
-router.put('/:id', protect, updateProductProgress);
+// Progress report routes
+router.get('/', notImplemented);
+router.get('/:id', notImplemented);
+router.post('/', notImplemented);
+router.put('/:id', notImplemented);
+router.delete('/:id', notImplemented);
 
-// @route   DELETE /api/product-progress/:id
-// @desc    Delete product progress report
-// @access  Private (Admin only)
-router.delete('/:id', protect, adminOnly, deleteProductProgress);
-
-// @route   GET /api/product-progress/analytics/product/:productId
-// @desc    Get analytics for product progress across orders
-// @access  Private
-router.get('/analytics/product/:productId', protect, getProductAnalytics);
-
-// NEW: Photo upload routes
-// @route   POST /api/product-progress/:reportId/photos
-// @desc    Upload photos for product progress report
-// @access  Private
-router.post('/:reportId/photos', protect, upload.array('photos', 10), uploadProductProgressPhotos);
-
-// @route   GET /api/product-progress/:reportId/photos
-// @desc    Get photos for product progress report
-// @access  Private
-router.get('/:reportId/photos', protect, getProductProgressPhotos);
-
-// @route   PUT /api/product-progress/photos/:photoId
-// @desc    Update photo details (caption, type, sort order)
-// @access  Private
-router.put('/photos/:photoId', protect, updateProductProgressPhoto);
-
-// @route   DELETE /api/product-progress/photos/:photoId
-// @desc    Delete product progress photo
-// @access  Private
-router.delete('/photos/:photoId', protect, deleteProductProgressPhoto);
+// Photo upload routes
+router.post('/:reportId/photos', notImplemented);
+router.get('/:reportId/photos', notImplemented);
+router.delete('/photos/:photoId', notImplemented);
 
 module.exports = router; 

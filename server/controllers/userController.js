@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt');
-const { User } = require('../models');
+const { PrismaClient } = require('@prisma/client');
 const asyncHandler = require('express-async-handler');
+
+const prisma = new PrismaClient();
 
 // @desc    Get all users
 // @route   GET /api/auth/users
@@ -9,27 +11,37 @@ const getUsers = asyncHandler(async (req, res) => {
   try {
     // Build query conditions based on query parameters
     const whereConditions = {};
-    
+
     // Filter by role if provided
     if (req.query.role) {
       whereConditions.role = req.query.role;
     }
-    
+
     // Filter by active status if provided
     if (req.query.isActive !== undefined) {
       whereConditions.isActive = req.query.isActive === 'true';
     }
-    
+
     // Filter by login enabled status if provided
     if (req.query.loginEnabled !== undefined) {
       whereConditions.loginEnabled = req.query.loginEnabled === 'true';
     }
 
-    const users = await User.findAll({
+    const users = await prisma.user.findMany({
       where: whereConditions,
-      attributes: ['id', 'name', 'email', 'phone', 'whatsappPhone', 'role', 'isActive', 'loginEnabled', 'createdAt']
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        whatsappPhone: true,
+        role: true,
+        isActive: true,
+        loginEnabled: true,
+        createdAt: true
+      }
     });
-    
+
     res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -42,14 +54,24 @@ const getUsers = asyncHandler(async (req, res) => {
 // @access  Admin
 const getUserById = asyncHandler(async (req, res) => {
   try {
-    const user = await User.findByPk(req.params.id, {
-      attributes: ['id', 'name', 'email', 'phone', 'whatsappPhone', 'role', 'loginEnabled', 'createdAt']
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(req.params.id) },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        whatsappPhone: true,
+        role: true,
+        loginEnabled: true,
+        createdAt: true
+      }
     });
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     res.json(user);
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -70,7 +92,9 @@ const createUser = asyncHandler(async (req, res) => {
 
   try {
     // Check if user exists
-    const userExists = await User.findOne({ where: { email } });
+    const userExists = await prisma.user.findUnique({
+      where: { email }
+    });
 
     if (userExists) {
       return res.status(400).json({ message: 'User with this email already exists' });
@@ -81,14 +105,16 @@ const createUser = asyncHandler(async (req, res) => {
     const passwordHash = await bcrypt.hash(password, salt);
 
     // Create user
-    const user = await User.create({
-      name,
-      email,
-      phone,
-      whatsappPhone,
-      passwordHash,
-      role: role || 'penjahit',
-      loginEnabled: loginEnabled !== undefined ? loginEnabled : true
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        phone,
+        whatsappPhone,
+        passwordHash,
+        role: role || 'OPERATOR',
+        loginEnabled: loginEnabled !== undefined ? loginEnabled : true
+      }
     });
 
     res.status(201).json({
@@ -111,39 +137,45 @@ const createUser = asyncHandler(async (req, res) => {
 // @access  Admin
 const updateUser = asyncHandler(async (req, res) => {
   const { name, email, phone, whatsappPhone, password, role, loginEnabled } = req.body;
-  const userId = req.params.id;
+  const userId = parseInt(req.params.id);
 
   try {
-    const user = await User.findByPk(userId);
-    
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
-    // Update fields
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (phone !== undefined) user.phone = phone;
-    if (whatsappPhone !== undefined) user.whatsappPhone = whatsappPhone;
-    if (role) user.role = role;
-    if (loginEnabled !== undefined) user.loginEnabled = loginEnabled;
-    
+
+    // Build update data
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (whatsappPhone !== undefined) updateData.whatsappPhone = whatsappPhone;
+    if (role) updateData.role = role;
+    if (loginEnabled !== undefined) updateData.loginEnabled = loginEnabled;
+
     // Only update password if provided
     if (password) {
       const salt = await bcrypt.genSalt(10);
-      user.passwordHash = await bcrypt.hash(password, salt);
+      updateData.passwordHash = await bcrypt.hash(password, salt);
     }
-    
-    await user.save();
-    
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData
+    });
+
     res.json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      whatsappPhone: user.whatsappPhone,
-      role: user.role,
-      loginEnabled: user.loginEnabled
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      whatsappPhone: updatedUser.whatsappPhone,
+      role: updatedUser.role,
+      loginEnabled: updatedUser.loginEnabled
     });
   } catch (error) {
     console.error('Error updating user:', error);
@@ -155,29 +187,34 @@ const updateUser = asyncHandler(async (req, res) => {
 // @route   PUT /api/auth/users/:id/toggle-status
 // @access  Admin
 const toggleUserStatus = asyncHandler(async (req, res) => {
-  const userId = req.params.id;
+  const userId = parseInt(req.params.id);
   const { loginEnabled } = req.body;
-  
+
   try {
-    const user = await User.findByPk(userId);
-    
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     // Toggle or set loginEnabled status
-    user.loginEnabled = loginEnabled !== undefined ? loginEnabled : !user.loginEnabled;
-    
-    await user.save();
-    
+    const newLoginEnabled = loginEnabled !== undefined ? loginEnabled : !user.loginEnabled;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { loginEnabled: newLoginEnabled }
+    });
+
     res.json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      whatsappPhone: user.whatsappPhone,
-      role: user.role,
-      loginEnabled: user.loginEnabled
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      whatsappPhone: updatedUser.whatsappPhone,
+      role: updatedUser.role,
+      loginEnabled: updatedUser.loginEnabled
     });
   } catch (error) {
     console.error('Error toggling user status:', error);
@@ -185,25 +222,57 @@ const toggleUserStatus = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Get penjahit users for dropdown
-// @route   GET /api/auth/users/penjahit
+// @desc    Get operator users for dropdown
+// @route   GET /api/auth/users/operators
 // @access  Admin
-const getPenjahitUsers = asyncHandler(async (req, res) => {
+const getOperatorUsers = asyncHandler(async (req, res) => {
   try {
-    const penjahitUsers = await User.findAll({
-      where: { 
-        role: 'penjahit',
+    const operatorUsers = await prisma.user.findMany({
+      where: {
+        role: 'OPERATOR',
         isActive: true,
         loginEnabled: true
       },
-      attributes: ['id', 'name', 'email', 'phone', 'whatsappPhone'],
-      order: [['name', 'ASC']]
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        whatsappPhone: true
+      },
+      orderBy: { name: 'asc' }
     });
-    
-    res.json(penjahitUsers);
+
+    res.json(operatorUsers);
   } catch (error) {
-    console.error('Error fetching penjahit users:', error);
-    res.status(500).json({ message: 'Failed to fetch penjahit users' });
+    console.error('Error fetching operator users:', error);
+    res.status(500).json({ message: 'Failed to fetch operator users' });
+  }
+});
+
+// @desc    Delete user
+// @route   DELETE /api/auth/users/:id
+// @access  Admin
+const deleteUser = asyncHandler(async (req, res) => {
+  const userId = parseInt(req.params.id);
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Failed to delete user' });
   }
 });
 
@@ -213,5 +282,6 @@ module.exports = {
   createUser,
   updateUser,
   toggleUserStatus,
-  getPenjahitUsers
+  getOperatorUsers,
+  deleteUser
 };

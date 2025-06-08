@@ -1,25 +1,20 @@
 const asyncHandler = require('express-async-handler');
-const { ProductColour, Product } = require('../models');
-const { Op } = require('sequelize');
+const { PrismaClient } = require('@prisma/client');
 
-// @desc    Get all product colours for a product
+const prisma = new PrismaClient();
+
+// @desc    Get all product colours
 // @route   GET /api/products/:productId/colours
 // @access  Private
 const getProductColours = asyncHandler(async (req, res) => {
     try {
-        const { productId } = req.params;
-        
-        // Verify product exists
-        const product = await Product.findByPk(productId);
-        if (!product) {
-            return res.status(404).json({ message: 'Product not found' });
-        }
-        
-        const colours = await ProductColour.findAll({
+        const productId = parseInt(req.params.productId);
+
+        const colours = await prisma.productColour.findMany({
             where: { productId },
-            order: [['colourName', 'ASC']]
+            orderBy: { colourName: 'asc' }
         });
-        
+
         res.status(200).json(colours);
     } catch (error) {
         console.error('Error fetching product colours:', error);
@@ -27,22 +22,25 @@ const getProductColours = asyncHandler(async (req, res) => {
     }
 });
 
-// @desc    Get single product colour
+// @desc    Get product colour by ID
 // @route   GET /api/products/:productId/colours/:id
 // @access  Private
 const getProductColourById = asyncHandler(async (req, res) => {
     try {
-        const { productId, id } = req.params;
-        
-        const colour = await ProductColour.findOne({
-            where: { id, productId },
-            include: [{ model: Product }]
+        const id = parseInt(req.params.id);
+        const productId = parseInt(req.params.productId);
+
+        const colour = await prisma.productColour.findFirst({
+            where: {
+                id,
+                productId
+            }
         });
-        
+
         if (!colour) {
             return res.status(404).json({ message: 'Product colour not found' });
         }
-        
+
         res.status(200).json(colour);
     } catch (error) {
         console.error('Error fetching product colour:', error);
@@ -50,114 +48,151 @@ const getProductColourById = asyncHandler(async (req, res) => {
     }
 });
 
+// @desc    Search product colours by name
+// @route   GET /api/products/:productId/colours/search/:colourName
+// @access  Private
+const searchProductColours = asyncHandler(async (req, res) => {
+    try {
+        const productId = parseInt(req.params.productId);
+        const { colourName } = req.params;
+
+        const colours = await prisma.productColour.findMany({
+            where: {
+                productId,
+                colourName: {
+                    contains: colourName,
+                    mode: 'insensitive'
+                }
+            },
+            orderBy: { colourName: 'asc' }
+        });
+
+        res.status(200).json(colours);
+    } catch (error) {
+        console.error('Error searching product colours:', error);
+        res.status(500).json({ message: 'Failed to search product colours' });
+    }
+});
+
 // @desc    Create new product colour
 // @route   POST /api/products/:productId/colours
-// @access  Private
+// @access  Private/Admin
 const createProductColour = asyncHandler(async (req, res) => {
     try {
-        const { productId } = req.params;
-        const { code, colourName, notes } = req.body;
-        
-        // Verify product exists
-        const product = await Product.findByPk(productId);
+        const productId = parseInt(req.params.productId);
+        const { colourName, colourCode, hexCode } = req.body;
+
+        // Validation
+        if (!colourName) {
+            return res.status(400).json({ message: 'Colour name is required' });
+        }
+
+        // Check if product exists
+        const product = await prisma.product.findUnique({
+            where: { id: productId }
+        });
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
-        
-        // Validation
-        if (!code || !colourName) {
-            return res.status(400).json({ message: 'Code and colour name are required' });
-        }
-        
-        // Check for duplicate code within the same product
-        const existingColour = await ProductColour.findOne({
-            where: { productId, code }
+
+        // Check for duplicate colour name for this product
+        const existingColour = await prisma.productColour.findFirst({
+            where: {
+                productId,
+                colourName
+            }
         });
         if (existingColour) {
-            return res.status(400).json({ message: 'Colour code already exists for this product' });
+            return res.status(400).json({ message: 'Colour name already exists for this product' });
         }
-        
-        const colour = await ProductColour.create({
-            productId,
-            code,
-            colourName,
-            notes
+
+        const colour = await prisma.productColour.create({
+            data: {
+                productId,
+                colourName,
+                colourCode,
+                hexCode
+            }
         });
-        
+
         res.status(201).json(colour);
     } catch (error) {
         console.error('Error creating product colour:', error);
-        res.status(500).json({ 
-            message: 'Failed to create product colour',
-            error: error.message 
-        });
+        res.status(500).json({ message: 'Failed to create product colour' });
     }
 });
 
 // @desc    Update product colour
 // @route   PUT /api/products/:productId/colours/:id
-// @access  Private
+// @access  Private/Admin
 const updateProductColour = asyncHandler(async (req, res) => {
     try {
-        const { productId, id } = req.params;
-        const { code, colourName, notes, isActive } = req.body;
-        
-        const colour = await ProductColour.findOne({
-            where: { id, productId }
+        const id = parseInt(req.params.id);
+        const productId = parseInt(req.params.productId);
+        const { colourName, colourCode, hexCode } = req.body;
+
+        const colour = await prisma.productColour.findFirst({
+            where: {
+                id,
+                productId
+            }
         });
-        
         if (!colour) {
             return res.status(404).json({ message: 'Product colour not found' });
         }
-        
-        // Check for duplicate code if being updated
-        if (code && code !== colour.code) {
-            const existingColour = await ProductColour.findOne({
-                where: { 
-                    productId, 
-                    code,
-                    id: { [Op.ne]: id }
+
+        // Check for duplicate colour name (excluding current record)
+        if (colourName && colourName !== colour.colourName) {
+            const existingColour = await prisma.productColour.findFirst({
+                where: {
+                    productId,
+                    colourName,
+                    id: { not: id }
                 }
             });
             if (existingColour) {
-                return res.status(400).json({ message: 'Colour code already exists for this product' });
+                return res.status(400).json({ message: 'Colour name already exists for this product' });
             }
         }
-        
-        await colour.update({
-            code: code !== undefined ? code : colour.code,
-            colourName: colourName !== undefined ? colourName : colour.colourName,
-            notes: notes !== undefined ? notes : colour.notes,
-            isActive: isActive !== undefined ? isActive : colour.isActive
+
+        const updatedColour = await prisma.productColour.update({
+            where: { id },
+            data: {
+                colourName: colourName || colour.colourName,
+                colourCode: colourCode !== undefined ? colourCode : colour.colourCode,
+                hexCode: hexCode !== undefined ? hexCode : colour.hexCode
+            }
         });
-        
-        res.status(200).json(colour);
+
+        res.status(200).json(updatedColour);
     } catch (error) {
         console.error('Error updating product colour:', error);
-        res.status(500).json({ 
-            message: 'Failed to update product colour',
-            error: error.message 
-        });
+        res.status(500).json({ message: 'Failed to update product colour' });
     }
 });
 
 // @desc    Delete product colour
 // @route   DELETE /api/products/:productId/colours/:id
-// @access  Private
+// @access  Private/Admin
 const deleteProductColour = asyncHandler(async (req, res) => {
     try {
-        const { productId, id } = req.params;
-        
-        const colour = await ProductColour.findOne({
-            where: { id, productId }
+        const id = parseInt(req.params.id);
+        const productId = parseInt(req.params.productId);
+
+        const colour = await prisma.productColour.findFirst({
+            where: {
+                id,
+                productId
+            }
         });
-        
         if (!colour) {
             return res.status(404).json({ message: 'Product colour not found' });
         }
-        
-        await colour.destroy();
-        
+
+        await prisma.productColour.delete({
+            where: { id }
+        });
+
         res.status(200).json({ message: 'Product colour deleted successfully' });
     } catch (error) {
         console.error('Error deleting product colour:', error);
@@ -168,6 +203,7 @@ const deleteProductColour = asyncHandler(async (req, res) => {
 module.exports = {
     getProductColours,
     getProductColourById,
+    searchProductColours,
     createProductColour,
     updateProductColour,
     deleteProductColour

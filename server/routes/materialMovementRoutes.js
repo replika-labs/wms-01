@@ -1,52 +1,55 @@
 const express = require('express');
+// const MaterialMovementController = require('../controllers/materialMovementController'); // DELETED - Controller not implemented in Prisma yet
 const router = express.Router();
-const MaterialMovementController = require('../controllers/materialMovementController');
-const { protect } = require('../middleware/authMiddleware');
 
-// Apply authentication to all routes
-router.use(protect);
+// Temporary 501 responses for all routes until Prisma implementation
+const notImplemented = (req, res) => {
+    res.status(501).json({
+        message: 'This endpoint is temporarily disabled during Sequelize to Prisma migration',
+        error: 'Not Implemented'
+    });
+};
 
-// GET /api/material-movements - Get all movements with filtering and pagination
-router.get('/', MaterialMovementController.getAllMovements);
+// Get all movements with filtering and pagination
+router.get('/', notImplemented);
 
-// GET /api/material-movements/analytics - Get movement analytics
-router.get('/analytics', MaterialMovementController.getMovementAnalytics);
+// Get movement analytics for admin dashboard
+router.get('/analytics', notImplemented);
 
-// NEW: Per-product movement routes
-// GET /api/material-movements/per-product/analytics - Get per-product fabric analytics
-router.get('/per-product/analytics', MaterialMovementController.getPerProductFabricAnalytics);
+// NEW: Get analytics for per-product material usage across all products
+router.get('/per-product/analytics', notImplemented);
 
-// POST /api/material-movements/per-product/bulk - Bulk create per-product movements
-router.post('/per-product/bulk', MaterialMovementController.bulkCreatePerProductMovements);
+// NEW: Bulk create per-product movements (for efficient product completion recording)
+router.post('/per-product/bulk', notImplemented);
 
-// POST /api/material-movements/per-product - Create per-product movement
-router.post('/per-product', MaterialMovementController.createPerProductMovement);
+// NEW: Create single per-product movement
+router.post('/per-product', notImplemented);
 
-// GET /api/material-movements/per-product/order/:orderId - Get per-product movements by order
-router.get('/per-product/order/:orderId', MaterialMovementController.getPerProductMovements);
+// NEW: Get per-product movements for a specific order (all products)
+router.get('/per-product/order/:orderId', notImplemented);
 
-// GET /api/material-movements/per-product/order/:orderId/product/:productId - Get movements for specific product
-router.get('/per-product/order/:orderId/product/:productId', MaterialMovementController.getPerProductMovements);
+// NEW: Get per-product movements for a specific order and product
+router.get('/per-product/order/:orderId/product/:productId', notImplemented);
 
-// GET /api/material-movements/order/:orderId - Get movements by order ID
-router.get('/order/:orderId', MaterialMovementController.getMovementsByOrder);
+// Get movements by order ID
+router.get('/order/:orderId', notImplemented);
 
-// GET /api/material-movements/:id - Get movement by ID
-router.get('/:id', MaterialMovementController.getMovementById);
+// Get movement by ID
+router.get('/:id', notImplemented);
 
-// POST /api/material-movements - Create new movement
-router.post('/', MaterialMovementController.createMovement);
+// Create new movement
+router.post('/', notImplemented);
 
-// PUT /api/material-movements/:id - Update movement
-router.put('/:id', MaterialMovementController.updateMovement);
+// Update movement
+router.put('/:id', notImplemented);
 
-// DELETE /api/material-movements/:id - Delete movement
-router.delete('/:id', MaterialMovementController.deleteMovement);
+// Delete movement
+router.delete('/:id', notImplemented);
 
-// GET /api/material-movements/material/:materialId - Get movements by material
-router.get('/material/:materialId', MaterialMovementController.getMovementsByMaterial);
+// Get movements by material ID
+router.get('/material/:materialId', notImplemented);
 
-// GET /api/material-movements/material/:materialId/inventory - Get inventory calculation for material
-router.get('/material/:materialId/inventory', MaterialMovementController.getInventoryForMaterial);
+// Get current inventory for a material
+router.get('/material/:materialId/inventory', notImplemented);
 
 module.exports = router; 

@@ -1,23 +1,24 @@
 const asyncHandler = require('express-async-handler');
-const { Contact, ContactNote, User, Order, PurchaseLog } = require('../models');
-const { Op } = require('sequelize');
+const { PrismaClient } = require('@prisma/client');
 
-// Helper function to invalidate orders-management tailors cache when tailor data changes
-const invalidateOrdersManagementTailorsCache = async () => {
+const prisma = new PrismaClient();
+
+// Helper function to invalidate orders-management workers cache when worker data changes
+const invalidateOrdersManagementWorkersCache = async () => {
   try {
     // Make internal API call to clear the cache
     const fetch = require('node-fetch');
     const baseURL = process.env.BASE_URL || 'http://localhost:8080';
-    
-    await fetch(`${baseURL}/api/orders-management/cache/clear-tailors`, {
+
+    await fetch(`${baseURL}/api/orders-management/cache/clear-workers`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       }
     });
-    console.log('✅ Orders-Management tailors cache invalidated successfully');
+    console.log('✅ Orders-Management workers cache invalidated successfully');
   } catch (error) {
-    console.warn('⚠️ Failed to invalidate orders-management tailors cache:', error.message);
+    console.warn('⚠️ Failed to invalidate orders-management workers cache:', error.message);
     // Don't throw error - cache invalidation failure should not break contact operations
   }
 };
@@ -38,19 +39,19 @@ const getContacts = asyncHandler(async (req, res) => {
 
   // Build where clause
   const where = {};
-  
+
   // Only filter by type if it's a valid type (not 'all' or empty)
-  if (type && type !== 'all' && ['supplier', 'tailor', 'internal'].includes(type)) {
-    where.type = type;
+  if (type && type !== 'all' && ['supplier', 'worker', 'customer', 'other'].includes(type)) {
+    where.contactType = type.toUpperCase();
   }
   if (isActive !== 'all') where.isActive = isActive === 'true';
-  
+
   if (search) {
-    where[Op.or] = [
-      { name: { [Op.like]: `%${search}%` } },
-      { company: { [Op.like]: `%${search}%` } },
-      { email: { [Op.like]: `%${search}%` } },
-      { phone: { [Op.like]: `%${search}%` } }
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { company: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+      { phone: { contains: search, mode: 'insensitive' } }
     ];
   }
 
@@ -58,33 +59,45 @@ const getContacts = asyncHandler(async (req, res) => {
   const offset = (parseInt(page) - 1) * parseInt(limit);
 
   // Get contacts with pagination
-  const { count, rows: contacts } = await Contact.findAndCountAll({
-    where,
-    order: [[sortBy, sortOrder.toUpperCase()]],
-    limit: parseInt(limit),
-    offset,
-    distinct: true
-  });
+  const [contacts, totalCount] = await Promise.all([
+    prisma.contact.findMany({
+      where,
+      orderBy: { [sortBy]: sortOrder.toLowerCase() },
+      take: parseInt(limit),
+      skip: offset
+    }),
+    prisma.contact.count({ where })
+  ]);
 
   // Get statistics for filters
-  const typeStats = await Contact.getStatsByType();
+  const typeStats = await prisma.contact.groupBy({
+    by: ['contactType'],
+    _count: {
+      _all: true
+    },
+    _sum: {
+      isActive: true
+    }
+  });
+
+  const formattedTypeStats = typeStats.reduce((acc, stat) => {
+    acc[stat.contactType] = {
+      total: stat._count._all,
+      active: stat._sum?.isActive || 0
+    };
+    return acc;
+  }, {});
 
   res.json({
     contacts,
     pagination: {
-      total: count,
-      pages: Math.ceil(count / parseInt(limit)),
+      total: totalCount,
+      pages: Math.ceil(totalCount / parseInt(limit)),
       current: parseInt(page),
       limit: parseInt(limit)
     },
     filters: {
-      typeStats: typeStats.reduce((acc, stat) => {
-        acc[stat.type] = {
-          total: parseInt(stat.count),
-          active: parseInt(stat.activeCount)
-        };
-        return acc;
-      }, {})
+      typeStats: formattedTypeStats
     }
   });
 });
@@ -93,33 +106,39 @@ const getContacts = asyncHandler(async (req, res) => {
 // @route   GET /api/contacts/:id
 // @access  Private
 const getContactById = asyncHandler(async (req, res) => {
-  const contact = await Contact.findOne({
+  const contact = await prisma.contact.findFirst({
     where: {
-      id: req.params.id,
+      id: parseInt(req.params.id),
       isActive: true
     },
-    include: [
-      {
-        model: ContactNote,
-        as: 'contactNotes',
-        include: [
-          {
-            model: User,
-            as: 'CreatedByUser',
-            attributes: ['id', 'name', 'email']
+    include: {
+      contactNotes: {
+        include: {
+          createdByUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
           },
-          {
-            model: Order,
-            attributes: ['id', 'orderNumber', 'status']
+          order: {
+            select: {
+              id: true,
+              orderNumber: true,
+              status: true
+            }
           },
-          {
-            model: PurchaseLog,
-            attributes: ['id', 'purchasedDate', 'supplier']
+          purchaseLog: {
+            select: {
+              id: true,
+              purchasedDate: true,
+              supplier: true
+            }
           }
-        ],
-        order: [['createdAt', 'DESC']]
+        },
+        orderBy: { createdAt: 'desc' }
       }
-    ]
+    }
   });
 
   if (!contact) {
@@ -158,7 +177,7 @@ const createContact = asyncHandler(async (req, res) => {
   }
 
   // Check for duplicate name within same type
-  const existingContact = await Contact.findOne({
+  const existingContact = await prisma.contact.findFirst({
     where: {
       name,
       type,
@@ -172,17 +191,19 @@ const createContact = asyncHandler(async (req, res) => {
   }
 
   try {
-    const contact = await Contact.create({
-      name,
-      type,
-      email,
-      phone,
-      whatsappPhone,
-      address,
-      company,
-      position,
-      notes,
-      isActive: true
+    const contact = await prisma.contact.create({
+      data: {
+        name,
+        type,
+        email,
+        phone,
+        whatsappPhone,
+        address,
+        company,
+        position,
+        notes,
+        isActive: true
+      }
     });
 
     // Invalidate orders-management tailors cache if a tailor was created
@@ -197,8 +218,11 @@ const createContact = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating contact:', error);
-    res.status(500);
-    throw new Error('Failed to create contact');
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create contact',
+      error: error.message
+    });
   }
 });
 
@@ -218,64 +242,76 @@ const updateContact = asyncHandler(async (req, res) => {
     notes
   } = req.body;
 
-  const contact = await Contact.findOne({
-    where: {
-      id: req.params.id,
-      isActive: true
-    }
-  });
+  const contactId = parseInt(req.params.id);
 
-  if (!contact) {
-    res.status(404);
-    throw new Error('Contact not found');
-  }
-
-  // Validation
-  if (name && name !== contact.name && type && type !== contact.type) {
-    const existingContact = await Contact.findOne({
+  try {
+    const contact = await prisma.contact.findFirst({
       where: {
-        name,
-        type,
-        isActive: true,
-        id: { [Op.ne]: req.params.id }
+        id: contactId,
+        isActive: true
       }
     });
 
-    if (existingContact) {
-      res.status(400);
-      throw new Error(`${type} with name "${name}" already exists`);
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contact not found'
+      });
     }
-  }
 
-  try {
+    // Check for duplicate name within same type if name or type is being changed
+    if (name && name !== contact.name && type && type !== contact.type) {
+      const existingContact = await prisma.contact.findFirst({
+        where: {
+          name,
+          type,
+          isActive: true,
+          id: { not: contactId }
+        }
+      });
+
+      if (existingContact) {
+        return res.status(400).json({
+          success: false,
+          message: `${type} with name "${name}" already exists`
+        });
+      }
+    }
+
     const originalType = contact.type;
-    
-    await contact.update({
-      name: name || contact.name,
-      type: type || contact.type,
-      email: email !== undefined ? email : contact.email,
-      phone: phone !== undefined ? phone : contact.phone,
-      whatsappPhone: whatsappPhone !== undefined ? whatsappPhone : contact.whatsappPhone,
-      address: address !== undefined ? address : contact.address,
-      company: company !== undefined ? company : contact.company,
-      position: position !== undefined ? position : contact.position,
-      notes: notes !== undefined ? notes : contact.notes
+
+    const updatedContact = await prisma.contact.update({
+      where: { id: contactId },
+      data: {
+        name: name || contact.name,
+        type: type || contact.type,
+        email: email !== undefined ? email : contact.email,
+        phone: phone !== undefined ? phone : contact.phone,
+        whatsappPhone: whatsappPhone !== undefined ? whatsappPhone : contact.whatsappPhone,
+        address: address !== undefined ? address : contact.address,
+        company: company !== undefined ? company : contact.company,
+        position: position !== undefined ? position : contact.position,
+        notes: notes !== undefined ? notes : contact.notes
+      }
     });
 
-    // Invalidate orders-management tailors cache if tailor information was changed
-    if (originalType === 'tailor' || contact.type === 'tailor') {
+    // Invalidate orders-management tailors cache if a tailor was updated or type changed
+    if (originalType === 'tailor' || updatedContact.type === 'tailor') {
       await invalidateOrdersManagementTailorsCache();
     }
 
     res.json({
       success: true,
       message: 'Contact updated successfully',
-      contact
+      contact: updatedContact
     });
   } catch (error) {
     console.error('Error updating contact:', error);
-    res.status(500);
-    throw new Error('Failed to update contact');
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update contact',
+      error: error.message
+    });
   }
 });
 
@@ -283,21 +319,27 @@ const updateContact = asyncHandler(async (req, res) => {
 // @route   DELETE /api/contacts/:id
 // @access  Private
 const deleteContact = asyncHandler(async (req, res) => {
-  const contact = await Contact.findOne({
-    where: {
-      id: req.params.id,
-      isActive: true
-    }
-  });
-
-  if (!contact) {
-    res.status(404);
-    throw new Error('Contact not found');
-  }
-
   try {
-    // Soft delete - mark as inactive
-    await contact.update({ isActive: false });
+    const contactId = parseInt(req.params.id);
+    const contact = await prisma.contact.findFirst({
+      where: {
+        id: contactId,
+        isActive: true
+      }
+    });
+
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contact not found'
+      });
+    }
+
+    // Soft delete
+    await prisma.contact.update({
+      where: { id: contactId },
+      data: { isActive: false }
+    });
 
     // Invalidate orders-management tailors cache if a tailor was deleted
     if (contact.type === 'tailor') {
@@ -307,33 +349,44 @@ const deleteContact = asyncHandler(async (req, res) => {
     res.json({
       success: true,
       message: `Contact "${contact.name}" deleted successfully`,
-      deletedContact: {
+      contact: {
         id: contact.id,
         name: contact.name,
         type: contact.type,
-        deletedAt: new Date().toISOString()
+        isActive: false
       }
     });
   } catch (error) {
     console.error('Error deleting contact:', error);
-    res.status(500);
-    throw new Error('Failed to delete contact');
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete contact',
+      error: error.message
+    });
   }
 });
 
 // @desc    Toggle contact active status
-// @route   PUT /api/contacts/:id/toggle-status
+// @route   PATCH /api/contacts/:id/toggle-status
 // @access  Private
 const toggleContactStatus = asyncHandler(async (req, res) => {
-  const contact = await Contact.findByPk(req.params.id);
-
-  if (!contact) {
-    res.status(404);
-    throw new Error('Contact not found');
-  }
-
   try {
-    await contact.toggleActive();
+    const contactId = parseInt(req.params.id);
+    const contact = await prisma.contact.findUnique({
+      where: { id: contactId }
+    });
+
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contact not found'
+      });
+    }
+
+    const updatedContact = await prisma.contact.update({
+      where: { id: contactId },
+      data: { isActive: !contact.isActive }
+    });
 
     // Invalidate orders-management tailors cache if a tailor status was changed
     if (contact.type === 'tailor') {
@@ -342,18 +395,21 @@ const toggleContactStatus = asyncHandler(async (req, res) => {
 
     res.json({
       success: true,
-      message: `Contact ${contact.isActive ? 'activated' : 'deactivated'} successfully`,
+      message: `Contact ${updatedContact.isActive ? 'activated' : 'deactivated'} successfully`,
       contact: {
-        id: contact.id,
-        name: contact.name,
-        type: contact.type,
-        isActive: contact.isActive
+        id: updatedContact.id,
+        name: updatedContact.name,
+        type: updatedContact.type,
+        isActive: updatedContact.isActive
       }
     });
   } catch (error) {
     console.error('Error toggling contact status:', error);
-    res.status(500);
-    throw new Error('Failed to toggle contact status');
+    res.status(500).json({
+      success: false,
+      message: 'Failed to toggle contact status',
+      error: error.message
+    });
   }
 });
 
@@ -362,29 +418,42 @@ const toggleContactStatus = asyncHandler(async (req, res) => {
 // @access  Private
 const getContactsByType = asyncHandler(async (req, res) => {
   const { type } = req.params;
-  const { includeInactive = false } = req.query;
+  const { includeInactive = 'false' } = req.query;
 
   if (!['supplier', 'tailor', 'internal'].includes(type)) {
-    res.status(400);
-    throw new Error('Invalid contact type');
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid contact type'
+    });
   }
 
   try {
-    const contacts = await Contact.findByType(type, includeInactive === 'true');
-    
+    const whereClause = { type };
+    if (includeInactive !== 'true') {
+      whereClause.isActive = true;
+    }
+
+    const contacts = await prisma.contact.findMany({
+      where: whereClause,
+      orderBy: { name: 'asc' }
+    });
+
     res.json({
-      type,
-      count: contacts.length,
-      contacts
+      success: true,
+      contacts,
+      count: contacts.length
     });
   } catch (error) {
-    console.error('Error fetching contacts by type:', error);
-    res.status(500);
-    throw new Error('Failed to fetch contacts');
+    console.error(`Error fetching ${type} contacts:`, error);
+    res.status(500).json({
+      success: false,
+      message: `Failed to fetch ${type} contacts`,
+      error: error.message
+    });
   }
 });
 
-// @desc    Search contacts
+// @desc    Search contacts by name
 // @route   GET /api/contacts/search/:searchTerm
 // @access  Private
 const searchContacts = asyncHandler(async (req, res) => {
@@ -392,155 +461,103 @@ const searchContacts = asyncHandler(async (req, res) => {
   const { type } = req.query;
 
   try {
-    const contacts = await Contact.searchByName(searchTerm, type || null);
-    
+    const whereClause = {
+      name: {
+        contains: searchTerm,
+        mode: 'insensitive'
+      },
+      isActive: true
+    };
+
+    if (type && ['supplier', 'tailor', 'internal'].includes(type)) {
+      whereClause.type = type;
+    }
+
+    const contacts = await prisma.contact.findMany({
+      where: whereClause,
+      orderBy: { name: 'asc' },
+      take: 20 // Limit results
+    });
+
     res.json({
+      success: true,
+      contacts,
       searchTerm,
-      type: type || 'all',
-      count: contacts.length,
-      contacts
+      count: contacts.length
     });
   } catch (error) {
     console.error('Error searching contacts:', error);
-    res.status(500);
-    throw new Error('Failed to search contacts');
-  }
-});
-
-// @desc    Get contact notes
-// @route   GET /api/contacts/:id/notes
-// @access  Private
-const getContactNotes = asyncHandler(async (req, res) => {
-  const { noteType } = req.query;
-
-  try {
-    const notes = await ContactNote.findByContact(req.params.id, noteType || null);
-    
-    res.json({
-      contactId: req.params.id,
-      noteType: noteType || 'all',
-      count: notes.length,
-      notes
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search contacts',
+      error: error.message
     });
-  } catch (error) {
-    console.error('Error fetching contact notes:', error);
-    res.status(500);
-    throw new Error('Failed to fetch contact notes');
   }
 });
 
-// @desc    Create contact note
+// @desc    Add contact note
 // @route   POST /api/contacts/:id/notes
 // @access  Private
-const createContactNote = asyncHandler(async (req, res) => {
-  const {
-    orderId,
-    purchaseLogId,
-    noteType = 'general',
-    title,
-    note,
-    priority = 'medium',
-    isFollowUpRequired = false,
-    followUpDate
-  } = req.body;
+const addContactNote = asyncHandler(async (req, res) => {
+  const { content, orderId, purchaseLogId } = req.body;
+  const contactId = parseInt(req.params.id);
 
-  // Validation
-  if (!note) {
-    res.status(400);
-    throw new Error('Note content is required');
-  }
-
-  // Verify contact exists
-  const contact = await Contact.findOne({
-    where: {
-      id: req.params.id,
-      isActive: true
-    }
-  });
-
-  if (!contact) {
-    res.status(404);
-    throw new Error('Contact not found');
+  if (!content) {
+    return res.status(400).json({
+      success: false,
+      message: 'Note content is required'
+    });
   }
 
   try {
-    const contactNote = await ContactNote.create({
-      contactId: req.params.id,
-      orderId: orderId || null,
-      purchaseLogId: purchaseLogId || null,
-      noteType,
-      title,
-      note,
-      priority,
-      isFollowUpRequired,
-      followUpDate: followUpDate || null,
-      createdBy: req.user.id
+    const contact = await prisma.contact.findFirst({
+      where: {
+        id: contactId,
+        isActive: true
+      }
     });
 
-    // Fetch the created note with includes
-    const createdNote = await ContactNote.findByPk(contactNote.id, {
-      include: [
-        {
-          model: User,
-          as: 'CreatedByUser',
-          attributes: ['id', 'name', 'email']
-        },
-        {
-          model: Order,
-          attributes: ['id', 'orderNumber', 'status']
-        },
-        {
-          model: PurchaseLog,
-          attributes: ['id', 'purchasedDate', 'supplier']
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contact not found'
+      });
+    }
+
+    const noteData = {
+      content,
+      contactId,
+      createdBy: req.user.id
+    };
+
+    if (orderId) noteData.orderId = parseInt(orderId);
+    if (purchaseLogId) noteData.purchaseLogId = parseInt(purchaseLogId);
+
+    const note = await prisma.contactNote.create({
+      data: noteData,
+      include: {
+        createdByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
         }
-      ]
+      }
     });
 
     res.status(201).json({
       success: true,
-      message: 'Contact note created successfully',
-      note: createdNote
+      message: 'Note added successfully',
+      note
     });
   } catch (error) {
-    console.error('Error creating contact note:', error);
-    res.status(500);
-    throw new Error('Failed to create contact note');
-  }
-});
-
-// @desc    Get follow-up reminders
-// @route   GET /api/contacts/follow-ups/reminders
-// @access  Private
-const getFollowUpReminders = asyncHandler(async (req, res) => {
-  const { type = 'all', daysAhead = 3 } = req.query;
-
-  try {
-    let overdue = [];
-    let dueSoon = [];
-
-    if (type === 'all' || type === 'overdue') {
-      overdue = await ContactNote.getOverdueFollowUps();
-    }
-
-    if (type === 'all' || type === 'due-soon') {
-      dueSoon = await ContactNote.getDueSoonFollowUps(parseInt(daysAhead));
-    }
-
-    res.json({
-      overdue: {
-        count: overdue.length,
-        notes: overdue
-      },
-      dueSoon: {
-        count: dueSoon.length,
-        notes: dueSoon,
-        daysAhead: parseInt(daysAhead)
-      }
+    console.error('Error adding contact note:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add note',
+      error: error.message
     });
-  } catch (error) {
-    console.error('Error fetching follow-up reminders:', error);
-    res.status(500);
-    throw new Error('Failed to fetch follow-up reminders');
   }
 });
 
@@ -553,7 +570,5 @@ module.exports = {
   toggleContactStatus,
   getContactsByType,
   searchContacts,
-  getContactNotes,
-  createContactNote,
-  getFollowUpReminders
+  addContactNote
 }; 
