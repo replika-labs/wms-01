@@ -10,21 +10,21 @@ import ordersManagementAPI from '@/app/services/OrdersManagementAPI';
 export default function EditOrderManagement({ params }) {
   const router = useRouter();
   const { id } = use(params);
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [tailors, setTailors] = useState([]);
   const [refreshingTailors, setRefreshingTailors] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     customerNote: '',
     dueDate: '',
     description: '',
-    priority: 'medium',
-    status: 'created',
-    tailorContactId: '',
+    priority: 'MEDIUM',
+    status: 'CREATED',
+    workerContactId: '',
     products: [] // Array of { productId, quantity }
   });
 
@@ -37,15 +37,15 @@ export default function EditOrderManagement({ params }) {
 
         // Fetch order details using orders-management API
         const orderData = await ordersManagementAPI.getOrderDetails(id);
-        
+
         // Pre-populate form data
         setFormData({
           customerNote: orderData.customerNote || '',
           dueDate: orderData.dueDate ? orderData.dueDate.split('T')[0] : '', // Format date for input
           description: orderData.description || '',
-          priority: orderData.priority || 'medium',
-          status: orderData.status || 'created',
-          tailorContactId: orderData.tailorContactId || '',
+          priority: orderData.priority || 'MEDIUM',
+          status: orderData.status || 'CREATED',
+          workerContactId: orderData.tailorContactId || '',
           products: orderData.Products?.map(p => ({
             productId: p.id,
             quantity: p.OrderProduct.qty
@@ -79,7 +79,7 @@ export default function EditOrderManagement({ params }) {
     setFormData(prev => {
       const products = [...prev.products];
       const existingIndex = products.findIndex(p => p.productId === productId);
-      
+
       if (existingIndex >= 0) {
         if (quantity > 0) {
           products[existingIndex].quantity = quantity;
@@ -116,13 +116,13 @@ export default function EditOrderManagement({ params }) {
       if (result.stockResults && result.stockResults.hasStockIssues) {
         const warnings = result.stockResults.warnings || [];
         const alerts = result.stockResults.alerts || [];
-        
+
         if (warnings.length > 0 || alerts.length > 0) {
           const stockMessage = [
             ...warnings,
             ...alerts.map(alert => `Purchase alert updated for ${alert.materialName}`)
           ].join('; ');
-          
+
           setSuccess(`Order updated successfully! Stock notifications: ${stockMessage}`);
         } else {
           setSuccess('Order updated successfully!');
@@ -265,14 +265,14 @@ export default function EditOrderManagement({ params }) {
                       className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       required
                     >
-                      <option value="created">Created</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="processing">Processing</option>
-                      <option value="completed">Completed</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
-                      <option value="need material">Need Material</option>
+                      <option value="CREATED">Created</option>
+                      <option value="CONFIRMED">Confirmed</option>
+                      <option value="PROCESSING">Processing</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="SHIPPED">Shipped</option>
+                      <option value="DELIVERED">Delivered</option>
+                      <option value="CANCELLED">Cancelled</option>
+                      <option value="NEED_MATERIAL">Need Material</option>
                     </select>
                   </div>
 
@@ -304,23 +304,23 @@ export default function EditOrderManagement({ params }) {
                       onChange={handleInputChange}
                       className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                      <option value="URGENT">Urgent</option>
                     </select>
                   </div>
 
                   {/* Tailor Assignment */}
                   <div>
-                    <label htmlFor="tailorContactId" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="workerContactId" className="block text-sm font-medium text-gray-700 mb-1">
                       Assigned Tailor
                     </label>
                     <div className="flex items-center space-x-2">
                       <select
-                        id="tailorContactId"
-                        name="tailorContactId"
-                        value={formData.tailorContactId}
+                        id="workerContactId"
+                        name="workerContactId"
+                        value={formData.workerContactId}
                         onChange={handleInputChange}
                         className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       >
@@ -361,7 +361,7 @@ export default function EditOrderManagement({ params }) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Products & Quantities *
                   </label>
-                  <ProductSelector 
+                  <ProductSelector
                     selectedProducts={formData.products}
                     onProductChange={handleProductChange}
                   />

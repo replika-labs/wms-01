@@ -65,7 +65,7 @@ export default function ProductsPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
+
       const queryParams = new URLSearchParams({
         page: currentPage.toString(),
         limit: pageSize.toString(),
@@ -88,8 +88,14 @@ export default function ProductsPage() {
       }
 
       const data = await response.json();
-      setProducts(data.products || data);
-      setTotalProducts(data.total || data.length);
+
+      if (data.success) {
+        setProducts(data.products || []);
+        setTotalProducts(data.pagination?.total || 0);
+      } else {
+        setProducts(data.products || data || []);
+        setTotalProducts(data.total || data.length || 0);
+      }
     } catch (error) {
       console.error('Error fetching products:', error);
       setError('Failed to load products');
@@ -102,7 +108,7 @@ export default function ProductsPage() {
   const fetchMaterials = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8080/api/materials', {
+      const response = await fetch('http://localhost:8080/api/materials-management?limit=100', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -110,7 +116,11 @@ export default function ProductsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setMaterials(data);
+        if (data.success && data.data?.materials) {
+          setMaterials(data.data.materials);
+        } else {
+          setMaterials(data.materials || data || []);
+        }
       }
     } catch (error) {
       console.error('Error fetching materials:', error);
@@ -145,8 +155,8 @@ export default function ProductsPage() {
 
   // Bulk operations handlers
   const handleSelectProduct = (productId) => {
-    setSelectedProducts(prev => 
-      prev.includes(productId) 
+    setSelectedProducts(prev =>
+      prev.includes(productId)
         ? prev.filter(id => id !== productId)
         : [...prev, productId]
     );
@@ -320,21 +330,19 @@ export default function ProductsPage() {
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('table')}
-                  className={`px-3 py-1 rounded-md text-sm ${
-                    viewMode === 'table' 
-                      ? 'bg-white text-blue-600 shadow-sm' 
-                      : 'text-gray-600'
-                  }`}
+                  className={`px-3 py-1 rounded-md text-sm ${viewMode === 'table'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600'
+                    }`}
                 >
                   📋 Table
                 </button>
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`px-3 py-1 rounded-md text-sm ${
-                    viewMode === 'grid' 
-                      ? 'bg-white text-blue-600 shadow-sm' 
-                      : 'text-gray-600'
-                  }`}
+                  className={`px-3 py-1 rounded-md text-sm ${viewMode === 'grid'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600'
+                    }`}
                 >
                   🔲 Grid
                 </button>
@@ -484,22 +492,20 @@ export default function ProductsPage() {
                               {product.price ? `Rp ${Number(product.price).toLocaleString('id-ID')}` : '-'}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">
-                              <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                                product.qtyOnHand === 0 
-                                  ? 'bg-red-100 text-red-800'
-                                  : product.qtyOnHand < 10
+                              <span className={`inline-flex px-2 py-1 text-xs rounded-full ${product.qtyOnHand === 0
+                                ? 'bg-red-100 text-red-800'
+                                : product.qtyOnHand < 10
                                   ? 'bg-yellow-100 text-yellow-800'
                                   : 'bg-green-100 text-green-800'
-                              }`}>
+                                }`}>
                                 {product.qtyOnHand} {product.unit}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">
-                              <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                                product.isActive 
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}>
+                              <span className={`inline-flex px-2 py-1 text-xs rounded-full ${product.isActive
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-800'
+                                }`}>
                                 {product.isActive ? 'Active' : 'Inactive'}
                               </span>
                             </td>
@@ -561,13 +567,12 @@ export default function ProductsPage() {
                           <span className="text-lg font-bold text-gray-900">
                             {product.price ? `Rp ${Number(product.price).toLocaleString('id-ID')}` : '-'}
                           </span>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            product.qtyOnHand === 0 
-                              ? 'bg-red-100 text-red-800'
-                              : product.qtyOnHand < 10
+                          <span className={`px-2 py-1 text-xs rounded-full ${product.qtyOnHand === 0
+                            ? 'bg-red-100 text-red-800'
+                            : product.qtyOnHand < 10
                               ? 'bg-yellow-100 text-yellow-800'
                               : 'bg-green-100 text-green-800'
-                          }`}>
+                            }`}>
                             {product.qtyOnHand} {product.unit}
                           </span>
                         </div>

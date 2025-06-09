@@ -11,14 +11,15 @@ function ContactManagement() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [stats, setStats] = useState({
-    supplier: { total: 0, active: 0 },
-    tailor: { total: 0, active: 0 },
-    internal: { total: 0, active: 0 }
+    SUPPLIER: { total: 0, active: 0 },
+    WORKER: { total: 0, active: 0 },
+    CUSTOMER: { total: 0, active: 0 },
+    OTHER: { total: 0, active: 0 }
   });
 
   // Filter and pagination states
   const [filters, setFilters] = useState({
-    type: 'all',
+    contactType: 'all',
     search: '',
     isActive: 'true'
   });
@@ -36,13 +37,12 @@ function ContactManagement() {
   // Form states
   const [formData, setFormData] = useState({
     name: '',
-    type: 'supplier',
+    contactType: 'SUPPLIER',
     email: '',
     phone: '',
     whatsappPhone: '',
     address: '',
     company: '',
-    position: '',
     notes: ''
   });
 
@@ -84,11 +84,11 @@ function ContactManagement() {
       setFilteredContacts(data.contacts);
       setPagination(data.pagination);
       setTotalPages(data.pagination.pages);
-      
+
       if (data.filters?.typeStats) {
         setStats(data.filters.typeStats);
       }
-      
+
       setError('');
     } catch (error) {
       console.error('Error fetching contacts:', error);
@@ -117,9 +117,9 @@ function ContactManagement() {
   // Handle note form input changes
   const handleNoteInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setNoteFormData(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
+    setNoteFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
@@ -143,14 +143,14 @@ function ContactManagement() {
       }
 
       const data = await response.json();
-      
-      // Enhanced success message for tailors
-      if (formData.type === 'tailor') {
-        setSuccess(`${data.message} - Tailor will be available in Orders Management immediately.`);
+
+      // Enhanced success message for workers (tailors)
+      if (formData.contactType === 'WORKER') {
+        setSuccess(`${data.message} - Worker will be available in Orders Management immediately.`);
       } else {
         setSuccess(data.message);
       }
-      
+
       setShowCreateModal(false);
       resetForm();
       fetchContacts();
@@ -180,14 +180,14 @@ function ContactManagement() {
       }
 
       const data = await response.json();
-      
-      // Enhanced success message for tailors
-      if (formData.type === 'tailor' || selectedContact.type === 'tailor') {
+
+      // Enhanced success message for workers (tailors)
+      if (formData.contactType === 'WORKER' || selectedContact.contactType === 'WORKER') {
         setSuccess(`${data.message} - Changes will be reflected in Orders Management immediately.`);
       } else {
         setSuccess(data.message);
       }
-      
+
       setShowEditModal(false);
       resetForm();
       fetchContacts();
@@ -283,13 +283,12 @@ function ContactManagement() {
   const resetForm = () => {
     setFormData({
       name: '',
-      type: 'supplier',
+      contactType: 'SUPPLIER',
       email: '',
       phone: '',
       whatsappPhone: '',
       address: '',
       company: '',
-      position: '',
       notes: ''
     });
   };
@@ -315,13 +314,12 @@ function ContactManagement() {
     setSelectedContact(contact);
     setFormData({
       name: contact.name || '',
-      type: contact.type || 'supplier',
+      contactType: contact.contactType || 'SUPPLIER',
       email: contact.email || '',
       phone: contact.phone || '',
       whatsappPhone: contact.whatsappPhone || '',
       address: contact.address || '',
       company: contact.company || '',
-      position: contact.position || '',
       notes: contact.notes || ''
     });
     setShowEditModal(true);
@@ -388,8 +386,8 @@ function ContactManagement() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Suppliers</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {stats.supplier?.active || 0}
-                  <span className="text-sm text-gray-500">/{stats.supplier?.total || 0}</span>
+                  {stats.SUPPLIER?.active || 0}
+                  <span className="text-sm text-gray-500">/{stats.SUPPLIER?.total || 0}</span>
                 </p>
               </div>
             </div>
@@ -403,8 +401,8 @@ function ContactManagement() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Tailors</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {stats.tailor?.active || 0}
-                  <span className="text-sm text-gray-500">/{stats.tailor?.total || 0}</span>
+                  {stats.WORKER?.active || 0}
+                  <span className="text-sm text-gray-500">/{stats.WORKER?.total || 0}</span>
                 </p>
               </div>
             </div>
@@ -416,10 +414,10 @@ function ContactManagement() {
                 <span className="text-2xl text-purple-600">👥</span>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Internal</p>
+                <p className="text-sm font-medium text-gray-600">Customers</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {stats.internal?.active || 0}
-                  <span className="text-sm text-gray-500">/{stats.internal?.total || 0}</span>
+                  {stats.CUSTOMER?.active || 0}
+                  <span className="text-sm text-gray-500">/{stats.CUSTOMER?.total || 0}</span>
                 </p>
               </div>
             </div>
@@ -443,14 +441,15 @@ function ContactManagement() {
 
               {/* Type Filter */}
               <select
-                value={filters.type}
-                onChange={(e) => handleFilterChange('type', e.target.value)}
+                value={filters.contactType}
+                onChange={(e) => handleFilterChange('contactType', e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="all">All Types</option>
-                <option value="supplier">Suppliers</option>
-                <option value="tailor">Tailors</option>
-                <option value="internal">Internal</option>
+                <option value="SUPPLIER">Suppliers</option>
+                <option value="WORKER">Tailors</option>
+                <option value="CUSTOMER">Customers</option>
+                <option value="OTHER">Others</option>
               </select>
 
               {/* Status Filter */}
@@ -522,20 +521,16 @@ function ContactManagement() {
                           <div className="text-sm font-medium text-gray-900">
                             {contact.name}
                           </div>
-                          {contact.position && (
-                            <div className="text-sm text-gray-500">{contact.position}</div>
-                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          contact.type === 'supplier' 
-                            ? 'bg-blue-100 text-blue-800'
-                            : contact.type === 'tailor'
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${contact.contactType === 'SUPPLIER'
+                          ? 'bg-blue-100 text-blue-800'
+                          : contact.contactType === 'WORKER'
                             ? 'bg-green-100 text-green-800'
                             : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {contact.type}
+                          }`}>
+                          {contact.contactType}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -548,7 +543,7 @@ function ContactManagement() {
                           )}
                           {contact.whatsappPhone && (
                             <div>
-                              <a 
+                              <a
                                 href={getWhatsAppUrl(contact.whatsappPhone)}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -564,11 +559,10 @@ function ContactManagement() {
                         {contact.company || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          contact.isActive 
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${contact.isActive
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                          }`}>
                           {contact.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -647,11 +641,10 @@ function ContactManagement() {
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page)}
-                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                            currentPage === page
-                              ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                          }`}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === page
+                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                            }`}
                         >
                           {page}
                         </button>
@@ -699,15 +692,16 @@ function ContactManagement() {
                       Type *
                     </label>
                     <select
-                      name="type"
-                      value={formData.type}
+                      name="contactType"
+                      value={formData.contactType}
                       onChange={handleInputChange}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      <option value="supplier">Supplier</option>
-                      <option value="tailor">Tailor</option>
-                      <option value="internal">Internal</option>
+                      <option value="SUPPLIER">Supplier</option>
+                      <option value="WORKER">Tailor</option>
+                      <option value="CUSTOMER">Internal</option>
+                      <option value="OTHER">Other</option>
                     </select>
                   </div>
 
@@ -762,19 +756,6 @@ function ContactManagement() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Position
-                  </label>
-                  <input
-                    type="text"
-                    name="position"
-                    value={formData.position}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
                 </div>
 
                 <div>
@@ -851,15 +832,16 @@ function ContactManagement() {
                       Type *
                     </label>
                     <select
-                      name="type"
-                      value={formData.type}
+                      name="contactType"
+                      value={formData.contactType}
                       onChange={handleInputChange}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      <option value="supplier">Supplier</option>
-                      <option value="tailor">Tailor</option>
-                      <option value="internal">Internal</option>
+                      <option value="SUPPLIER">Supplier</option>
+                      <option value="WORKER">Tailor</option>
+                      <option value="CUSTOMER">Internal</option>
+                      <option value="OTHER">Other</option>
                     </select>
                   </div>
 
@@ -914,19 +896,6 @@ function ContactManagement() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Position
-                  </label>
-                  <input
-                    type="text"
-                    name="position"
-                    value={formData.position}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
                 </div>
 
                 <div>
@@ -990,14 +959,13 @@ function ContactManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Type</label>
-                    <span className={`mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      selectedContact.type === 'supplier' 
-                        ? 'bg-blue-100 text-blue-800'
-                        : selectedContact.type === 'tailor'
+                    <span className={`mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${selectedContact.contactType === 'SUPPLIER'
+                      ? 'bg-blue-100 text-blue-800'
+                      : selectedContact.contactType === 'WORKER'
                         ? 'bg-green-100 text-green-800'
                         : 'bg-purple-100 text-purple-800'
-                    }`}>
-                      {selectedContact.type}
+                      }`}>
+                      {selectedContact.contactType}
                     </span>
                   </div>
                   <div>
@@ -1011,7 +979,7 @@ function ContactManagement() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700">WhatsApp</label>
                     {selectedContact.whatsappPhone ? (
-                      <a 
+                      <a
                         href={getWhatsAppUrl(selectedContact.whatsappPhone)}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -1027,11 +995,6 @@ function ContactManagement() {
                     <label className="block text-sm font-medium text-gray-700">Company</label>
                     <p className="mt-1 text-sm text-gray-900">{selectedContact.company || 'N/A'}</p>
                   </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Position</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedContact.position || 'N/A'}</p>
                 </div>
 
                 <div>
@@ -1080,7 +1043,7 @@ function ContactManagement() {
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 Contact Notes - {selectedContact.name}
               </h3>
-              
+
               {/* Add Note Form */}
               <div className="bg-gray-50 p-4 rounded-lg mb-6">
                 <h4 className="text-md font-medium text-gray-800 mb-3">Add New Note</h4>
@@ -1197,21 +1160,19 @@ function ContactManagement() {
                     <div key={note.id} className="bg-white border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            note.noteType === 'general' ? 'bg-gray-100 text-gray-800' :
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${note.noteType === 'general' ? 'bg-gray-100 text-gray-800' :
                             note.noteType === 'order' ? 'bg-blue-100 text-blue-800' :
-                            note.noteType === 'purchase' ? 'bg-green-100 text-green-800' :
-                            note.noteType === 'performance' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-purple-100 text-purple-800'
-                          }`}>
+                              note.noteType === 'purchase' ? 'bg-green-100 text-green-800' :
+                                note.noteType === 'performance' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-purple-100 text-purple-800'
+                            }`}>
                             {note.noteType}
                           </span>
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            note.priority === 'low' ? 'bg-gray-100 text-gray-800' :
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${note.priority === 'low' ? 'bg-gray-100 text-gray-800' :
                             note.priority === 'medium' ? 'bg-blue-100 text-blue-800' :
-                            note.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
+                              note.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                'bg-red-100 text-red-800'
+                            }`}>
                             {note.priority}
                           </span>
                         </div>
@@ -1219,19 +1180,19 @@ function ContactManagement() {
                           {formatDate(note.createdAt)}
                         </span>
                       </div>
-                      
+
                       {note.title && (
                         <h5 className="font-medium text-gray-900 mb-2">{note.title}</h5>
                       )}
-                      
+
                       <p className="text-gray-700 mb-2">{note.note}</p>
-                      
+
                       {note.isFollowUpRequired && note.followUpDate && (
                         <div className="text-sm text-orange-600">
                           📅 Follow-up required by: {new Date(note.followUpDate).toLocaleDateString()}
                         </div>
                       )}
-                      
+
                       <div className="text-xs text-gray-500 mt-2">
                         Created by: {note.CreatedByUser?.name || 'Unknown'}
                       </div>
@@ -1264,4 +1225,4 @@ export default function ContactManagementWrapper() {
       </DashboardLayout>
     </AuthWrapper>
   );
-} 
+}

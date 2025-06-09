@@ -78,7 +78,7 @@ export default function EditProductPage() {
         }
 
         const productData = await productResponse.json();
-        
+
         // Set form data
         setFormData({
           name: productData.name || '',
@@ -102,7 +102,7 @@ export default function EditProductPage() {
         }
 
         // Fetch materials
-        const materialsResponse = await fetch('http://localhost:8080/api/materials', {
+        const materialsResponse = await fetch('http://localhost:8080/api/materials-management?limit=100', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -110,7 +110,11 @@ export default function EditProductPage() {
 
         if (materialsResponse.ok) {
           const materialsData = await materialsResponse.json();
-          setMaterials(materialsData);
+          if (materialsData.success && materialsData.data?.materials) {
+            setMaterials(materialsData.data.materials);
+          } else {
+            setMaterials(materialsData.materials || materialsData || []);
+          }
         }
 
       } catch (error) {
@@ -198,7 +202,7 @@ export default function EditProductPage() {
   const removeExistingPhoto = (photoId) => {
     setExistingPhotos(prev => prev.filter(photo => photo.id !== photoId));
     setPhotosToDelete(prev => [...prev, photoId]);
-    
+
     // Adjust main photo index if needed
     const remainingPhotos = existingPhotos.filter(photo => photo.id !== photoId);
     if (mainPhotoIndex >= remainingPhotos.length + newPhotos.length) {
@@ -209,7 +213,7 @@ export default function EditProductPage() {
   // Remove new photo
   const removeNewPhoto = (photoId) => {
     setNewPhotos(prev => prev.filter(photo => photo.id !== photoId));
-    
+
     // Adjust main photo index if needed
     const totalPhotos = existingPhotos.length + newPhotos.filter(photo => photo.id !== photoId).length;
     if (mainPhotoIndex >= totalPhotos) {
@@ -253,7 +257,7 @@ export default function EditProductPage() {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -311,7 +315,7 @@ export default function EditProductPage() {
 
       const result = await response.json();
       setSuccess('Product updated successfully!');
-      
+
       // Redirect to product detail after a short delay
       setTimeout(() => {
         router.push(`/dashboard/products/${productId}`);
@@ -383,7 +387,7 @@ export default function EditProductPage() {
             {/* Basic Information */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -394,9 +398,8 @@ export default function EditProductPage() {
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.name ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     placeholder="Enter product name"
                   />
                   {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
@@ -411,9 +414,8 @@ export default function EditProductPage() {
                     name="code"
                     value={formData.code}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.code ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.code ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     placeholder="Enter product code"
                   />
                   {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
@@ -428,9 +430,8 @@ export default function EditProductPage() {
                     name="category"
                     value={formData.category}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.category ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.category ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     placeholder="e.g., Hijab, Dress, Pants"
                   />
                   {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
@@ -460,7 +461,7 @@ export default function EditProductPage() {
             {/* Pricing and Inventory */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Pricing & Inventory</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -473,9 +474,8 @@ export default function EditProductPage() {
                     onChange={handleInputChange}
                     min="0"
                     step="100"
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.price ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.price ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     placeholder="0"
                   />
                   {errors.price && <p className="mt-1 text-sm text-red-600">{errors.price}</p>}
@@ -491,9 +491,8 @@ export default function EditProductPage() {
                     value={formData.qtyOnHand}
                     onChange={handleInputChange}
                     min="0"
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.qtyOnHand ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.qtyOnHand ? 'border-red-300' : 'border-gray-300'
+                      }`}
                   />
                   {errors.qtyOnHand && <p className="mt-1 text-sm text-red-600">{errors.qtyOnHand}</p>}
                 </div>
@@ -520,7 +519,7 @@ export default function EditProductPage() {
             {/* Additional Details */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Additional Details</h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -571,7 +570,7 @@ export default function EditProductPage() {
             {/* Photo Management */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Photos</h2>
-              
+
               {/* Current Photos */}
               {allPhotos.length > 0 && (
                 <div className="mb-6">
@@ -582,9 +581,8 @@ export default function EditProductPage() {
                     {allPhotos.map((photo, index) => (
                       <div
                         key={photo.id}
-                        className={`relative bg-gray-100 rounded-lg overflow-hidden aspect-square ${
-                          index === mainPhotoIndex ? 'ring-2 ring-blue-500' : ''
-                        }`}
+                        className={`relative bg-gray-100 rounded-lg overflow-hidden aspect-square ${index === mainPhotoIndex ? 'ring-2 ring-blue-500' : ''
+                          }`}
                       >
                         <img
                           src={photo.isNew ? photo.preview : `http://localhost:8080${photo.thumbnailUrl || photo.photoUrl}`}
@@ -632,9 +630,8 @@ export default function EditProductPage() {
                 <div>
                   <h3 className="text-md font-medium text-gray-900 mb-3">Add New Photos</h3>
                   <div
-                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                      dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
-                    }`}
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+                      }`}
                     onDragEnter={handleDrag}
                     onDragLeave={handleDrag}
                     onDragOver={handleDrag}

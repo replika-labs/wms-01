@@ -44,7 +44,7 @@ export default function ProductAnalyticsPage() {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
-        
+
         // Fetch all products for analysis
         const response = await fetch('http://localhost:8080/api/products', {
           headers: {
@@ -57,12 +57,15 @@ export default function ProductAnalyticsPage() {
           throw new Error('Failed to fetch products data');
         }
 
-        const products = await response.json();
-        
+        const data = await response.json();
+
+        // Handle both old and new API response formats
+        const products = data.products || data || [];
+
         // Process analytics data
         const processedAnalytics = processProductsData(products);
         setAnalytics(processedAnalytics);
-        
+
       } catch (error) {
         console.error('Error fetching analytics:', error);
         setError('Failed to load analytics data');
@@ -251,17 +254,16 @@ export default function ProductAnalyticsPage() {
             {/* Category Distribution */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Category Distribution</h2>
-              
+
               <div className="space-y-4">
                 {analytics.categories.slice(0, 5).map((category, index) => (
                   <div key={category.name} className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <div className={`w-3 h-3 rounded-full mr-3 ${
-                        index === 0 ? 'bg-blue-500' :
+                      <div className={`w-3 h-3 rounded-full mr-3 ${index === 0 ? 'bg-blue-500' :
                         index === 1 ? 'bg-green-500' :
-                        index === 2 ? 'bg-purple-500' :
-                        index === 3 ? 'bg-yellow-500' : 'bg-gray-500'
-                      }`}></div>
+                          index === 2 ? 'bg-purple-500' :
+                            index === 3 ? 'bg-yellow-500' : 'bg-gray-500'
+                        }`}></div>
                       <span className="text-sm font-medium text-gray-900">{category.name}</span>
                     </div>
                     <div className="text-right">
@@ -282,7 +284,7 @@ export default function ProductAnalyticsPage() {
             {/* Stock Level Distribution */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Stock Level Distribution</h2>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -324,7 +326,7 @@ export default function ProductAnalyticsPage() {
             {/* Low Stock Alert */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Low Stock Alert</h2>
-              
+
               {analytics.lowStockProducts.length > 0 ? (
                 <div className="space-y-3">
                   {analytics.lowStockProducts.map((product) => (
@@ -349,11 +351,10 @@ export default function ProductAnalyticsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                          product.qtyOnHand === 0 
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
+                        <span className={`inline-flex px-2 py-1 text-xs rounded-full ${product.qtyOnHand === 0
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                          }`}>
                           {product.qtyOnHand} {product.unit}
                         </span>
                       </div>
@@ -371,7 +372,7 @@ export default function ProductAnalyticsPage() {
             {/* Recent Products */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Recently Added Products</h2>
-              
+
               {analytics.recentProducts.length > 0 ? (
                 <div className="space-y-3">
                   {analytics.recentProducts.map((product) => (
@@ -418,7 +419,7 @@ export default function ProductAnalyticsPage() {
           {/* Price Analysis */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Price Analysis</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-1">Minimum Price</p>
@@ -442,7 +443,7 @@ export default function ProductAnalyticsPage() {
           {/* Category Details */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Category Performance</h2>
-            
+
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">

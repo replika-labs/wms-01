@@ -41,7 +41,7 @@ export default function ProductDetailPage() {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
-        
+
         const response = await fetch(`http://localhost:8080/api/products/${productId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -172,11 +172,10 @@ export default function ProductDetailPage() {
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleStatusToggle}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  product.isActive
-                    ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                    : 'bg-green-100 text-green-800 hover:bg-green-200'
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${product.isActive
+                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                  : 'bg-green-100 text-green-800 hover:bg-green-200'
+                  }`}
               >
                 {product.isActive ? 'Deactivate' : 'Activate'}
               </button>
@@ -206,7 +205,7 @@ export default function ProductDetailPage() {
             {/* Photo Gallery */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Photos</h2>
-              
+
               {product.photos && product.photos.length > 0 ? (
                 <div className="space-y-4">
                   {/* Main Photo */}
@@ -217,7 +216,7 @@ export default function ProductDetailPage() {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  
+
                   {/* Thumbnail Navigation */}
                   {product.photos.length > 1 && (
                     <div className="grid grid-cols-6 gap-2">
@@ -225,9 +224,8 @@ export default function ProductDetailPage() {
                         <button
                           key={photo.id}
                           onClick={() => setCurrentPhotoIndex(index)}
-                          className={`aspect-square bg-gray-200 rounded-lg overflow-hidden border-2 ${
-                            index === currentPhotoIndex ? 'border-blue-500' : 'border-transparent'
-                          }`}
+                          className={`aspect-square bg-gray-200 rounded-lg overflow-hidden border-2 ${index === currentPhotoIndex ? 'border-blue-500' : 'border-transparent'
+                            }`}
                         >
                           <img
                             src={`http://localhost:8080${photo.thumbnailUrl || photo.photoUrl}`}
@@ -254,7 +252,7 @@ export default function ProductDetailPage() {
               {/* Basic Info */}
               <div className="bg-white rounded-lg shadow-sm border p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
-                
+
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -266,7 +264,7 @@ export default function ProductDetailPage() {
                       <p className="text-gray-900 font-mono">{product.code}</p>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Category</label>
@@ -274,20 +272,19 @@ export default function ProductDetailPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Status</label>
-                      <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                        product.isActive 
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`inline-flex px-2 py-1 text-xs rounded-full ${product.isActive
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                        }`}>
                         {product.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                   </div>
 
-                  {product.Material && (
+                  {product.baseMaterial && (
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Base Material</label>
-                      <p className="text-gray-900">{product.Material.name} ({product.Material.code})</p>
+                      <p className="text-gray-900">{product.baseMaterial.name} ({product.baseMaterial.code})</p>
                     </div>
                   )}
 
@@ -303,7 +300,7 @@ export default function ProductDetailPage() {
               {/* Pricing & Inventory */}
               <div className="bg-white rounded-lg shadow-sm border p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Pricing & Inventory</h2>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-500">Price</label>
@@ -333,18 +330,17 @@ export default function ProductDetailPage() {
                 {/* Stock Level Indicator */}
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-500 mb-2">Stock Level</label>
-                  <div className={`px-3 py-2 rounded-lg text-sm ${
-                    product.qtyOnHand === 0 
-                      ? 'bg-red-100 text-red-800'
-                      : product.qtyOnHand < 10
+                  <div className={`px-3 py-2 rounded-lg text-sm ${product.qtyOnHand === 0
+                    ? 'bg-red-100 text-red-800'
+                    : product.qtyOnHand < 10
                       ? 'bg-yellow-100 text-yellow-800'
                       : 'bg-green-100 text-green-800'
-                  }`}>
-                    {product.qtyOnHand === 0 
+                    }`}>
+                    {product.qtyOnHand === 0
                       ? 'Out of Stock'
                       : product.qtyOnHand < 10
-                      ? 'Low Stock'
-                      : 'In Stock'
+                        ? 'Low Stock'
+                        : 'In Stock'
                     }
                   </div>
                 </div>
@@ -356,7 +352,7 @@ export default function ProductDetailPage() {
           {product.variations && product.variations.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Variations</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {product.variations.map((variation) => (
                   <div key={variation.id} className="border border-gray-200 rounded-lg p-4">
@@ -365,11 +361,10 @@ export default function ProductDetailPage() {
                         <h3 className="font-medium text-gray-900">{variation.size}</h3>
                         <p className="text-sm text-gray-500">Code: {variation.code}</p>
                       </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        variation.isActive 
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`px-2 py-1 text-xs rounded-full ${variation.isActive
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                        }`}>
                         {variation.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
@@ -389,7 +384,7 @@ export default function ProductDetailPage() {
           {product.colours && product.colours.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Available Colors</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {product.colours.map((color) => (
                   <div key={color.id} className="border border-gray-200 rounded-lg p-4">
@@ -398,11 +393,10 @@ export default function ProductDetailPage() {
                         <h3 className="font-medium text-gray-900">{color.colourName}</h3>
                         <p className="text-sm text-gray-500">Code: {color.code}</p>
                       </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        color.isActive 
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`px-2 py-1 text-xs rounded-full ${color.isActive
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                        }`}>
                         {color.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
@@ -418,7 +412,7 @@ export default function ProductDetailPage() {
           {/* Timestamps */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Record Information</h2>
-            
+
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <label className="block text-sm font-medium text-gray-500">Created At</label>

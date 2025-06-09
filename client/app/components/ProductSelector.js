@@ -3,15 +3,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { MagnifyingGlassIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 
-export default function ProductSelector({ 
-  selectedProducts = [], 
+export default function ProductSelector({
+  selectedProducts = [],
   onProductChange,
   className = ""
 }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -39,7 +39,10 @@ export default function ProductSelector({
         }
 
         const data = await response.json();
-        setProducts(data);
+
+        // Handle both old and new API response formats
+        const productsList = data.products || data;
+        setProducts(productsList);
       } catch (err) {
         setError('Error loading products: ' + err.message);
         console.error('Error fetching products:', err);
@@ -47,7 +50,7 @@ export default function ProductSelector({
         setLoading(false);
       }
     };
-    
+
     fetchProducts();
   }, []);
 
@@ -66,21 +69,21 @@ export default function ProductSelector({
     let filtered = products.filter(product => {
       // Search filter
       const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = !searchTerm || 
+      const matchesSearch = !searchTerm ||
         product.name.toLowerCase().includes(searchLower) ||
         product.code.toLowerCase().includes(searchLower) ||
         (product.description && product.description.toLowerCase().includes(searchLower));
-      
+
       // Category filter
       const matchesCategory = !selectedCategory || product.category === selectedCategory;
-      
+
       return matchesSearch && matchesCategory && product.isActive;
     });
 
     // Sort products
     filtered.sort((a, b) => {
       let aValue, bValue;
-      
+
       switch (sortField) {
         case 'name':
           aValue = a.name.toLowerCase();
@@ -98,7 +101,7 @@ export default function ProductSelector({
           aValue = a.name.toLowerCase();
           bValue = b.name.toLowerCase();
       }
-      
+
       if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
@@ -109,8 +112,15 @@ export default function ProductSelector({
 
   // Handle quantity change
   const handleQuantityChange = (productId, quantity) => {
+    // Find the product to check stock limits
+    const product = products.find(p => p.id === productId);
+    const maxQuantity = product ? product.qtyOnHand : 0;
+
+    // Ensure quantity doesn't exceed stock and isn't negative
+    const validQuantity = Math.max(0, Math.min(quantity, maxQuantity));
+
     if (onProductChange) {
-      onProductChange(productId, quantity);
+      onProductChange(productId, validQuantity);
     }
   };
 
@@ -134,16 +144,15 @@ export default function ProductSelector({
   const SortButton = ({ field, children }) => {
     const isActive = sortField === field;
     const isAsc = sortDirection === 'asc';
-    
+
     return (
       <button
         type="button"
         onClick={() => handleSort(field)}
-        className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-          isActive 
-            ? 'bg-blue-100 text-blue-800 border border-blue-200' 
-            : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
-        }`}
+        className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${isActive
+          ? 'bg-blue-100 text-blue-800 border border-blue-200'
+          : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+          }`}
       >
         {children}
         {isActive && (
@@ -269,83 +278,94 @@ export default function ProductSelector({
             <p>No products found matching your criteria.</p>
           </div>
         ) : (
-          <div 
-            className="grid grid-rows-2 grid-flow-col gap-4 overflow-x-auto pb-2"
-            style={{ 
-              gridTemplateColumns: `repeat(${Math.ceil(filteredAndSortedProducts.length / 2)}, minmax(180px, 1fr))`,
-              maxHeight: '400px'
-            }}
-          >
-            {filteredAndSortedProducts.map((product) => {
-              const currentQuantity = getCurrentQuantity(product.id);
-              const isSelected = currentQuantity > 0;
-              
-              return (
-                <div
-                  key={product.id}
-                  className={`relative border rounded-lg p-3 transition-all duration-200 ${
-                    isSelected 
-                      ? 'border-blue-500 bg-blue-50 shadow-md' 
-                      : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                  }`}
-                  style={{ height: '180px' }}
-                >
-                  {/* Product Info */}
-                  <div className="space-y-1 mb-3">
-                    <h4 className="font-medium text-sm text-gray-900 line-clamp-2">
-                      {product.name}
-                    </h4>
-                    <p className="text-xs text-gray-500">
-                      Code: {product.code}
-                    </p>
-                    {product.category && (
-                      <p className="text-xs text-blue-600 font-medium">
-                        {product.category}
-                      </p>
-                    )}
-                    {product.price && (
-                      <p className="text-xs text-green-600 font-medium">
-                        IDR {product.price.toLocaleString('id-ID')}
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-500">
-                      Stock: {product.qtyOnHand} {product.unit}
-                    </p>
-                    {product.Material && (
-                      <p className="text-xs text-purple-600">
-                        Material: {product.Material.name}
-                      </p>
-                    )}
-                    {product.colours && product.colours.length > 0 && (
-                      <p className="text-xs text-gray-500">
-                        Colors: {product.colours.length}
-                      </p>
-                    )}
-                  </div>
+          <div className="max-h-96 overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              {filteredAndSortedProducts.map((product) => {
+                const currentQuantity = getCurrentQuantity(product.id);
+                const isSelected = currentQuantity > 0;
 
-                  {/* Quantity Input */}
-                  <div className="absolute bottom-3 left-3 right-3">
-                    <div className="flex items-center space-x-2">
-                      <label className="text-xs text-gray-600 flex-shrink-0">Qty:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={currentQuantity}
-                        onChange={(e) => handleQuantityChange(product.id, parseInt(e.target.value) || 0)}
-                        className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                      />
+                return (
+                  <div
+                    key={product.id}
+                    className={`border rounded-lg p-3 transition-all duration-200 flex flex-col ${isSelected
+                      ? 'border-blue-500 bg-blue-50 shadow-md'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                      }`}
+                  >
+                    {/* Product Info */}
+                    <div className="flex-1 space-y-1 mb-3">
+                      <h4 className="font-medium text-sm text-gray-900 leading-tight line-clamp-2">
+                        {product.name}
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        {product.code}
+                      </p>
+                      {product.category && (
+                        <p className="text-xs text-blue-600 font-medium">
+                          {product.category}
+                        </p>
+                      )}
+                      {product.price && (
+                        <p className="text-xs text-green-600 font-medium">
+                          IDR {product.price.toLocaleString('id-ID')}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        Stock: {product.qtyOnHand} {product.unit}
+                      </p>
+                      {product.baseMaterial && (
+                        <p className="text-xs text-purple-600 truncate" title={`Material: ${product.baseMaterial.name}`}>
+                          Material: {product.baseMaterial.name}
+                        </p>
+                      )}
                     </div>
-                    {isSelected && (
-                      <div className="mt-1">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                          ✓ Selected
-                        </span>
+
+                    {/* Quantity Input Section */}
+                    <div className="border-t border-gray-200 pt-2 mt-2">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <label className="text-xs text-gray-600 flex-shrink-0">Qty:</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max={product.qtyOnHand}
+                          value={currentQuantity}
+                          onChange={(e) => handleQuantityChange(product.id, parseInt(e.target.value) || 0)}
+                          className={`flex-1 px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 min-w-0 ${product.qtyOnHand === 0
+                            ? 'border-red-300 bg-red-50 cursor-not-allowed'
+                            : currentQuantity === product.qtyOnHand
+                              ? 'border-yellow-300 focus:ring-yellow-500 focus:border-yellow-500'
+                              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                            }`}
+                          placeholder={product.qtyOnHand === 0 ? "Out of stock" : "0"}
+                          disabled={product.qtyOnHand === 0}
+                        />
                       </div>
-                    )}
+                      {product.qtyOnHand === 0 && (
+                        <div className="flex items-center justify-center mb-1">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                            ⚠ Out of Stock
+                          </span>
+                        </div>
+                      )}
+                      {currentQuantity === product.qtyOnHand && currentQuantity > 0 && (
+                        <div className="flex items-center justify-center mb-1">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                            ⚠ Max Stock
+                          </span>
+                        </div>
+                      )}
+                      {isSelected && product.qtyOnHand > 0 && (
+                        <div className="flex items-center justify-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            ✓ Selected
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

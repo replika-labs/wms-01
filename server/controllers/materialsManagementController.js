@@ -1113,5 +1113,6 @@ module.exports = {
     getInventoryAnalytics,
     getStockMovements,
     updateStockLevel,
-    adjustStock
+    adjustStock,
+    clearMaterialCaches // Export cache clearing function for use by other controllers
 } 

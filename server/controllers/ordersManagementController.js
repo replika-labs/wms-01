@@ -37,7 +37,7 @@ const getOrdersList = asyncHandler(async (req, res) => {
 
     if (search) {
       where.OR = [
-        { code: { contains: search, mode: 'insensitive' } },
+        { orderNumber: { contains: search, mode: 'insensitive' } },
         { customerNote: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } }
       ];
@@ -45,33 +45,59 @@ const getOrdersList = asyncHandler(async (req, res) => {
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Get orders with pagination
+    // Get orders with pagination - using correct field names from schema
     const [orders, totalCount] = await Promise.all([
       prisma.order.findMany({
         where,
         select: {
           id: true,
-          code: true,
+          orderNumber: true,
           status: true,
           priority: true,
           dueDate: true,
           targetPcs: true,
           completedPcs: true,
+          customerNote: true,
+          description: true,
           createdAt: true,
+          updatedAt: true,
           workerContact: {
             select: {
               id: true,
               name: true,
-              phone: true
+              phone: true,
+              whatsappPhone: true,
+              email: true,
+              company: true
+            }
+          },
+          orderProducts: {
+            select: {
+              id: true,
+              quantity: true,
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true
+                }
+              }
             }
           }
         },
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: { [sortBy]: sortOrder.toLowerCase() },
         take: parseInt(limit),
         skip: offset
       }),
       prisma.order.count({ where })
     ]);
+
+    // Calculate additional metadata for each order
+    const enhancedOrders = orders.map(order => ({
+      ...order,
+      productCount: order.orderProducts?.length || 0,
+      tailor: order.workerContact // For backward compatibility
+    }));
 
     // Get filter counts
     const [statusCounts, priorityCounts] = await Promise.all([
@@ -98,7 +124,7 @@ const getOrdersList = asyncHandler(async (req, res) => {
     }, {});
 
     res.json({
-      orders,
+      orders: enhancedOrders,
       pagination: {
         total: totalCount,
         pages: Math.ceil(totalCount / parseInt(limit)),
@@ -131,7 +157,7 @@ const getWorkers = asyncHandler(async (req, res) => {
       return res.json(workersCache);
     }
 
-    // Fetch fresh data
+    // Fetch fresh data - using correct contactType from schema
     const workers = await prisma.contact.findMany({
       where: {
         contactType: 'WORKER',
@@ -165,7 +191,7 @@ const getWorkers = asyncHandler(async (req, res) => {
 
 /**
  * Get single order details for modals
- * Returns complete order information
+ * Returns complete order information with proper schema field names
  */
 const getOrderDetails = asyncHandler(async (req, res) => {
   try {
@@ -214,7 +240,26 @@ const getOrderDetails = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    res.json(order);
+    // Add backward compatibility fields
+    const enhancedOrder = {
+      ...order,
+      // For backward compatibility with frontend
+      Tailor: order.workerContact,
+      tailorContactId: order.workerContactId,
+      Products: order.orderProducts?.map(op => ({
+        ...op.product,
+        OrderProduct: {
+          qty: op.quantity,
+          unitPrice: op.unitPrice,
+          totalPrice: op.totalPrice,
+          notes: op.notes,
+          completedQty: op.completedQty,
+          status: op.status
+        }
+      })) || []
+    };
+
+    res.json(enhancedOrder);
   } catch (error) {
     console.error('Error fetching order details:', error);
     res.status(500).json({
@@ -225,17 +270,17 @@ const getOrderDetails = asyncHandler(async (req, res) => {
 });
 
 /**
- * Optimized status update
- * Updates only status field with optimistic response
+ * Optimized status update with proper enum validation
  */
 const updateOrderStatus = asyncHandler(async (req, res) => {
   try {
     const { status } = req.body;
     const { id } = req.params;
 
-    const validStatuses = ['created', 'confirmed', 'processing', 'completed', 'shipped', 'delivered', 'cancelled', 'need material'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
+    // Validate status against schema enum
+    const validStatuses = ['CREATED', 'NEED_MATERIAL', 'CONFIRMED', 'PROCESSING', 'COMPLETED', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+    if (!validStatuses.includes(status.toUpperCase())) {
+      return res.status(400).json({ message: 'Invalid status. Must be one of: ' + validStatuses.join(', ') });
     }
 
     const order = await prisma.order.findFirst({
@@ -249,10 +294,10 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    // Update status
+    // Update status - using schema enum values
     const updatedOrder = await prisma.order.update({
       where: { id: parseInt(id) },
-      data: { status }
+      data: { status: status.toUpperCase() }
     });
 
     // Return minimal response for optimistic UI
@@ -359,8 +404,7 @@ const clearWorkersCache = asyncHandler(async (req, res) => {
 });
 
 /**
- * Create new order with optimized material stock checking
- * Dedicated endpoint for orders-management with enhanced validation
+ * Create new order with proper schema compliance
  */
 const createOrder = asyncHandler(async (req, res) => {
   try {
@@ -368,8 +412,8 @@ const createOrder = asyncHandler(async (req, res) => {
       customerNote,
       dueDate,
       description,
-      priority = 'medium',
-      status = 'created',
+      priority = 'MEDIUM',
+      status = 'CREATED',
       workerContactId,
       products = []
     } = req.body;
@@ -409,22 +453,22 @@ const createOrder = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'One or more products are invalid' });
     }
 
-    // Generate order code
+    // Generate order number using proper schema field
     const orderCount = await prisma.order.count();
-    const orderCode = `ORD-${String(orderCount + 1).padStart(6, '0')}`;
+    const orderNumber = `ORD-${String(orderCount + 1).padStart(6, '0')}`;
 
     // Calculate total target pieces
     const targetPcs = products.reduce((sum, p) => sum + parseInt(p.quantity || 0), 0);
 
-    // Create order
+    // Create order with proper schema fields
     const order = await prisma.order.create({
       data: {
-        code: orderCode,
+        orderNumber,
         customerNote,
         dueDate: new Date(dueDate),
         description,
-        priority,
-        status,
+        priority: priority.toUpperCase(),
+        status: status.toUpperCase(),
         targetPcs,
         completedPcs: 0,
         workerContactId: workerContactId ? parseInt(workerContactId) : null,
@@ -433,13 +477,16 @@ const createOrder = asyncHandler(async (req, res) => {
       }
     });
 
-    // Create order products
+    // Create order products with proper schema structure
     const orderProducts = products.map(p => ({
       orderId: order.id,
       productId: parseInt(p.productId),
       quantity: parseInt(p.quantity),
       unitPrice: parseFloat(p.unitPrice || 0),
-      notes: p.notes || null
+      totalPrice: parseFloat(p.unitPrice || 0) * parseInt(p.quantity),
+      notes: p.notes || null,
+      completedQty: 0,
+      status: 'PENDING'
     }));
 
     await prisma.orderProduct.createMany({
@@ -453,7 +500,7 @@ const createOrder = asyncHandler(async (req, res) => {
         user: {
           select: { id: true, name: true, email: true }
         },
-        tailorContact: {
+        workerContact: {
           select: {
             id: true,
             name: true,
@@ -493,7 +540,7 @@ const createOrder = asyncHandler(async (req, res) => {
 });
 
 /**
- * Update existing order
+ * Update existing order with proper schema compliance
  */
 const updateOrder = asyncHandler(async (req, res) => {
   try {
@@ -504,7 +551,7 @@ const updateOrder = asyncHandler(async (req, res) => {
       description,
       priority,
       status,
-      tailorContactId,
+      workerContactId,
       products = []
     } = req.body;
 
@@ -519,18 +566,18 @@ const updateOrder = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    // Validate tailor if provided
-    if (tailorContactId) {
-      const tailor = await prisma.contact.findFirst({
+    // Validate worker if provided
+    if (workerContactId) {
+      const worker = await prisma.contact.findFirst({
         where: {
-          id: parseInt(tailorContactId),
-          type: 'tailor',
+          id: parseInt(workerContactId),
+          contactType: 'WORKER',
           isActive: true
         }
       });
 
-      if (!tailor) {
-        return res.status(400).json({ message: 'Invalid tailor selected' });
+      if (!worker) {
+        return res.status(400).json({ message: 'Invalid worker selected' });
       }
     }
 
@@ -553,16 +600,16 @@ const updateOrder = asyncHandler(async (req, res) => {
       targetPcs = products.reduce((sum, p) => sum + parseInt(p.quantity || 0), 0);
     }
 
-    // Update order
+    // Update order using correct schema fields
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
       data: {
         customerNote: customerNote !== undefined ? customerNote : order.customerNote,
         dueDate: dueDate ? new Date(dueDate) : order.dueDate,
         description: description !== undefined ? description : order.description,
-        priority: priority || order.priority,
-        status: status || order.status,
-        tailorContactId: tailorContactId !== undefined ? (tailorContactId ? parseInt(tailorContactId) : null) : order.tailorContactId,
+        priority: priority ? priority.toUpperCase() : order.priority,
+        status: status ? status.toUpperCase() : order.status,
+        workerContactId: workerContactId !== undefined ? (workerContactId ? parseInt(workerContactId) : null) : order.workerContactId,
         targetPcs
       }
     });
@@ -578,7 +625,10 @@ const updateOrder = asyncHandler(async (req, res) => {
         productId: parseInt(p.productId),
         quantity: parseInt(p.quantity),
         unitPrice: parseFloat(p.unitPrice || 0),
-        notes: p.notes || null
+        totalPrice: parseFloat(p.unitPrice || 0) * parseInt(p.quantity),
+        notes: p.notes || null,
+        completedQty: 0,
+        status: 'PENDING'
       }));
 
       await prisma.orderProduct.createMany({
@@ -593,7 +643,7 @@ const updateOrder = asyncHandler(async (req, res) => {
         user: {
           select: { id: true, name: true, email: true }
         },
-        tailorContact: {
+        workerContact: {
           select: {
             id: true,
             name: true,
@@ -633,7 +683,7 @@ const updateOrder = asyncHandler(async (req, res) => {
 });
 
 /**
- * Delete order (soft delete)
+ * Delete order (soft delete) with proper schema compliance
  */
 const deleteOrder = asyncHandler(async (req, res) => {
   try {
@@ -650,11 +700,11 @@ const deleteOrder = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    // Check if order can be deleted (business rules)
-    const protectedStatuses = ['processing', 'completed', 'shipped', 'delivered'];
+    // Check if order can be deleted (business rules) - using schema enum values
+    const protectedStatuses = ['PROCESSING', 'COMPLETED', 'SHIPPED', 'DELIVERED'];
     if (protectedStatuses.includes(order.status)) {
       return res.status(400).json({
-        message: `Cannot delete order with status: ${order.status}. Only orders with status 'created', 'confirmed', 'cancelled', or 'need material' can be deleted.`
+        message: `Cannot delete order with status: ${order.status}. Only orders with status 'CREATED', 'CONFIRMED', 'CANCELLED', or 'NEED_MATERIAL' can be deleted.`
       });
     }
 
@@ -662,20 +712,18 @@ const deleteOrder = asyncHandler(async (req, res) => {
     await prisma.order.update({
       where: { id: orderId },
       data: {
-        isActive: false,
-        deletedAt: new Date(),
-        deletedBy: req.user.id
+        isActive: false
       }
     });
 
-    console.log(`Order ${order.code} deleted by user ${req.user.id} at ${new Date().toISOString()}`);
+    console.log(`Order ${order.orderNumber} deleted by user ${req.user.id} at ${new Date().toISOString()}`);
 
     res.json({
       success: true,
-      message: `Order ${order.code} deleted successfully`,
+      message: `Order ${order.orderNumber} deleted successfully`,
       order: {
         id: order.id,
-        code: order.code,
+        orderNumber: order.orderNumber,
         status: order.status,
         deletedAt: new Date()
       }
@@ -727,7 +775,7 @@ const getOrderTimeline = asyncHandler(async (req, res) => {
         id: 1,
         type: 'order_created',
         title: 'Order Created',
-        description: `Order ${order.code} was created`,
+        description: `Order ${order.orderNumber} was created`,
         timestamp: order.createdAt,
         user: order.user?.name || 'System',
         status: 'created'

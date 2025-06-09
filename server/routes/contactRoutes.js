@@ -30,7 +30,7 @@ router.route('/:id')
 router.put('/:id/toggle-status', toggleContactStatus);
 
 // Filter and search routes
-router.get('/type/:type', getContactsByType);
+router.get('/type/:contactType', getContactsByType);
 router.get('/search/:searchTerm', searchContacts);
 
 // Notes management

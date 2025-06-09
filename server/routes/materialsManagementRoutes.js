@@ -17,6 +17,9 @@ const {
   updateStockLevel,
   adjustStock
 } = require('../controllers/materialsManagementController');
+const {
+  getProductsUsingMaterial
+} = require('../controllers/productMaterialController');
 
 // Authentication middleware will be applied when implementing
 // router.use(protect);
@@ -46,5 +49,8 @@ router.delete('/:id', deleteMaterial);
 router.get('/:id/movements', getStockMovements);
 router.put('/:id/stock', updateStockLevel);
 router.post('/:id/adjust', adjustStock);
+
+// Material-Product relationship
+router.get('/:id/products', getProductsUsingMaterial);
 
 module.exports = router; 

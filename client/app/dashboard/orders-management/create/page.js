@@ -14,13 +14,13 @@ export default function CreateOrderManagement() {
   const [success, setSuccess] = useState('');
   const [tailors, setTailors] = useState([]);
   const [refreshingTailors, setRefreshingTailors] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     customerNote: '',
     dueDate: '',
     description: '',
-    priority: 'medium',
-    tailorContactId: '',
+    priority: 'MEDIUM',
+    workerContactId: '',
     products: [] // Array of { productId, quantity }
   });
 
@@ -66,11 +66,11 @@ export default function CreateOrderManagement() {
 
   const handleProductChange = (productId, quantity) => {
     console.log('Product change:', { productId, quantity });
-    
+
     setFormData(prev => {
       const products = [...prev.products];
       const existingIndex = products.findIndex(p => p.productId === productId);
-      
+
       if (existingIndex >= 0) {
         if (quantity > 0) {
           products[existingIndex].quantity = quantity;
@@ -112,13 +112,13 @@ export default function CreateOrderManagement() {
       if (result.stockResults && result.stockResults.hasStockIssues) {
         const warnings = result.stockResults.warnings || [];
         const alerts = result.stockResults.alerts || [];
-        
+
         if (warnings.length > 0 || alerts.length > 0) {
           const stockMessage = [
             ...warnings,
             ...alerts.map(alert => `Purchase alert created for ${alert.materialName}`)
           ].join('; ');
-          
+
           setSuccess(`Order created successfully! Stock notifications: ${stockMessage}`);
         } else {
           setSuccess('Order created successfully!');
@@ -132,8 +132,8 @@ export default function CreateOrderManagement() {
         customerNote: '',
         dueDate: '',
         description: '',
-        priority: 'medium',
-        tailorContactId: '',
+        priority: 'MEDIUM',
+        workerContactId: '',
         products: []
       });
 
@@ -244,23 +244,23 @@ export default function CreateOrderManagement() {
                       onChange={handleInputChange}
                       className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                      <option value="URGENT">Urgent</option>
                     </select>
                   </div>
 
                   {/* Tailor Assignment */}
                   <div>
-                    <label htmlFor="tailorContactId" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="workerContactId" className="block text-sm font-medium text-gray-700 mb-1">
                       Assigned Tailor
                     </label>
                     <div className="flex items-center space-x-2">
                       <select
-                        id="tailorContactId"
-                        name="tailorContactId"
-                        value={formData.tailorContactId}
+                        id="workerContactId"
+                        name="workerContactId"
+                        value={formData.workerContactId}
                         onChange={handleInputChange}
                         className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       >
@@ -301,7 +301,7 @@ export default function CreateOrderManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Products & Quantities *
                   </label>
-                  <ProductSelector 
+                  <ProductSelector
                     selectedProducts={formData.products}
                     onProductChange={handleProductChange}
                   />

@@ -60,7 +60,7 @@ export default function CreateProductPage() {
     const fetchMaterials = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8080/api/materials', {
+        const response = await fetch('http://localhost:8080/api/materials-management?limit=100', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -68,7 +68,11 @@ export default function CreateProductPage() {
 
         if (response.ok) {
           const data = await response.json();
-          setMaterials(data);
+          if (data.success && data.data?.materials) {
+            setMaterials(data.data.materials);
+          } else {
+            setMaterials(data.materials || data || []);
+          }
         }
       } catch (error) {
         console.error('Error fetching materials:', error);
@@ -191,7 +195,7 @@ export default function CreateProductPage() {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -234,7 +238,7 @@ export default function CreateProductPage() {
 
       const result = await response.json();
       setSuccess('Product created successfully!');
-      
+
       // Redirect to products list after a short delay
       setTimeout(() => {
         router.push('/dashboard/products');
@@ -285,7 +289,7 @@ export default function CreateProductPage() {
             {/* Basic Information */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -296,9 +300,8 @@ export default function CreateProductPage() {
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.name ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     placeholder="Enter product name"
                   />
                   {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
@@ -313,9 +316,8 @@ export default function CreateProductPage() {
                     name="code"
                     value={formData.code}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.code ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.code ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     placeholder="Enter product code"
                   />
                   {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
@@ -330,9 +332,8 @@ export default function CreateProductPage() {
                     name="category"
                     value={formData.category}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.category ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.category ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     placeholder="e.g., Hijab, Dress, Pants"
                   />
                   {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
@@ -362,7 +363,7 @@ export default function CreateProductPage() {
             {/* Pricing and Inventory */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Pricing & Inventory</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -375,9 +376,8 @@ export default function CreateProductPage() {
                     onChange={handleInputChange}
                     min="0"
                     step="100"
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.price ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.price ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     placeholder="0"
                   />
                   {errors.price && <p className="mt-1 text-sm text-red-600">{errors.price}</p>}
@@ -393,9 +393,8 @@ export default function CreateProductPage() {
                     value={formData.qtyOnHand}
                     onChange={handleInputChange}
                     min="0"
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.qtyOnHand ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.qtyOnHand ? 'border-red-300' : 'border-gray-300'
+                      }`}
                   />
                   {errors.qtyOnHand && <p className="mt-1 text-sm text-red-600">{errors.qtyOnHand}</p>}
                 </div>
@@ -422,7 +421,7 @@ export default function CreateProductPage() {
             {/* Additional Details */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Additional Details</h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -473,12 +472,11 @@ export default function CreateProductPage() {
             {/* Photo Upload */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Photos</h2>
-              
+
               {/* Drag and Drop Area */}
               <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
-                }`}
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+                  }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
@@ -515,9 +513,8 @@ export default function CreateProductPage() {
                     {photos.map((photo, index) => (
                       <div
                         key={photo.id}
-                        className={`relative bg-gray-100 rounded-lg overflow-hidden aspect-square ${
-                          index === mainPhotoIndex ? 'ring-2 ring-blue-500' : ''
-                        }`}
+                        className={`relative bg-gray-100 rounded-lg overflow-hidden aspect-square ${index === mainPhotoIndex ? 'ring-2 ring-blue-500' : ''
+                          }`}
                       >
                         <Image
                           src={photo.preview}

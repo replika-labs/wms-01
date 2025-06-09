@@ -30,7 +30,7 @@ const getContacts = asyncHandler(async (req, res) => {
   const {
     page = 1,
     limit = 10,
-    type,
+    contactType,
     search,
     isActive = 'true',
     sortBy = 'name',
@@ -40,9 +40,9 @@ const getContacts = asyncHandler(async (req, res) => {
   // Build where clause
   const where = {};
 
-  // Only filter by type if it's a valid type (not 'all' or empty)
-  if (type && type !== 'all' && ['supplier', 'worker', 'customer', 'other'].includes(type)) {
-    where.contactType = type.toUpperCase();
+  // Only filter by contactType if it's a valid type (not 'all' or empty)
+  if (contactType && contactType !== 'all' && ['CUSTOMER', 'SUPPLIER', 'WORKER', 'OTHER'].includes(contactType.toUpperCase())) {
+    where.contactType = contactType.toUpperCase();
   }
   if (isActive !== 'all') where.isActive = isActive === 'true';
 
@@ -75,7 +75,7 @@ const getContacts = asyncHandler(async (req, res) => {
     _count: {
       _all: true
     },
-    _sum: {
+    where: {
       isActive: true
     }
   });
@@ -83,7 +83,7 @@ const getContacts = asyncHandler(async (req, res) => {
   const formattedTypeStats = typeStats.reduce((acc, stat) => {
     acc[stat.contactType] = {
       total: stat._count._all,
-      active: stat._sum?.isActive || 0
+      active: stat._count._all // Since we're filtering by isActive: true
     };
     return acc;
   }, {});
@@ -155,60 +155,58 @@ const getContactById = asyncHandler(async (req, res) => {
 const createContact = asyncHandler(async (req, res) => {
   const {
     name,
-    type,
+    contactType,
     email,
     phone,
     whatsappPhone,
     address,
     company,
-    position,
     notes
   } = req.body;
 
   // Validation
-  if (!name || !type) {
+  if (!name || !contactType) {
     res.status(400);
-    throw new Error('Name and type are required');
+    throw new Error('Name and contactType are required');
   }
 
-  if (!['supplier', 'tailor', 'internal'].includes(type)) {
+  if (!['CUSTOMER', 'SUPPLIER', 'WORKER', 'OTHER'].includes(contactType.toUpperCase())) {
     res.status(400);
-    throw new Error('Invalid contact type. Must be supplier, tailor, or internal');
+    throw new Error('Invalid contact type. Must be CUSTOMER, SUPPLIER, WORKER, or OTHER');
   }
 
-  // Check for duplicate name within same type
+  // Check for duplicate name within same contactType
   const existingContact = await prisma.contact.findFirst({
     where: {
       name,
-      type,
+      contactType: contactType.toUpperCase(),
       isActive: true
     }
   });
 
   if (existingContact) {
     res.status(400);
-    throw new Error(`${type} with name "${name}" already exists`);
+    throw new Error(`${contactType} with name "${name}" already exists`);
   }
 
   try {
     const contact = await prisma.contact.create({
       data: {
         name,
-        type,
+        contactType: contactType.toUpperCase(),
         email,
         phone,
         whatsappPhone,
         address,
         company,
-        position,
         notes,
         isActive: true
       }
     });
 
-    // Invalidate orders-management tailors cache if a tailor was created
-    if (type === 'tailor') {
-      await invalidateOrdersManagementTailorsCache();
+    // Invalidate orders-management workers cache if a worker was created
+    if (contactType.toUpperCase() === 'WORKER') {
+      await invalidateOrdersManagementWorkersCache();
     }
 
     res.status(201).json({
@@ -232,13 +230,12 @@ const createContact = asyncHandler(async (req, res) => {
 const updateContact = asyncHandler(async (req, res) => {
   const {
     name,
-    type,
+    contactType,
     email,
     phone,
     whatsappPhone,
     address,
     company,
-    position,
     notes
   } = req.body;
 
@@ -259,12 +256,12 @@ const updateContact = asyncHandler(async (req, res) => {
       });
     }
 
-    // Check for duplicate name within same type if name or type is being changed
-    if (name && name !== contact.name && type && type !== contact.type) {
+    // Check for duplicate name within same contactType if name or contactType is being changed
+    if (name && name !== contact.name && contactType && contactType.toUpperCase() !== contact.contactType) {
       const existingContact = await prisma.contact.findFirst({
         where: {
           name,
-          type,
+          contactType: contactType.toUpperCase(),
           isActive: true,
           id: { not: contactId }
         }
@@ -273,31 +270,30 @@ const updateContact = asyncHandler(async (req, res) => {
       if (existingContact) {
         return res.status(400).json({
           success: false,
-          message: `${type} with name "${name}" already exists`
+          message: `${contactType} with name "${name}" already exists`
         });
       }
     }
 
-    const originalType = contact.type;
+    const originalContactType = contact.contactType;
 
     const updatedContact = await prisma.contact.update({
       where: { id: contactId },
       data: {
         name: name || contact.name,
-        type: type || contact.type,
+        contactType: contactType ? contactType.toUpperCase() : contact.contactType,
         email: email !== undefined ? email : contact.email,
         phone: phone !== undefined ? phone : contact.phone,
         whatsappPhone: whatsappPhone !== undefined ? whatsappPhone : contact.whatsappPhone,
         address: address !== undefined ? address : contact.address,
         company: company !== undefined ? company : contact.company,
-        position: position !== undefined ? position : contact.position,
         notes: notes !== undefined ? notes : contact.notes
       }
     });
 
-    // Invalidate orders-management tailors cache if a tailor was updated or type changed
-    if (originalType === 'tailor' || updatedContact.type === 'tailor') {
-      await invalidateOrdersManagementTailorsCache();
+    // Invalidate orders-management workers cache if a worker was updated or contactType changed
+    if (originalContactType === 'WORKER' || updatedContact.contactType === 'WORKER') {
+      await invalidateOrdersManagementWorkersCache();
     }
 
     res.json({
@@ -341,9 +337,9 @@ const deleteContact = asyncHandler(async (req, res) => {
       data: { isActive: false }
     });
 
-    // Invalidate orders-management tailors cache if a tailor was deleted
-    if (contact.type === 'tailor') {
-      await invalidateOrdersManagementTailorsCache();
+    // Invalidate orders-management workers cache if a worker was deleted
+    if (contact.contactType === 'WORKER') {
+      await invalidateOrdersManagementWorkersCache();
     }
 
     res.json({
@@ -352,7 +348,7 @@ const deleteContact = asyncHandler(async (req, res) => {
       contact: {
         id: contact.id,
         name: contact.name,
-        type: contact.type,
+        contactType: contact.contactType,
         isActive: false
       }
     });
@@ -388,9 +384,9 @@ const toggleContactStatus = asyncHandler(async (req, res) => {
       data: { isActive: !contact.isActive }
     });
 
-    // Invalidate orders-management tailors cache if a tailor status was changed
-    if (contact.type === 'tailor') {
-      await invalidateOrdersManagementTailorsCache();
+    // Invalidate orders-management workers cache if a worker status was changed
+    if (contact.contactType === 'WORKER') {
+      await invalidateOrdersManagementWorkersCache();
     }
 
     res.json({
@@ -399,7 +395,7 @@ const toggleContactStatus = asyncHandler(async (req, res) => {
       contact: {
         id: updatedContact.id,
         name: updatedContact.name,
-        type: updatedContact.type,
+        contactType: updatedContact.contactType,
         isActive: updatedContact.isActive
       }
     });
@@ -414,21 +410,21 @@ const toggleContactStatus = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get contacts by type
-// @route   GET /api/contacts/type/:type
+// @route   GET /api/contacts/type/:contactType
 // @access  Private
 const getContactsByType = asyncHandler(async (req, res) => {
-  const { type } = req.params;
+  const { contactType } = req.params;
   const { includeInactive = 'false' } = req.query;
 
-  if (!['supplier', 'tailor', 'internal'].includes(type)) {
+  if (!['CUSTOMER', 'SUPPLIER', 'WORKER', 'OTHER'].includes(contactType.toUpperCase())) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid contact type'
+      message: 'Invalid contact type. Must be CUSTOMER, SUPPLIER, WORKER, or OTHER'
     });
   }
 
   try {
-    const whereClause = { type };
+    const whereClause = { contactType: contactType.toUpperCase() };
     if (includeInactive !== 'true') {
       whereClause.isActive = true;
     }
@@ -444,10 +440,10 @@ const getContactsByType = asyncHandler(async (req, res) => {
       count: contacts.length
     });
   } catch (error) {
-    console.error(`Error fetching ${type} contacts:`, error);
+    console.error(`Error fetching ${contactType} contacts:`, error);
     res.status(500).json({
       success: false,
-      message: `Failed to fetch ${type} contacts`,
+      message: `Failed to fetch ${contactType} contacts`,
       error: error.message
     });
   }
@@ -458,7 +454,7 @@ const getContactsByType = asyncHandler(async (req, res) => {
 // @access  Private
 const searchContacts = asyncHandler(async (req, res) => {
   const { searchTerm } = req.params;
-  const { type } = req.query;
+  const { contactType } = req.query;
 
   try {
     const whereClause = {
@@ -469,8 +465,8 @@ const searchContacts = asyncHandler(async (req, res) => {
       isActive: true
     };
 
-    if (type && ['supplier', 'tailor', 'internal'].includes(type)) {
-      whereClause.type = type;
+    if (contactType && ['CUSTOMER', 'SUPPLIER', 'WORKER', 'OTHER'].includes(contactType.toUpperCase())) {
+      whereClause.contactType = contactType.toUpperCase();
     }
 
     const contacts = await prisma.contact.findMany({

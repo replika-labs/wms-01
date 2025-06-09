@@ -14,7 +14,7 @@ export default function OrdersManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   // Optimized pagination state
   const [pagination, setPagination] = useState({
     total: 0,
@@ -22,30 +22,30 @@ export default function OrdersManagement() {
     current: 1,
     limit: 10
   });
-  
+
   // Filter counts for UI
   const [filterCounts, setFilterCounts] = useState({
     statusCounts: {},
     priorityCounts: {}
   });
-  
+
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  
+
   // Form states
   const [formData, setFormData] = useState({
     customerNote: '',
     dueDate: '',
     description: '',
-    priority: 'medium',
-    status: 'created',
-    tailorContactId: '',
+    priority: 'MEDIUM',
+    status: 'CREATED',
+    workerContactId: '',
     products: []
   });
-  
+
   // Filter states
   const [filters, setFilters] = useState({
     status: '',
@@ -54,9 +54,9 @@ export default function OrdersManagement() {
     dateFrom: '',
     dateTo: '',
     sortBy: 'createdAt',
-    sortOrder: 'DESC'
+    sortOrder: 'desc'
   });
-  
+
   // Performance optimization states
   const [updating, setUpdating] = useState(new Set()); // Track which orders are being updated
   const [refreshingTailors, setRefreshingTailors] = useState(false);
@@ -82,14 +82,14 @@ export default function OrdersManagement() {
 
       // Use optimized API with server-side processing
       const data = await ordersManagementAPI.getOrdersList(params);
-      
+
       setOrders(data.orders);
       setPagination(data.pagination);
       setFilterCounts(data.filters);
 
       // Preload next page for better UX
       ordersManagementAPI.preloadNextPage(params);
-      
+
     } catch (err) {
       setError('Error loading orders: ' + err.message);
       console.error('Failed to fetch orders:', err);
@@ -109,7 +109,7 @@ export default function OrdersManagement() {
       // Fallback to empty array on error
       setTailors([]);
     }
-  };  
+  };
 
   // Manual refresh tailors function
   const handleRefreshTailors = async () => {
@@ -132,7 +132,7 @@ export default function OrdersManagement() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
-  
+
   useEffect(() => {
     fetchTailors();
   }, []);
@@ -148,11 +148,11 @@ export default function OrdersManagement() {
     try {
       // Add to updating set for UI feedback
       setUpdating(prev => new Set(prev).add(orderId));
-      
+
       // Optimistic update - update UI immediately
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order.id === orderId 
+      setOrders(prevOrders =>
+        prevOrders.map(order =>
+          order.id === orderId
             ? { ...order, status: newStatus, updatedAt: new Date().toISOString() }
             : order
         )
@@ -160,10 +160,10 @@ export default function OrdersManagement() {
 
       // Use optimized API
       await ordersManagementAPI.updateOrderStatus(orderId, newStatus);
-      
+
       setSuccess(`Order status updated to ${newStatus}`);
       setTimeout(() => setSuccess(''), 3000);
-      
+
     } catch (err) {
       // Revert optimistic update on error
       fetchOrders();
@@ -213,7 +213,7 @@ export default function OrdersManagement() {
 
       // Generate the complete URL with token
       const orderLinkUrl = `${window.location.origin}/order-progress/${data.token}`;
-      
+
       // Copy to clipboard
       await navigator.clipboard.writeText(orderLinkUrl);
 
@@ -221,7 +221,7 @@ export default function OrdersManagement() {
       if (order.tailor && order.tailor.whatsappPhone) {
         const tailorName = order.tailor.name;
         const orderNumber = order.orderNumber;
-        
+
         // Prepare WhatsApp message
         const whatsappMessage = encodeURIComponent(
           `Hi ${tailorName}! 👋\n\n` +
@@ -235,16 +235,16 @@ export default function OrdersManagement() {
           `Please use this link to submit your progress updates. The link expires in 30 days.\n\n` +
           `Thank you! 🙏`
         );
-        
+
         const whatsappUrl = `https://wa.me/${order.tailor.whatsappPhone.replace(/\D/g, '')}?text=${whatsappMessage}`;
-        
+
         // Ask user if they want to send WhatsApp message
         const sendWhatsApp = confirm(
           `OrderLink generated successfully!\n\n` +
           `Tailor "${tailorName}" is assigned to this order.\n` +
           `Would you like to send the OrderLink via WhatsApp?`
         );
-        
+
         if (sendWhatsApp) {
           window.open(whatsappUrl, '_blank');
           setSuccess(`OrderLink sent to ${tailorName} via WhatsApp! Link also copied to clipboard.`);
@@ -254,7 +254,7 @@ export default function OrdersManagement() {
       } else {
         setSuccess('OrderLink copied to clipboard! (expires in 30 days) - No tailor assigned to send via WhatsApp');
       }
-      
+
       setTimeout(() => setSuccess(''), 5000);
 
     } catch (err) {
@@ -269,7 +269,7 @@ export default function OrdersManagement() {
     setFormData(prev => {
       const products = [...prev.products];
       const existingIndex = products.findIndex(p => p.productId === productId);
-      
+
       if (existingIndex >= 0) {
         if (quantity > 0) {
           products[existingIndex].quantity = quantity;
@@ -293,18 +293,18 @@ export default function OrdersManagement() {
 
       // Use dedicated orders-management API
       const result = await ordersManagementAPI.createOrder(formData);
-      
+
       // Handle stock warnings if any
       if (result.stockResults && result.stockResults.hasStockIssues) {
         const warnings = result.stockResults.warnings || [];
         const alerts = result.stockResults.alerts || [];
-        
+
         if (warnings.length > 0 || alerts.length > 0) {
           const stockMessage = [
             ...warnings,
             ...alerts.map(alert => `Purchase alert created for ${alert.materialName}`)
           ].join('; ');
-          
+
           setSuccess(`Order created successfully! Stock notifications: ${stockMessage}`);
         } else {
           setSuccess('Order created successfully!');
@@ -312,7 +312,7 @@ export default function OrdersManagement() {
       } else {
         setSuccess('Order created successfully!');
       }
-      
+
       setShowCreateModal(false);
       resetForm();
       fetchOrders();
@@ -327,18 +327,18 @@ export default function OrdersManagement() {
     try {
       // Use dedicated orders-management API
       const result = await ordersManagementAPI.updateOrder(selectedOrder.id, formData);
-      
+
       // Handle stock warnings if any
       if (result.stockResults && result.stockResults.hasStockIssues) {
         const warnings = result.stockResults.warnings || [];
         const alerts = result.stockResults.alerts || [];
-        
+
         if (warnings.length > 0 || alerts.length > 0) {
           const stockMessage = [
             ...warnings,
             ...alerts.map(alert => `Purchase alert updated for ${alert.materialName}`)
           ].join('; ');
-          
+
           setSuccess(`Order updated successfully! Stock notifications: ${stockMessage}`);
         } else {
           setSuccess('Order updated successfully!');
@@ -358,11 +358,11 @@ export default function OrdersManagement() {
   // Delete order using dedicated API
   const handleDelete = async (orderId) => {
     if (!confirm('Are you sure you want to delete this order?')) return;
-    
+
     try {
       // Use dedicated orders-management API
       const result = await ordersManagementAPI.deleteOrder(orderId);
-      
+
       setSuccess(result.message || 'Order deleted successfully!');
       fetchOrders();
     } catch (err) {
@@ -376,9 +376,9 @@ export default function OrdersManagement() {
       customerNote: '',
       dueDate: '',
       description: '',
-      priority: 'medium',
-      status: 'created',
-      tailorContactId: '',
+      priority: 'MEDIUM',
+      status: 'CREATED',
+      workerContactId: '',
       products: []
     });
     setSelectedOrder(null);
@@ -389,15 +389,15 @@ export default function OrdersManagement() {
     try {
       // Get complete order details for editing
       const orderDetails = await ordersManagementAPI.getOrderDetails(order.id);
-      
+
       setSelectedOrder(orderDetails);
       setFormData({
         customerNote: orderDetails.customerNote || '',
         dueDate: orderDetails.dueDate ? orderDetails.dueDate.split('T')[0] : '',
         description: orderDetails.description || '',
-        priority: orderDetails.priority || 'medium',
-        status: orderDetails.status || 'created',
-        tailorContactId: orderDetails.tailorContactId || '',
+        priority: orderDetails.priority || 'MEDIUM',
+        status: orderDetails.status || 'CREATED',
+        workerContactId: orderDetails.workerContactId || '',
         products: orderDetails.Products?.map(p => ({
           productId: p.id,
           quantity: p.OrderProduct.qty
@@ -424,14 +424,14 @@ export default function OrdersManagement() {
   // Get status badge color
   const getStatusColor = (status) => {
     const colors = {
-      'created': 'bg-blue-100 text-blue-800',
-      'confirmed': 'bg-green-100 text-green-800',
-      'processing': 'bg-yellow-100 text-yellow-800',
-      'completed': 'bg-purple-100 text-purple-800',
-      'shipped': 'bg-indigo-100 text-indigo-800',
-      'delivered': 'bg-emerald-100 text-emerald-800',
-      'cancelled': 'bg-red-100 text-red-800',
-      'need material': 'bg-orange-100 text-orange-800'
+      'CREATED': 'bg-blue-100 text-blue-800',
+      'CONFIRMED': 'bg-green-100 text-green-800',
+      'PROCESSING': 'bg-yellow-100 text-yellow-800',
+      'COMPLETED': 'bg-purple-100 text-purple-800',
+      'SHIPPED': 'bg-indigo-100 text-indigo-800',
+      'DELIVERED': 'bg-emerald-100 text-emerald-800',
+      'CANCELLED': 'bg-red-100 text-red-800',
+      'NEED_MATERIAL': 'bg-orange-100 text-orange-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -439,10 +439,10 @@ export default function OrdersManagement() {
   // Get priority color
   const getPriorityColor = (priority) => {
     const colors = {
-      'low': 'bg-gray-100 text-gray-800',
-      'medium': 'bg-blue-100 text-blue-800',
-      'high': 'bg-orange-100 text-orange-800',
-      'urgent': 'bg-red-100 text-red-800'
+      'LOW': 'bg-gray-100 text-gray-800',
+      'MEDIUM': 'bg-blue-100 text-blue-800',
+      'HIGH': 'bg-orange-100 text-orange-800',
+      'URGENT': 'bg-red-100 text-red-800'
     };
     return colors[priority] || 'bg-gray-100 text-gray-800';
   };
@@ -450,8 +450,8 @@ export default function OrdersManagement() {
   // Format products list with quantities
   const formatProductsList = (products) => {
     if (!products || products.length === 0) return 'No products';
-    
-    return products.map(product => 
+
+    return products.map(product =>
       `${product.name} (${product.OrderProduct.qty})`
     ).join(', ');
   };
@@ -471,7 +471,7 @@ export default function OrdersManagement() {
       .join(', ');
 
     const moreText = remainingCount > 0 ? ` +${remainingCount} more` : '';
-    
+
     return {
       displayText: displayText + moreText,
       detailText: products.map(p => `${p.name}: ${p.OrderProduct.qty}pcs`).join(' | ')
@@ -557,14 +557,14 @@ export default function OrdersManagement() {
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option value="">All Status</option>
-                  <option value="created">Created</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="processing">Processing</option>
-                  <option value="completed">Completed</option>
-                  <option value="shipped">Shipped</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="need material">Need Material</option>
+                  <option value="CREATED">Created</option>
+                  <option value="CONFIRMED">Confirmed</option>
+                  <option value="PROCESSING">Processing</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="SHIPPED">Shipped</option>
+                  <option value="DELIVERED">Delivered</option>
+                  <option value="CANCELLED">Cancelled</option>
+                  <option value="NEED_MATERIAL">Need Material</option>
                 </select>
               </div>
               <div>
@@ -575,10 +575,10 @@ export default function OrdersManagement() {
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option value="">All Priority</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                  <option value="URGENT">Urgent</option>
                 </select>
               </div>
               <div>
@@ -619,7 +619,7 @@ export default function OrdersManagement() {
                 </div>
               </div>
             </div>
-            
+
             {loading ? (
               <div className="flex justify-center items-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -692,14 +692,14 @@ export default function OrdersManagement() {
                               onChange={(e) => handleStatusChange(order.id, e.target.value)}
                               className={`text-xs rounded-full px-3 py-1 font-medium border-0 focus:ring-2 focus:ring-blue-500 ${getStatusColor(order.status)}`}
                             >
-                              <option value="created">Created</option>
-                              <option value="confirmed">Confirmed</option>
-                              <option value="processing">Processing</option>
-                              <option value="completed">Completed</option>
-                              <option value="shipped">Shipped</option>
-                              <option value="delivered">Delivered</option>
-                              <option value="cancelled">Cancelled</option>
-                              <option value="need material">Need Material</option>
+                              <option value="CREATED">Created</option>
+                              <option value="CONFIRMED">Confirmed</option>
+                              <option value="PROCESSING">Processing</option>
+                              <option value="COMPLETED">Completed</option>
+                              <option value="SHIPPED">Shipped</option>
+                              <option value="DELIVERED">Delivered</option>
+                              <option value="CANCELLED">Cancelled</option>
+                              <option value="NEED_MATERIAL">Need Material</option>
                             </select>
                             <br />
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(order.priority)}`}>
@@ -843,11 +843,10 @@ export default function OrdersManagement() {
                         <button
                           key={page}
                           onClick={() => setPagination(prev => ({ ...prev, current: page }))}
-                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                            page === pagination.current
-                              ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                          }`}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${page === pagination.current
+                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                            }`}
                         >
                           {page}
                         </button>
@@ -875,7 +874,7 @@ export default function OrdersManagement() {
                       </svg>
                     </button>
                   </div>
-                  
+
                   <form onSubmit={handleCreate} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
@@ -901,10 +900,10 @@ export default function OrdersManagement() {
                           onChange={handleInputChange}
                           className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
+                          <option value="LOW">Low</option>
+                          <option value="MEDIUM">Medium</option>
+                          <option value="HIGH">High</option>
+                          <option value="URGENT">Urgent</option>
                         </select>
                       </div>
                       <div>
@@ -913,8 +912,8 @@ export default function OrdersManagement() {
                         </label>
                         <div className="flex items-center space-x-2">
                           <select
-                            name="tailorContactId"
-                            value={formData.tailorContactId}
+                            name="workerContactId"
+                            value={formData.workerContactId}
                             onChange={handleInputChange}
                             className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                           >
@@ -1024,7 +1023,7 @@ export default function OrdersManagement() {
                       </svg>
                     </button>
                   </div>
-                  
+
                   <form onSubmit={handleUpdate} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                       <div>
@@ -1037,14 +1036,14 @@ export default function OrdersManagement() {
                           onChange={handleInputChange}
                           className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         >
-                          <option value="created">Created</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="processing">Processing</option>
-                          <option value="completed">Completed</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
-                          <option value="need material">Need Material</option>
+                          <option value="CREATED">Created</option>
+                          <option value="CONFIRMED">Confirmed</option>
+                          <option value="PROCESSING">Processing</option>
+                          <option value="COMPLETED">Completed</option>
+                          <option value="SHIPPED">Shipped</option>
+                          <option value="DELIVERED">Delivered</option>
+                          <option value="CANCELLED">Cancelled</option>
+                          <option value="NEED_MATERIAL">Need Material</option>
                         </select>
                       </div>
                       <div>
@@ -1070,10 +1069,10 @@ export default function OrdersManagement() {
                           onChange={handleInputChange}
                           className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
+                          <option value="LOW">Low</option>
+                          <option value="MEDIUM">Medium</option>
+                          <option value="HIGH">High</option>
+                          <option value="URGENT">Urgent</option>
                         </select>
                       </div>
                       <div>
@@ -1082,8 +1081,8 @@ export default function OrdersManagement() {
                         </label>
                         <div className="flex items-center space-x-2">
                           <select
-                            name="tailorContactId"
-                            value={formData.tailorContactId}
+                            name="workerContactId"
+                            value={formData.workerContactId}
                             onChange={handleInputChange}
                             className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                           >
@@ -1193,7 +1192,7 @@ export default function OrdersManagement() {
                       </svg>
                     </button>
                   </div>
-                  
+
                   <div className="space-y-6">
                     {/* Order Info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

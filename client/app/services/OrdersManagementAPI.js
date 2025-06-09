@@ -49,7 +49,7 @@ class OrdersManagementAPI {
    */
   async getOrdersList(params = {}) {
     const queryParams = new URLSearchParams();
-    
+
     // Add all parameters to query string
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== '') {
@@ -58,7 +58,7 @@ class OrdersManagementAPI {
     });
 
     const cacheKey = `orders-list-${queryParams.toString()}`;
-    
+
     // Check cache (valid for 30 seconds for frequently changing data)
     if (this.cache.has(cacheKey)) {
       const { data, timestamp } = this.cache.get(cacheKey);
@@ -67,7 +67,7 @@ class OrdersManagementAPI {
       }
     }
 
-    const url = `${this.baseURL}/list?${queryParams}`;
+    const url = `${this.baseURL}?${queryParams}`;
     const data = await this.makeRequest(url);
 
     // Cache the result
@@ -80,19 +80,19 @@ class OrdersManagementAPI {
   }
 
   /**
-   * Get cached tailors list
+   * Get cached workers (tailors) list
    * @param {boolean} forceRefresh - Force refresh cache
-   * @returns {Promise<Array>} - Array of tailor objects
+   * @returns {Promise<Array>} - Array of worker objects
    */
   async getTailors(forceRefresh = false) {
     const now = Date.now();
-    
+
     // Check local cache first (1 hour cache)
     if (!forceRefresh && this.tailorsCache && this.tailorsCacheExpiry && now < this.tailorsCacheExpiry) {
       return this.tailorsCache;
     }
 
-    const data = await this.makeRequest(`${this.baseURL}/tailors`);
+    const data = await this.makeRequest(`${this.baseURL}/workers`);
 
     // Update local cache
     this.tailorsCache = data;
@@ -108,7 +108,7 @@ class OrdersManagementAPI {
    */
   async getOrderDetails(orderId) {
     const cacheKey = `order-details-${orderId}`;
-    
+
     // Check cache (valid for 2 minutes)
     if (this.cache.has(cacheKey)) {
       const { data, timestamp } = this.cache.get(cacheKey);
@@ -117,7 +117,7 @@ class OrdersManagementAPI {
       }
     }
 
-    const data = await this.makeRequest(`${this.baseURL}/${orderId}/details`);
+    const data = await this.makeRequest(`${this.baseURL}/${orderId}`);
 
     // Cache the result
     this.cache.set(cacheKey, {
@@ -148,15 +148,15 @@ class OrdersManagementAPI {
   }
 
   /**
-   * Update order tailor assignment with optimistic updates
+   * Update order worker assignment with optimistic updates
    * @param {number} orderId - Order ID
-   * @param {number|null} tailorContactId - Tailor Contact ID or null to unassign
+   * @param {number|null} workerContactId - Worker Contact ID or null to unassign
    * @returns {Promise<Object>} - Updated order data
    */
-  async updateOrderTailor(orderId, tailorContactId) {
-    const data = await this.makeRequest(`${this.baseURL}/${orderId}/tailor`, {
+  async updateOrderWorker(orderId, workerContactId) {
+    const data = await this.makeRequest(`${this.baseURL}/${orderId}/worker`, {
       method: 'PUT',
-      body: JSON.stringify({ tailorContactId })
+      body: JSON.stringify({ workerContactId })
     });
 
     // Invalidate related caches
@@ -167,11 +167,11 @@ class OrdersManagementAPI {
   }
 
   /**
-   * Clear tailors cache on server and client
+   * Clear workers cache on server and client
    * @returns {Promise<Object>} - Success response
    */
   async clearTailorsCache() {
-    const data = await this.makeRequest(`${this.baseURL}/cache/clear-tailors`, {
+    const data = await this.makeRequest(`${this.baseURL}/cache/clear-workers`, {
       method: 'POST'
     });
 
@@ -263,7 +263,7 @@ class OrdersManagementAPI {
    */
   async preloadNextPage(currentParams) {
     if (!currentParams.page) return;
-    
+
     const nextPageParams = {
       ...currentParams,
       page: parseInt(currentParams.page) + 1

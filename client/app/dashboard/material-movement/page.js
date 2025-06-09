@@ -374,7 +374,7 @@ export default function MaterialMovementPage() {
                 Manage material inflow and outflow with purchase integration
               </p>
             </div>
-            <div className="flex space-x-3">
+            {/* <div className="flex space-x-3">
               <button
                 onClick={() => setShowAnalytics(!showAnalytics)}
                 className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium ${showAnalytics
@@ -390,7 +390,7 @@ export default function MaterialMovementPage() {
               >
                 {showForm ? 'Cancel' : '+ Add Movement'}
               </button>
-            </div>
+            </div> */}
           </div>
 
           {/* Error and Success Messages */}
@@ -480,146 +480,6 @@ export default function MaterialMovementPage() {
             </div>
           )}
 
-          {/* Form Panel */}
-          {showForm && (
-            <div className="bg-white shadow sm:rounded-lg mb-6">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  {editingMovement ? 'Edit Movement' : 'Add Material Movement'}
-                </h3>
-                <div className="mt-5">
-                  <form onSubmit={handleSubmit}>
-                    <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                      {/* Movement Type */}
-                      <div className="sm:col-span-2">
-                        <label htmlFor="movementType" className="block text-sm font-medium text-gray-700">
-                          Movement Type *
-                        </label>
-                        <select
-                          id="movementType"
-                          name="movementType"
-                          value={formData.movementType}
-                          onChange={handleChange}
-                          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                          required
-                        >
-                          <option value="IN">IN (Stock In)</option>
-                          <option value="OUT">OUT (Stock Out)</option>
-                          <option value="ADJUST">ADJUST (Stock Adjustment)</option>
-                        </select>
-                      </div>
-
-                      {/* Material Selection */}
-                      <div className="sm:col-span-4">
-                        <label htmlFor="materialId" className="block text-sm font-medium text-gray-700">
-                          Material *
-                        </label>
-                        <select
-                          id="materialId"
-                          name="materialId"
-                          value={formData.materialId}
-                          onChange={handleChange}
-                          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                          required
-                        >
-                          <option value="">Select Material</option>
-                          {Array.isArray(materials) && materials.map((material) => (
-                            <option key={material.id} value={material.id}>
-                              {material.name} ({material.code}) - Stock: {material.qtyOnHand} {material.unit}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Quantity */}
-                      <div className="sm:col-span-2">
-                        <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
-                          Quantity *
-                        </label>
-                        <input
-                          type="number"
-                          name="quantity"
-                          id="quantity"
-                          min="0.01"
-                          step="0.01"
-                          value={formData.quantity}
-                          onChange={handleChange}
-                          className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          required
-                        />
-                      </div>
-
-                      {/* Cost Per Unit */}
-                      <div className="sm:col-span-2">
-                        <label htmlFor="costPerUnit" className="block text-sm font-medium text-gray-700">
-                          Cost Per Unit (IDR)
-                        </label>
-                        <input
-                          type="number"
-                          name="costPerUnit"
-                          id="costPerUnit"
-                          min="0"
-                          step="0.01"
-                          value={formData.costPerUnit}
-                          onChange={handleChange}
-                          className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          placeholder="Optional"
-                        />
-                      </div>
-
-                      {/* Movement Date */}
-                      <div className="sm:col-span-2">
-                        <label htmlFor="movementDate" className="block text-sm font-medium text-gray-700">
-                          Movement Date
-                        </label>
-                        <input
-                          type="date"
-                          name="movementDate"
-                          id="movementDate"
-                          value={formData.movementDate}
-                          onChange={handleChange}
-                          className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                        />
-                      </div>
-
-                      {/* Notes */}
-                      <div className="sm:col-span-6">
-                        <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-                          Notes
-                        </label>
-                        <textarea
-                          name="notes"
-                          id="notes"
-                          rows={3}
-                          value={formData.notes}
-                          onChange={handleChange}
-                          className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          placeholder="Additional notes about this movement"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-5 flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        onClick={resetForm}
-                        className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                      >
-                        {isSubmitting ? 'Saving...' : (editingMovement ? 'Update' : 'Save')}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Filters */}
           <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-6">

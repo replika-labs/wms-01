@@ -22,12 +22,12 @@ export default function Sidebar({ user }) {
       icon: '📊',
       adminOnly: false 
     },
-    { 
-      label: 'Users', 
-      href: '/dashboard/users',
-      icon: '👥',
-      adminOnly: true 
-    },
+    // { 
+    //   label: 'Users', 
+    //   href: '/dashboard/users',
+    //   icon: '👥',
+    //   adminOnly: true 
+    // },
     // { 
     //   label: 'Inventory', 
     //   href: '/dashboard/inventory',
@@ -58,12 +58,12 @@ export default function Sidebar({ user }) {
       icon: '🛍️',
       adminOnly: false 
     },
-    { 
-      label: 'Orders', 
-      href: '/dashboard/orders',
-      icon: '📋',
-      adminOnly: false 
-    },
+    // { 
+    //   label: 'Orders', 
+    //   href: '/dashboard/orders',
+    //   icon: '📋',
+    //   adminOnly: false 
+    // },
     { 
       label: 'Orders Management', 
       href: '/dashboard/orders-management',
