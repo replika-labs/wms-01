@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { FiPlus, FiSearch, FiFilter, FiEye, FiEdit2, FiTrash2, FiDollarSign, FiPackage, FiCalendar, FiTrendingUp } from 'react-icons/fi';
 import DashboardLayout from '@/app/components/DashboardLayout';
 import AuthWrapper from '@/app/components/AuthWrapper';
+import { formatCurrencyShort } from '@/utils/formatNominal';
 
 function PurchaseLogsPage() {
   const [purchaseLogs, setPurchaseLogs] = useState([]);
@@ -18,7 +19,7 @@ function PurchaseLogsPage() {
     materialId: '',
     startDate: '',
     endDate: '',
-    sortBy: 'purchasedDate',
+    sortBy: 'purchaseDate',
     sortOrder: 'DESC'
   });
 
@@ -30,15 +31,16 @@ function PurchaseLogsPage() {
 
   // Form data
   const [formData, setFormData] = useState({
-    purchasedDate: '',
+    purchaseDate: '',
     materialId: '',
-    stock: '',
-    unit: 'meter',
+    quantity: '',
+    unit: 'pcs',
     supplier: '',
-    price: '',
-    status: 'dp',
-    paymentMethod: 'transfer',
-    picName: '',
+    pricePerUnit: '',
+    status: 'PENDING',
+    invoiceNumber: '',
+    deliveryDate: '',
+    receivedQuantity: '',
     notes: ''
   });
 
@@ -53,7 +55,7 @@ function PurchaseLogsPage() {
       });
 
       const token = localStorage.getItem('token');
-      
+
       // Try the API first
       try {
         const response = await fetch(`http://localhost:8080/api/purchase-logs?${queryParams}`, {
@@ -65,10 +67,10 @@ function PurchaseLogsPage() {
 
         if (response.ok) {
           const data = await response.json();
-          
+
           if (data.success) {
             const apiPurchaseLogs = data.data.purchaseLogs || [];
-            
+
             console.log('API purchase logs loaded:', apiPurchaseLogs.length);
             setPurchaseLogs(apiPurchaseLogs);
             setTotalPages(data.data.pagination?.totalPages || 1);
@@ -92,7 +94,7 @@ function PurchaseLogsPage() {
       }
 
       // Removed demo data fallback - show actual API errors instead
-      
+
     } catch (error) {
       console.error('Error loading purchase logs:', error);
       setError(error.message);
@@ -105,12 +107,12 @@ function PurchaseLogsPage() {
   const loadMaterials = async () => {
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         console.warn('No authentication token for loading materials');
         return;
       }
-      
+
       const response = await fetch('http://localhost:8080/api/materials-management', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -120,7 +122,7 @@ function PurchaseLogsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        
+
         if (data.success) {
           const apiMaterials = data.data.materials || [];
           console.log('Materials loaded for dropdown:', apiMaterials.length);
@@ -133,7 +135,7 @@ function PurchaseLogsPage() {
       } else {
         console.error('Materials API error:', response.status, response.statusText);
       }
-      
+
     } catch (error) {
       console.error('Error loading materials:', error);
     }
@@ -145,15 +147,15 @@ function PurchaseLogsPage() {
       alert('Purchase log ID not found');
       return null;
     }
-    
+
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('Authentication required. Please login again.');
         return null;
       }
-      
+
       const response = await fetch(`http://localhost:8080/api/purchase-logs/${purchaseLogId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -172,7 +174,7 @@ function PurchaseLogsPage() {
       }
 
       const data = await response.json();
-      
+
       if (data.success) {
         return data.data;
       } else {
@@ -189,21 +191,21 @@ function PurchaseLogsPage() {
   // Create purchase log
   const handleCreatePurchaseLog = async (e) => {
     e.preventDefault();
-    
+
     // Basic validation
-    if (!formData.purchasedDate || !formData.materialId || !formData.stock) {
-      alert('Please fill in required fields: Purchase Date, Material, and Quantity');
+    if (!formData.purchaseDate || !formData.materialId || !formData.quantity || !formData.pricePerUnit || !formData.supplier) {
+      alert('Please fill in required fields: Purchase Date, Material, Quantity, Price per Unit, and Supplier');
       return;
     }
-    
+
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('Authentication required. Please login again.');
         return;
       }
-      
+
       const response = await fetch('http://localhost:8080/api/purchase-logs', {
         method: 'POST',
         headers: {
@@ -243,26 +245,26 @@ function PurchaseLogsPage() {
   // Update purchase log
   const handleUpdatePurchaseLog = async (e) => {
     e.preventDefault();
-    
+
     // Basic validation
-    if (!formData.purchasedDate || !formData.materialId || !formData.stock) {
-      alert('Please fill in required fields: Purchase Date, Material, and Quantity');
+    if (!formData.purchaseDate || !formData.materialId || !formData.quantity || !formData.pricePerUnit || !formData.supplier) {
+      alert('Please fill in required fields: Purchase Date, Material, Quantity, Price per Unit, and Supplier');
       return;
     }
-    
+
     if (!selectedPurchaseLog) {
       alert('No purchase log selected for update');
       return;
     }
-    
+
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('Authentication required. Please login again.');
         return;
       }
-      
+
       const response = await fetch(`http://localhost:8080/api/purchase-logs/${selectedPurchaseLog.id}`, {
         method: 'PUT',
         headers: {
@@ -308,17 +310,17 @@ function PurchaseLogsPage() {
       alert('Purchase log ID not found');
       return;
     }
-    
+
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('Authentication required. Please login again.');
         return;
       }
-      
+
       const response = await fetch(`http://localhost:8080/api/purchase-logs/${purchaseLogId}/status`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -359,19 +361,19 @@ function PurchaseLogsPage() {
       alert('Purchase log ID not found');
       return;
     }
-    
+
     if (!confirm('Are you sure you want to delete this purchase log? This action cannot be undone.')) {
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('Authentication required. Please login again.');
         return;
       }
-      
+
       const response = await fetch(`http://localhost:8080/api/purchase-logs/${purchaseLogId}`, {
         method: 'DELETE',
         headers: {
@@ -422,15 +424,16 @@ function PurchaseLogsPage() {
     if (details) {
       setSelectedPurchaseLog(details);
       setFormData({
-        purchasedDate: details.purchasedDate ? new Date(details.purchasedDate).toISOString().split('T')[0] : '',
+        purchaseDate: details.purchaseDate ? new Date(details.purchaseDate).toISOString().split('T')[0] : '',
         materialId: details.materialId || '',
-        stock: details.stock || '',
-        unit: details.unit || 'meter',
+        quantity: details.quantity || '',
+        unit: details.unit || 'pcs',
         supplier: details.supplier || '',
-        price: details.price || '',
-        status: details.status || 'dp',
-        paymentMethod: details.paymentMethod || 'transfer',
-        picName: details.picName || '',
+        pricePerUnit: details.pricePerUnit || '',
+        status: details.status || 'PENDING',
+        invoiceNumber: details.invoiceNumber || '',
+        deliveryDate: details.deliveryDate ? new Date(details.deliveryDate).toISOString().split('T')[0] : '',
+        receivedQuantity: details.receivedQuantity || '',
         notes: details.notes || ''
       });
       setShowEditModal(true);
@@ -440,15 +443,16 @@ function PurchaseLogsPage() {
   // Reset form
   const resetForm = () => {
     setFormData({
-      purchasedDate: '',
+      purchaseDate: '',
       materialId: '',
-      stock: '',
-      unit: 'meter',
+      quantity: '',
+      unit: 'pcs',
       supplier: '',
-      price: '',
-      status: 'dp',
-      paymentMethod: 'transfer',
-      picName: '',
+      pricePerUnit: '',
+      status: 'PENDING',
+      invoiceNumber: '',
+      deliveryDate: '',
+      receivedQuantity: '',
       notes: ''
     });
   };
@@ -456,15 +460,14 @@ function PurchaseLogsPage() {
   // Get status badge
   const getStatusBadge = (status) => {
     const statusConfig = {
-      'lunas': { bg: 'bg-green-100', text: 'text-green-800', label: 'Lunas' },
-      'dp': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'DP' },
-      'dibayar': { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Dibayar' },
-      'dikirim': { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Dikirim' },
-      'diterima': { bg: 'bg-green-100', text: 'text-green-800', label: 'Diterima' }
+      'PENDING': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
+      'ORDERED': { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Ordered' },
+      'RECEIVED': { bg: 'bg-green-100', text: 'text-green-800', label: 'Received' },
+      'CANCELLED': { bg: 'bg-red-100', text: 'text-red-800', label: 'Cancelled' }
     };
 
     const config = statusConfig[status] || { bg: 'bg-gray-100', text: 'text-gray-800', label: status };
-    
+
     return (
       <span className={`px-2 py-1 text-xs font-medium ${config.bg} ${config.text} rounded-full`}>
         {config.label}
@@ -537,7 +540,13 @@ function PurchaseLogsPage() {
               <div>
                 <p className="text-sm text-gray-600">Total Value</p>
                 <p className="text-xl font-bold">
-                  Rp {purchaseLogs.reduce((sum, p) => sum + ((p.stock || 0) * (p.price || 0)), 0).toLocaleString()}
+                  {(() => {
+                    const total = purchaseLogs.reduce((sum, p) => {
+                      const cost = p.totalCost || 0;
+                      return sum + Number(cost);
+                    }, 0);
+                    return formatCurrencyShort(total);
+                  })()}
                 </p>
               </div>
             </div>
@@ -546,9 +555,9 @@ function PurchaseLogsPage() {
             <div className="flex items-center">
               <FiTrendingUp className="text-purple-600 text-2xl mr-3" />
               <div>
-                <p className="text-sm text-gray-600">Delivered</p>
+                <p className="text-sm text-gray-600">Received</p>
                 <p className="text-xl font-bold">
-                  {purchaseLogs.filter(p => p.status === 'diterima').length}
+                  {purchaseLogs.filter(p => p.status === 'RECEIVED').length}
                 </p>
               </div>
             </div>
@@ -559,7 +568,7 @@ function PurchaseLogsPage() {
               <div>
                 <p className="text-sm text-gray-600">Pending</p>
                 <p className="text-xl font-bold">
-                  {purchaseLogs.filter(p => p.status !== 'diterima').length}
+                  {purchaseLogs.filter(p => p.status === 'PENDING').length}
                 </p>
               </div>
             </div>
@@ -578,11 +587,10 @@ function PurchaseLogsPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Status</option>
-              <option value="dp">DP</option>
-              <option value="dibayar">Dibayar</option>
-              <option value="dikirim">Dikirim</option>
-              <option value="diterima">Diterima</option>
-              <option value="lunas">Lunas</option>
+              <option value="PENDING">Pending</option>
+              <option value="ORDERED">Ordered</option>
+              <option value="RECEIVED">Received</option>
+              <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
 
@@ -674,33 +682,24 @@ function PurchaseLogsPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">
-                        {new Date(purchaseLog.purchasedDate).toLocaleDateString()}
+                        {new Date(purchaseLog.purchaseDate).toLocaleDateString()}
                       </div>
                       <div className="text-sm text-gray-500">
                         ID: {purchaseLog.id}
                       </div>
                       <div className="text-sm text-gray-500">
-                        PIC: {purchaseLog.picName || 'N/A'}
+                        Invoice: {purchaseLog.invoiceNumber || 'N/A'}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      {purchaseLog.Material?.image && (
-                        <div className="flex-shrink-0 h-10 w-10">
-                          <img
-                            className="h-10 w-10 rounded-lg object-cover"
-                            src={purchaseLog.Material.image}
-                            alt={purchaseLog.Material.name}
-                          />
-                        </div>
-                      )}
-                      <div className={purchaseLog.Material?.image ? "ml-3" : ""}>
+                      <div>
                         <div className="text-sm font-medium text-gray-900">
-                          {purchaseLog.Material?.name || 'Unknown Material'}
+                          {purchaseLog.material?.name || 'Unknown Material'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          Code: {purchaseLog.Material?.code || 'N/A'}
+                          Code: {purchaseLog.material?.code || 'N/A'}
                         </div>
                       </div>
                     </div>
@@ -708,13 +707,13 @@ function PurchaseLogsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div>
                       <div className="font-medium">
-                        {purchaseLog.stock} {purchaseLog.unit}
+                        {purchaseLog.quantity} {purchaseLog.unit}
                       </div>
                       <div className="text-gray-500">
-                        @ Rp {(purchaseLog.price || 0).toLocaleString()}
+                        @ {formatCurrencyShort(purchaseLog.pricePerUnit || 0)}
                       </div>
                       <div className="font-medium text-green-600">
-                        Total: Rp {((purchaseLog.stock || 0) * (purchaseLog.price || 0)).toLocaleString()}
+                        Total: {formatCurrencyShort(purchaseLog.totalCost || 0)}
                       </div>
                     </div>
                   </td>
@@ -724,7 +723,7 @@ function PurchaseLogsPage() {
                         {purchaseLog.supplier || 'No supplier'}
                       </div>
                       <div className="text-gray-500">
-                        Payment: {purchaseLog.paymentMethod || 'N/A'}
+                        Delivery: {purchaseLog.deliveryDate ? new Date(purchaseLog.deliveryDate).toLocaleDateString() : 'Not set'}
                       </div>
                     </div>
                   </td>
@@ -736,11 +735,10 @@ function PurchaseLogsPage() {
                         onChange={(e) => handleUpdateStatus(purchaseLog.id, e.target.value)}
                         className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
                       >
-                        <option value="dp">DP</option>
-                        <option value="dibayar">Dibayar</option>
-                        <option value="dikirim">Dikirim</option>
-                        <option value="diterima">Diterima</option>
-                        <option value="lunas">Lunas</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="ORDERED">Ordered</option>
+                        <option value="RECEIVED">Received</option>
+                        <option value="CANCELLED">Cancelled</option>
                       </select>
                     </div>
                   </td>
@@ -784,11 +782,10 @@ function PurchaseLogsPage() {
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 text-sm rounded-md ${
-                  page === currentPage
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                }`}
+                className={`px-3 py-2 text-sm rounded-md ${page === currentPage
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                  }`}
               >
                 {page}
               </button>
@@ -820,8 +817,8 @@ function PurchaseLogsPage() {
                     </label>
                     <input
                       type="date"
-                      value={formData.purchasedDate}
-                      onChange={(e) => setFormData({...formData, purchasedDate: e.target.value})}
+                      value={formData.purchaseDate}
+                      onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
                     />
@@ -836,9 +833,9 @@ function PurchaseLogsPage() {
                       onChange={(e) => {
                         const selectedMaterial = materials.find(m => m.id == e.target.value);
                         setFormData({
-                          ...formData, 
+                          ...formData,
                           materialId: e.target.value,
-                          unit: selectedMaterial?.unit || 'meter'
+                          unit: selectedMaterial?.unit || 'pcs'
                         });
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
@@ -859,9 +856,9 @@ function PurchaseLogsPage() {
                     </label>
                     <input
                       type="number"
-                      step="0.01"
-                      value={formData.stock}
-                      onChange={(e) => setFormData({...formData, stock: e.target.value})}
+                      step="0.001"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
                     />
@@ -873,40 +870,42 @@ function PurchaseLogsPage() {
                     </label>
                     <select
                       value={formData.unit}
-                      onChange={(e) => setFormData({...formData, unit: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
                     >
+                      <option value="pcs">Pieces</option>
                       <option value="meter">Meter</option>
                       <option value="yard">Yard</option>
                       <option value="roll">Roll</option>
-                      <option value="pcs">Pieces</option>
                       <option value="kg">Kilogram</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price per Unit
+                      Price per Unit *
                     </label>
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.price}
-                      onChange={(e) => setFormData({...formData, price: e.target.value})}
+                      value={formData.pricePerUnit}
+                      onChange={(e) => setFormData({ ...formData, pricePerUnit: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      required
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Supplier
+                      Supplier *
                     </label>
                     <input
                       type="text"
                       value={formData.supplier}
-                      onChange={(e) => setFormData({...formData, supplier: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      required
                     />
                   </div>
 
@@ -916,53 +915,14 @@ function PurchaseLogsPage() {
                     </label>
                     <select
                       value={formData.status}
-                      onChange={(e) => setFormData({...formData, status: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="dp">DP</option>
-                      <option value="dibayar">Dibayar</option>
-                      <option value="dikirim">Dikirim</option>
-                      <option value="diterima">Diterima</option>
-                      <option value="lunas">Lunas</option>
+                      <option value="PENDING">Pending</option>
+                      <option value="ORDERED">Ordered</option>
+                      <option value="RECEIVED">Received</option>
+                      <option value="CANCELLED">Cancelled</option>
                     </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Payment Method
-                    </label>
-                    <select
-                      value={formData.paymentMethod}
-                      onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="transfer">Transfer</option>
-                      <option value="cod">COD</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      PIC Name
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.picName}
-                      onChange={(e) => setFormData({...formData, picName: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Invoice Number
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.invoiceNumber}
-                      onChange={(e) => setFormData({...formData, invoiceNumber: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
                   </div>
 
                   <div>
@@ -972,9 +932,31 @@ function PurchaseLogsPage() {
                     <input
                       type="date"
                       value={formData.deliveryDate}
-                      onChange={(e) => setFormData({...formData, deliveryDate: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Received Quantity
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={formData.receivedQuantity}
+                      onChange={(e) => setFormData({ ...formData, receivedQuantity: e.target.value })}
+                      placeholder="Leave empty if not received yet"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-sm text-blue-700">
+                        <strong>Note:</strong> Invoice number will be automatically generated when the purchase is created.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -984,7 +966,7 @@ function PurchaseLogsPage() {
                   </label>
                   <textarea
                     value={formData.notes}
-                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     rows="3"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -1037,8 +1019,8 @@ function PurchaseLogsPage() {
                     </label>
                     <input
                       type="date"
-                      value={formData.purchasedDate}
-                      onChange={(e) => setFormData({...formData, purchasedDate: e.target.value})}
+                      value={formData.purchaseDate}
+                      onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
                     />
@@ -1053,9 +1035,9 @@ function PurchaseLogsPage() {
                       onChange={(e) => {
                         const selectedMaterial = materials.find(m => m.id == e.target.value);
                         setFormData({
-                          ...formData, 
+                          ...formData,
                           materialId: e.target.value,
-                          unit: selectedMaterial?.unit || 'meter'
+                          unit: selectedMaterial?.unit || 'pcs'
                         });
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
@@ -1076,9 +1058,9 @@ function PurchaseLogsPage() {
                     </label>
                     <input
                       type="number"
-                      step="0.01"
-                      value={formData.stock}
-                      onChange={(e) => setFormData({...formData, stock: e.target.value})}
+                      step="0.001"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
                     />
@@ -1090,40 +1072,42 @@ function PurchaseLogsPage() {
                     </label>
                     <select
                       value={formData.unit}
-                      onChange={(e) => setFormData({...formData, unit: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
                     >
+                      <option value="pcs">Pieces</option>
                       <option value="meter">Meter</option>
                       <option value="yard">Yard</option>
                       <option value="roll">Roll</option>
-                      <option value="pcs">Pieces</option>
                       <option value="kg">Kilogram</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price per Unit
+                      Price per Unit *
                     </label>
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.price}
-                      onChange={(e) => setFormData({...formData, price: e.target.value})}
+                      value={formData.pricePerUnit}
+                      onChange={(e) => setFormData({ ...formData, pricePerUnit: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      required
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Supplier
+                      Supplier *
                     </label>
                     <input
                       type="text"
                       value={formData.supplier}
-                      onChange={(e) => setFormData({...formData, supplier: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      required
                     />
                   </div>
 
@@ -1133,39 +1117,38 @@ function PurchaseLogsPage() {
                     </label>
                     <select
                       value={formData.status}
-                      onChange={(e) => setFormData({...formData, status: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="dp">DP</option>
-                      <option value="dibayar">Dibayar</option>
-                      <option value="dikirim">Dikirim</option>
-                      <option value="diterima">Diterima</option>
-                      <option value="lunas">Lunas</option>
+                      <option value="PENDING">Pending</option>
+                      <option value="ORDERED">Ordered</option>
+                      <option value="RECEIVED">Received</option>
+                      <option value="CANCELLED">Cancelled</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Payment Method
-                    </label>
-                    <select
-                      value={formData.paymentMethod}
-                      onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="transfer">Transfer</option>
-                      <option value="cod">COD</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      PIC Name
+                      Delivery Date
                     </label>
                     <input
-                      type="text"
-                      value={formData.picName}
-                      onChange={(e) => setFormData({...formData, picName: e.target.value})}
+                      type="date"
+                      value={formData.deliveryDate}
+                      onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Received Quantity
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={formData.receivedQuantity}
+                      onChange={(e) => setFormData({ ...formData, receivedQuantity: e.target.value })}
+                      placeholder="Leave empty if not received yet"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -1177,21 +1160,18 @@ function PurchaseLogsPage() {
                     <input
                       type="text"
                       value={formData.invoiceNumber}
-                      onChange={(e) => setFormData({...formData, invoiceNumber: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Auto-generated if left empty"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Delivery Date
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.deliveryDate}
-                      onChange={(e) => setFormData({...formData, deliveryDate: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
+                  <div className="md:col-span-2">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-sm text-blue-700">
+                        <strong>Note:</strong> Invoice number was auto-generated when this purchase was created. You can update it if needed.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -1201,7 +1181,7 @@ function PurchaseLogsPage() {
                   </label>
                   <textarea
                     value={formData.notes}
-                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     rows="3"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -1250,29 +1230,29 @@ function PurchaseLogsPage() {
                 {/* Purchase Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold border-b pb-2">Purchase Information</h3>
-                  
+
                   <div className="space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Purchase Date</label>
-                      <p className="text-gray-900">{new Date(selectedPurchaseLog.purchasedDate).toLocaleDateString()}</p>
+                      <p className="text-gray-900">{new Date(selectedPurchaseLog.purchaseDate).toLocaleDateString()}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Material</label>
-                      <p className="text-gray-900">{selectedPurchaseLog.Material?.name || 'Unknown'}</p>
-                      <p className="text-sm text-gray-500">Code: {selectedPurchaseLog.Material?.code || 'N/A'}</p>
+                      <p className="text-gray-900">{selectedPurchaseLog.material?.name || 'Unknown'}</p>
+                      <p className="text-sm text-gray-500">Code: {selectedPurchaseLog.material?.code || 'N/A'}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Quantity</label>
-                      <p className="text-gray-900 font-semibold">{selectedPurchaseLog.stock} {selectedPurchaseLog.unit}</p>
+                      <p className="text-gray-900 font-semibold">{selectedPurchaseLog.quantity} {selectedPurchaseLog.unit}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Price per Unit</label>
-                      <p className="text-gray-900">Rp {(selectedPurchaseLog.price || 0).toLocaleString()}</p>
+                      <p className="text-gray-900">{formatCurrencyShort(selectedPurchaseLog.pricePerUnit || 0)}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Total Amount</label>
                       <p className="text-gray-900 font-bold text-green-600">
-                        Rp {((selectedPurchaseLog.stock || 0) * (selectedPurchaseLog.price || 0)).toLocaleString()}
+                        {formatCurrencyShort(selectedPurchaseLog.totalCost || 0)}
                       </p>
                     </div>
                   </div>
@@ -1281,37 +1261,35 @@ function PurchaseLogsPage() {
                 {/* Supplier & Status Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold border-b pb-2">Supplier & Status</h3>
-                  
+
                   <div className="space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Supplier</label>
                       <p className="text-gray-900">{selectedPurchaseLog.supplier || 'No supplier specified'}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-                      <p className="text-gray-900">{selectedPurchaseLog.paymentMethod || 'N/A'}</p>
-                    </div>
-                    <div>
                       <label className="block text-sm font-medium text-gray-700">Status</label>
                       {getStatusBadge(selectedPurchaseLog.status)}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">PIC Name</label>
-                      <p className="text-gray-900">{selectedPurchaseLog.picName || 'N/A'}</p>
-                    </div>
-                    <div>
                       <label className="block text-sm font-medium text-gray-700">Invoice Number</label>
-                      <p className="text-gray-900">{selectedPurchaseLog.invoiceNumber || 'N/A'}</p>
+                      <p className="text-gray-900">{selectedPurchaseLog.invoiceNumber || 'Auto-generated'}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Delivery Date</label>
                       <p className="text-gray-900">
-                        {selectedPurchaseLog.deliveryDate 
+                        {selectedPurchaseLog.deliveryDate
                           ? new Date(selectedPurchaseLog.deliveryDate).toLocaleDateString()
                           : 'Not specified'
                         }
                       </p>
                     </div>
+                    {selectedPurchaseLog.receivedQuantity && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Received Quantity</label>
+                        <p className="text-gray-900">{selectedPurchaseLog.receivedQuantity} {selectedPurchaseLog.unit}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs')
 const prisma = new PrismaClient()
 
 // Helper function to generate material code for seeding
-const generateMaterialCode = (totalUnits, supplier) => {
+const generateMaterialCode = (totalUnits, materialName) => {
     // Generate 3 random alphabets
     const randomAlphabets = Array.from({ length: 3 }, () =>
         String.fromCharCode(65 + Math.floor(Math.random() * 26))
@@ -13,14 +13,14 @@ const generateMaterialCode = (totalUnits, supplier) => {
     // Get current date in YYYYMMDD format
     const currentDate = new Date().toISOString().slice(0, 10).replace(/-/g, '')
 
-    // Clean supplier name (remove spaces, special characters, limit to 6 chars)
-    const cleanSupplier = (supplier || 'UNKNOWN')
+    // Clean material name (remove spaces, special characters, limit to 6 chars)
+    const cleanMaterialName = (materialName || 'UNKNOWN')
         .replace(/[^A-Z0-9]/gi, '')
         .toUpperCase()
         .slice(0, 6) || 'UNKNWN'
 
-    // Format: [3 RANDOM ALPHABET]-[TOTAL_UNITS]-[SUPPLIER]-[DATE_YYYYMMDD]
-    return `${randomAlphabets}-${totalUnits}-${cleanSupplier}-${currentDate}`
+    // Format: [3 RANDOM ALPHABET]-[TOTAL_UNITS]-[MATERIAL_NAME]-[DATE_YYYYMMDD]
+    return `${randomAlphabets}-${totalUnits}-${cleanMaterialName}-${currentDate}`
 }
 
 async function main() {
@@ -65,98 +65,214 @@ async function main() {
 
         console.log('✓ Operator user created:', operatorUser.email)
 
-        // Create sample materials with new schema (without MaterialType)
-        const materials = [
+        // Create sample materials with new schema (without pricePerUnit and supplier)
+        const materialData = [
             {
-                name: 'Steel Sheets',
-                description: 'High quality steel sheets for manufacturing',
-                code: generateMaterialCode(50, 'Steel Supply Co.'),
-                unit: 'pcs',
-                qtyOnHand: 50.0,
-                pricePerUnit: 25.50,
-                supplier: 'Steel Supply Co.',
-                minStock: 5.0,
-                maxStock: 100.0,
-                reorderPoint: 10.0,
-                reorderQty: 25.0,
-                attributeType: 'Raw Materials',
-                attributeValue: 'Steel'
+                material: {
+                    name: 'Steel Sheets',
+                    description: 'High quality steel sheets for manufacturing',
+                    code: generateMaterialCode(50, 'Steel Sheets'),
+                    unit: 'pcs',
+                    qtyOnHand: 50.0,
+                    minStock: 5.0,
+                    maxStock: 100.0,
+                    reorderPoint: 10.0,
+                    reorderQty: 25.0,
+                    attributeType: 'Raw Materials',
+                    attributeValue: 'Steel'
+                },
+                purchases: [
+                    {
+                        supplier: 'Steel Supply Co.',
+                        quantity: 30.0,
+                        pricePerUnit: 25.50,
+                        purchaseDate: new Date('2024-01-15'),
+                        status: 'RECEIVED'
+                    },
+                    {
+                        supplier: 'Steel Supply Co.',
+                        quantity: 20.0,
+                        pricePerUnit: 26.00,
+                        purchaseDate: new Date('2024-02-10'),
+                        status: 'RECEIVED'
+                    }
+                ]
             },
             {
-                name: 'Electronic Components',
-                description: 'Various electronic components and circuits',
-                code: generateMaterialCode(200, 'Electronics Hub'),
-                unit: 'pcs',
-                qtyOnHand: 200.0,
-                pricePerUnit: 5.25,
-                supplier: 'Electronics Hub',
-                minStock: 20.0,
-                maxStock: 500.0,
-                reorderPoint: 50.0,
-                reorderQty: 100.0,
-                attributeType: 'Components',
-                attributeValue: 'Electronic'
+                material: {
+                    name: 'Electronic Components',
+                    description: 'Various electronic components and circuits',
+                    code: generateMaterialCode(200, 'Electronic Components'),
+                    unit: 'pcs',
+                    qtyOnHand: 200.0,
+                    minStock: 20.0,
+                    maxStock: 500.0,
+                    reorderPoint: 50.0,
+                    reorderQty: 100.0,
+                    attributeType: 'Components',
+                    attributeValue: 'Electronic'
+                },
+                purchases: [
+                    {
+                        supplier: 'Electronics Hub',
+                        quantity: 150.0,
+                        pricePerUnit: 5.25,
+                        purchaseDate: new Date('2024-01-20'),
+                        status: 'RECEIVED'
+                    },
+                    {
+                        supplier: 'Electronics Hub',
+                        quantity: 50.0,
+                        pricePerUnit: 5.00,
+                        purchaseDate: new Date('2024-02-05'),
+                        status: 'RECEIVED'
+                    }
+                ]
             },
             {
-                name: 'Plastic Housing',
-                description: 'Durable plastic housing units',
-                code: generateMaterialCode(75, 'Plastic Manufacturing Ltd.'),
-                unit: 'pcs',
-                qtyOnHand: 75.0,
-                pricePerUnit: 12.00,
-                supplier: 'Plastic Manufacturing Ltd.',
-                minStock: 10.0,
-                maxStock: 150.0,
-                reorderPoint: 20.0,
-                reorderQty: 50.0,
-                attributeType: 'Components',
-                attributeValue: 'Plastic'
+                material: {
+                    name: 'Plastic Housing',
+                    description: 'Durable plastic housing units',
+                    code: generateMaterialCode(75, 'Plastic Housing'),
+                    unit: 'pcs',
+                    qtyOnHand: 75.0,
+                    minStock: 10.0,
+                    maxStock: 150.0,
+                    reorderPoint: 20.0,
+                    reorderQty: 50.0,
+                    attributeType: 'Components',
+                    attributeValue: 'Plastic'
+                },
+                purchases: [
+                    {
+                        supplier: 'Plastic Manufacturing Ltd.',
+                        quantity: 75.0,
+                        pricePerUnit: 12.00,
+                        purchaseDate: new Date('2024-01-25'),
+                        status: 'RECEIVED'
+                    }
+                ]
             },
             {
-                name: 'Aluminum Rods',
-                description: 'High-grade aluminum rods for structural components',
-                code: generateMaterialCode(30, 'Metal Works Ltd.'),
-                unit: 'pcs',
-                qtyOnHand: 30.0,
-                pricePerUnit: 18.75,
-                supplier: 'Metal Works Ltd.',
-                minStock: 5.0,
-                maxStock: 80.0,
-                reorderPoint: 10.0,
-                reorderQty: 20.0,
-                attributeType: 'Raw Materials',
-                attributeValue: 'Aluminum'
+                material: {
+                    name: 'Aluminum Rods',
+                    description: 'High-grade aluminum rods for structural components',
+                    code: generateMaterialCode(30, 'Aluminum Rods'),
+                    unit: 'pcs',
+                    qtyOnHand: 30.0,
+                    minStock: 5.0,
+                    maxStock: 80.0,
+                    reorderPoint: 10.0,
+                    reorderQty: 20.0,
+                    attributeType: 'Raw Materials',
+                    attributeValue: 'Aluminum'
+                },
+                purchases: [
+                    {
+                        supplier: 'Metal Works Ltd.',
+                        quantity: 30.0,
+                        pricePerUnit: 18.75,
+                        purchaseDate: new Date('2024-01-30'),
+                        status: 'RECEIVED'
+                    }
+                ]
             },
             {
-                name: 'Rubber Gaskets',
-                description: 'Weather-resistant rubber gaskets and seals',
-                code: generateMaterialCode(150, 'Rubber Solutions'),
-                unit: 'pcs',
-                qtyOnHand: 150.0,
-                pricePerUnit: 3.50,
-                supplier: 'Rubber Solutions',
-                minStock: 25.0,
-                maxStock: 300.0,
-                reorderPoint: 40.0,
-                reorderQty: 75.0,
-                attributeType: 'Components',
-                attributeValue: 'Rubber'
+                material: {
+                    name: 'Rubber Gaskets',
+                    description: 'Weather-resistant rubber gaskets and seals',
+                    code: generateMaterialCode(150, 'Rubber Gaskets'),
+                    unit: 'pcs',
+                    qtyOnHand: 150.0,
+                    minStock: 25.0,
+                    maxStock: 300.0,
+                    reorderPoint: 40.0,
+                    reorderQty: 75.0,
+                    attributeType: 'Components',
+                    attributeValue: 'Rubber'
+                },
+                purchases: [
+                    {
+                        supplier: 'Rubber Solutions',
+                        quantity: 100.0,
+                        pricePerUnit: 3.50,
+                        purchaseDate: new Date('2024-02-01'),
+                        status: 'RECEIVED'
+                    },
+                    {
+                        supplier: 'Rubber Solutions',
+                        quantity: 50.0,
+                        pricePerUnit: 3.25,
+                        purchaseDate: new Date('2024-02-15'),
+                        status: 'RECEIVED'
+                    }
+                ]
             }
         ]
 
-        for (const material of materials) {
+        // Create materials and their purchase history
+        for (const { material, purchases } of materialData) {
             const existingMaterial = await prisma.material.findFirst({
                 where: { name: material.name }
             })
 
+            let createdMaterial;
             if (!existingMaterial) {
-                await prisma.material.create({
+                createdMaterial = await prisma.material.create({
                     data: material
                 })
+            } else {
+                createdMaterial = existingMaterial;
+            }
+
+            // Create purchase logs for this material
+            for (const purchase of purchases) {
+                const existingPurchase = await prisma.purchaseLog.findFirst({
+                    where: {
+                        materialId: createdMaterial.id,
+                        supplier: purchase.supplier,
+                        purchaseDate: purchase.purchaseDate
+                    }
+                })
+
+                if (!existingPurchase) {
+                    await prisma.purchaseLog.create({
+                        data: {
+                            materialId: createdMaterial.id,
+                            supplier: purchase.supplier,
+                            quantity: purchase.quantity,
+                            unit: material.unit,
+                            pricePerUnit: purchase.pricePerUnit,
+                            totalCost: purchase.quantity * purchase.pricePerUnit,
+                            purchaseDate: purchase.purchaseDate,
+                            status: purchase.status,
+                            invoiceNumber: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                            notes: `Sample purchase data for ${material.name}`
+                        }
+                    })
+
+                    // Create corresponding material movement for received purchases
+                    if (purchase.status === 'RECEIVED') {
+                        await prisma.materialMovement.create({
+                            data: {
+                                materialId: createdMaterial.id,
+                                userId: adminUser.id,
+                                movementType: 'IN',
+                                quantity: purchase.quantity,
+                                unit: material.unit,
+                                costPerUnit: purchase.pricePerUnit,
+                                totalCost: purchase.quantity * purchase.pricePerUnit,
+                                notes: `Stock in from purchase - ${purchase.supplier}`,
+                                qtyAfter: createdMaterial.qtyOnHand,
+                                movementDate: purchase.purchaseDate
+                            }
+                        })
+                    }
+                }
             }
         }
 
-        console.log('✓ Sample materials created')
+        console.log('✓ Sample materials and purchase history created')
 
         // Create sample products
         const steelSheets = await prisma.material.findFirst({ where: { name: 'Steel Sheets' } })

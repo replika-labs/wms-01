@@ -28,12 +28,12 @@ export default function Sidebar({ user }) {
       icon: '👥',
       adminOnly: true 
     },
-    { 
-      label: 'Inventory', 
-      href: '/dashboard/inventory',
-      icon: '📦',
-      adminOnly: false 
-    },
+    // { 
+    //   label: 'Inventory', 
+    //   href: '/dashboard/inventory',
+    //   icon: '📦',
+    //   adminOnly: false 
+    // },
     { 
       label: 'Materials Management', 
       href: '/dashboard/materials',
@@ -110,7 +110,7 @@ export default function Sidebar({ user }) {
 
   // Filter menu items based on user role
   const filteredMenuItems = menuItems.filter(item => 
-    !item.adminOnly || (item.adminOnly && user?.role === 'admin')
+    !item.adminOnly || (item.adminOnly && user?.role === 'ADMIN')
   );
 
   return (

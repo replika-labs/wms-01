@@ -67,7 +67,6 @@ const getAllMaterials = async (req, res) => {
                 { name: { contains: search, mode: 'insensitive' } },
                 { code: { contains: search, mode: 'insensitive' } },
                 { description: { contains: search, mode: 'insensitive' } },
-                { supplier: { contains: search, mode: 'insensitive' } },
                 { attributeType: { contains: search, mode: 'insensitive' } },
                 { attributeValue: { contains: search, mode: 'insensitive' } }
             ]
@@ -82,6 +81,27 @@ const getAllMaterials = async (req, res) => {
 
         const materials = await prisma.material.findMany({
             where,
+            include: {
+                purchaseLogs: {
+                    orderBy: { purchaseDate: 'desc' },
+                    take: 1, // Get latest purchase
+                    select: {
+                        id: true,
+                        supplier: true,
+                        pricePerUnit: true,
+                        totalCost: true,
+                        quantity: true,
+                        purchaseDate: true,
+                        status: true
+                    }
+                },
+                // Also get purchase summary for better pricing data
+                _count: {
+                    select: {
+                        purchaseLogs: true
+                    }
+                }
+            },
             orderBy,
             skip,
             take
@@ -89,26 +109,71 @@ const getAllMaterials = async (req, res) => {
 
         const total = await prisma.material.count({ where })
 
-        // Return materials with schema fields (no transformation needed)
-        const transformedMaterials = materials.map(material => ({
-            id: material.id,
-            name: material.name,
-            description: material.description,
-            code: material.code,
-            unit: material.unit,
-            qtyOnHand: parseFloat(material.qtyOnHand),
-            pricePerUnit: parseFloat(material.pricePerUnit),
-            supplier: material.supplier || '',
-            minStock: parseFloat(material.minStock),
-            maxStock: parseFloat(material.maxStock),
-            reorderPoint: parseFloat(material.reorderPoint),
-            reorderQty: parseFloat(material.reorderQty),
-            location: material.location || '',
-            attributeType: material.attributeType || '',
-            attributeValue: material.attributeValue || '',
-            isActive: material.isActive,
-            createdAt: material.createdAt,
-            updatedAt: material.updatedAt
+        // Calculate enhanced material data with purchase information
+        const transformedMaterials = await Promise.all(materials.map(async (material) => {
+            // Get average price from recent purchases
+            const recentPurchases = await prisma.purchaseLog.findMany({
+                where: {
+                    materialId: material.id,
+                    status: 'RECEIVED' // Only consider received purchases for pricing
+                },
+                orderBy: { purchaseDate: 'desc' },
+                take: 5 // Last 5 received purchases for average
+            })
+
+            // Check if material can be deleted (has no movements or remaining materials)
+            const [hasMovements, hasRemainingMaterials] = await Promise.all([
+                prisma.materialMovement.count({
+                    where: { materialId: material.id }
+                }),
+                prisma.remainingMaterial.count({
+                    where: { materialId: material.id }
+                })
+            ])
+
+            const canDelete = hasMovements === 0 && hasRemainingMaterials === 0
+
+            const latestPurchase = material.purchaseLogs[0]
+            const avgPrice = recentPurchases.length > 0
+                ? recentPurchases.reduce((sum, p) => sum + parseFloat(p.pricePerUnit || 0), 0) / recentPurchases.length
+                : 0
+
+            const totalValue = parseFloat(material.qtyOnHand) * avgPrice
+
+            return {
+                id: material.id,
+                name: material.name,
+                description: material.description,
+                code: material.code,
+                unit: material.unit,
+                qtyOnHand: parseFloat(material.qtyOnHand),
+                pricePerUnit: avgPrice, // Calculated from purchase logs
+                supplier: latestPurchase?.supplier || 'No purchases yet',
+                minStock: parseFloat(material.minStock),
+                maxStock: parseFloat(material.maxStock),
+                reorderPoint: parseFloat(material.reorderPoint),
+                reorderQty: parseFloat(material.reorderQty),
+                location: material.location || '',
+                attributeType: material.attributeType || '',
+                attributeValue: material.attributeValue || '',
+                isActive: material.isActive,
+                createdAt: material.createdAt,
+                updatedAt: material.updatedAt,
+                // Enhanced purchase information
+                totalValue: totalValue,
+                latestPurchase: latestPurchase ? {
+                    date: latestPurchase.purchaseDate,
+                    supplier: latestPurchase.supplier,
+                    pricePerUnit: parseFloat(latestPurchase.pricePerUnit || 0),
+                    status: latestPurchase.status
+                } : null,
+                purchaseCount: material._count.purchaseLogs,
+                avgPrice: avgPrice,
+                // Deletion info
+                canDelete: canDelete,
+                hasMovements: hasMovements > 0,
+                hasRemainingMaterials: hasRemainingMaterials > 0
+            }
         }))
 
         const result = {
@@ -130,6 +195,8 @@ const getAllMaterials = async (req, res) => {
         res.json(result)
     } catch (error) {
         console.error('Error fetching materials:', error)
+        // Clear cache on error to prevent serving stale data
+        clearMaterialCaches()
         res.status(500).json({
             success: false,
             message: 'Error fetching materials',
@@ -163,6 +230,12 @@ const getMaterialById = async (req, res) => {
                             select: { name: true, email: true }
                         }
                     }
+                },
+                purchaseLogs: {
+                    orderBy: { purchaseDate: 'desc' },
+                    include: {
+                        contactNotes: true
+                    }
                 }
             }
         })
@@ -174,12 +247,75 @@ const getMaterialById = async (req, res) => {
             })
         }
 
+        // Calculate purchase history summary
+        const purchaseHistory = {
+            purchases: material.purchaseLogs,
+            summary: {
+                totalPurchases: material.purchaseLogs.length,
+                totalQuantity: material.purchaseLogs.reduce((sum, p) => sum + parseFloat(p.quantity || 0), 0),
+                totalValue: material.purchaseLogs.reduce((sum, p) => sum + parseFloat(p.totalCost || 0), 0),
+                receivedPurchases: material.purchaseLogs.filter(p => p.status === 'RECEIVED').length
+            }
+        }
+
+        // Get latest supplier and pricing info
+        const latestPurchase = material.purchaseLogs[0]
+        const receivedPurchases = material.purchaseLogs.filter(p => p.status === 'RECEIVED')
+        const avgPrice = receivedPurchases.length > 0
+            ? receivedPurchases.reduce((sum, p) => sum + parseFloat(p.pricePerUnit || 0), 0) / receivedPurchases.length
+            : 0
+
+        // Generate restock recommendation
+        const currentStock = parseFloat(material.qtyOnHand)
+        const minStock = parseFloat(material.minStock || 0)
+        const reorderPoint = parseFloat(material.reorderPoint || 0)
+
+        let restockRecommendation = null
+        if (currentStock === 0) {
+            restockRecommendation = {
+                action: 'urgent_restock',
+                priority: 'critical',
+                reason: 'Material is completely out of stock',
+                recommendedQuantity: material.reorderQty || minStock || 50
+            }
+        } else if (currentStock <= reorderPoint) {
+            restockRecommendation = {
+                action: 'restock_needed',
+                priority: 'high',
+                reason: `Stock is at or below reorder point (${reorderPoint})`,
+                recommendedQuantity: material.reorderQty || (minStock * 2) || 100
+            }
+        } else if (currentStock <= minStock) {
+            restockRecommendation = {
+                action: 'monitor_stock',
+                priority: 'medium',
+                reason: `Stock is below minimum level (${minStock})`,
+                recommendedQuantity: material.reorderQty || minStock || 25
+            }
+        } else {
+            restockRecommendation = {
+                action: 'adequate_stock',
+                priority: 'low',
+                reason: 'Stock levels are adequate',
+                recommendedQuantity: 0
+            }
+        }
+
+        const enhancedMaterial = {
+            ...material,
+            purchaseHistory,
+            latestSupplier: latestPurchase?.supplier || 'No purchases yet',
+            avgPrice: avgPrice,
+            totalValue: currentStock * avgPrice,
+            restockRecommendation
+        }
+
         // Cache the result
-        cache.set(cacheKey, material)
+        cache.set(cacheKey, enhancedMaterial)
 
         res.json({
             success: true,
-            data: material
+            data: enhancedMaterial
         })
     } catch (error) {
         console.error('Error fetching material:', error)
@@ -201,8 +337,6 @@ const createMaterial = async (req, res) => {
             description,
             unit = 'pcs',
             qtyOnHand = 0,
-            pricePerUnit = 0,
-            supplier,
             minStock = 0,
             maxStock = 0,
             reorderPoint = 0,
@@ -224,13 +358,13 @@ const createMaterial = async (req, res) => {
         const totalMaterials = await prisma.material.count()
         const totalUnits = totalMaterials + 1
 
-        // Generate unique code
+        // Generate unique code (using material name instead of supplier since supplier is now in purchaseLog)
         let generatedCode
         let isCodeUnique = false
         let attempts = 0
 
         while (!isCodeUnique && attempts < 10) {
-            generatedCode = generateMaterialCode(totalUnits, supplier)
+            generatedCode = generateMaterialCode(totalUnits, name)
             const existingMaterial = await prisma.material.findUnique({
                 where: { code: generatedCode }
             })
@@ -252,8 +386,6 @@ const createMaterial = async (req, res) => {
                 code: generatedCode,
                 unit,
                 qtyOnHand: parseFloat(qtyOnHand),
-                pricePerUnit: parseFloat(pricePerUnit),
-                supplier,
                 minStock: parseFloat(minStock),
                 maxStock: parseFloat(maxStock),
                 reorderPoint: parseFloat(reorderPoint),
@@ -301,7 +433,6 @@ const updateMaterial = async (req, res) => {
 
         // Convert numeric fields to proper types
         if (updateData.qtyOnHand !== undefined) updateData.qtyOnHand = parseFloat(updateData.qtyOnHand)
-        if (updateData.pricePerUnit !== undefined) updateData.pricePerUnit = parseFloat(updateData.pricePerUnit)
         if (updateData.minStock !== undefined) updateData.minStock = parseFloat(updateData.minStock)
         if (updateData.maxStock !== undefined) updateData.maxStock = parseFloat(updateData.maxStock)
         if (updateData.reorderPoint !== undefined) updateData.reorderPoint = parseFloat(updateData.reorderPoint)
@@ -479,7 +610,6 @@ const bulkUpdateMaterials = async (req, res) => {
 
                 // Convert numeric fields to proper types
                 if (updateData.qtyOnHand !== undefined) updateData.qtyOnHand = parseFloat(updateData.qtyOnHand)
-                if (updateData.pricePerUnit !== undefined) updateData.pricePerUnit = parseFloat(updateData.pricePerUnit)
                 if (updateData.minStock !== undefined) updateData.minStock = parseFloat(updateData.minStock)
                 if (updateData.maxStock !== undefined) updateData.maxStock = parseFloat(updateData.maxStock)
                 if (updateData.reorderPoint !== undefined) updateData.reorderPoint = parseFloat(updateData.reorderPoint)
@@ -522,8 +652,8 @@ const exportMaterials = async (req, res) => {
             orderBy: { name: 'asc' }
         })
 
-        // Create CSV content
-        const csvHeader = 'ID,Name,Description,Code,Attribute Type,Attribute Value,Unit,Qty On Hand,Min Stock,Max Stock,Reorder Point,Reorder Qty,Price Per Unit,Supplier,Location,Created At\n'
+        // Create CSV content (removed pricePerUnit and supplier since they're now in purchaseLog)
+        const csvHeader = 'ID,Name,Description,Code,Attribute Type,Attribute Value,Unit,Qty On Hand,Min Stock,Max Stock,Reorder Point,Reorder Qty,Location,Created At\n'
         const csvRows = materials.map(material => {
             return [
                 material.id,
@@ -538,8 +668,6 @@ const exportMaterials = async (req, res) => {
                 material.maxStock,
                 material.reorderPoint,
                 material.reorderQty,
-                material.pricePerUnit,
-                `"${material.supplier || ''}"`,
                 `"${material.location || ''}"`,
                 material.createdAt.toISOString()
             ].join(',')
@@ -588,8 +716,6 @@ const importMaterials = async (req, res) => {
                     maxStock = 0,
                     reorderPoint = 0,
                     reorderQty = 0,
-                    pricePerUnit = 0,
-                    supplier,
                     location
                 } = materialData
 
@@ -609,7 +735,7 @@ const importMaterials = async (req, res) => {
                 let attempts = 0
 
                 while (!isCodeUnique && attempts < 10) {
-                    generatedCode = generateMaterialCode(totalUnits, supplier)
+                    generatedCode = generateMaterialCode(totalUnits, name)
                     const existingMaterial = await prisma.material.findUnique({
                         where: { code: generatedCode }
                     })
@@ -633,8 +759,6 @@ const importMaterials = async (req, res) => {
                         maxStock: parseFloat(maxStock),
                         reorderPoint: parseFloat(reorderPoint),
                         reorderQty: parseFloat(reorderQty),
-                        pricePerUnit: parseFloat(pricePerUnit),
-                        supplier,
                         location,
                         attributeType: attributeType || null,
                         attributeValue: attributeValue || null
@@ -686,12 +810,19 @@ const getInventoryAnalytics = async (req, res) => {
             // Total materials count
             prisma.material.count(),
 
-            // Total inventory value
-            prisma.material.aggregate({
-                _sum: {
-                    pricePerUnit: true
-                }
-            }),
+            // Total inventory value (calculated from purchase logs)
+            prisma.$queryRaw`
+        SELECT SUM(
+          m."qtyOnHand" * COALESCE(
+            (SELECT AVG(p."pricePerUnit") 
+             FROM "purchase_logs" p 
+             WHERE p."materialId" = m.id 
+             AND p.status = 'RECEIVED'), 
+            0
+          )
+        ) as "totalValue"
+        FROM "materials" m
+      `,
 
             // Critical stock count
             prisma.$queryRaw`
@@ -713,11 +844,20 @@ const getInventoryAnalytics = async (req, res) => {
                 }
             }),
 
-            // Top 10 most valuable materials
-            prisma.material.findMany({
-                orderBy: { pricePerUnit: 'desc' },
-                take: 10
-            }),
+            // Top 10 most valuable materials (by current stock value)
+            prisma.$queryRaw`
+        SELECT m.*, 
+               (m."qtyOnHand" * COALESCE(
+                 (SELECT AVG(p."pricePerUnit") 
+                  FROM "purchase_logs" p 
+                  WHERE p."materialId" = m.id 
+                  AND p.status = 'RECEIVED'), 
+                 0
+               )) as "totalValue"
+        FROM "materials" m
+                ORDER BY "totalValue" DESC
+        LIMIT 10
+      `,
 
             // Recent movements (last 10)
             prisma.materialMovement.findMany({
@@ -737,7 +877,7 @@ const getInventoryAnalytics = async (req, res) => {
         const analytics = {
             overview: {
                 totalMaterials,
-                totalValue: totalValue._sum.pricePerUnit || 0,
+                totalValue: parseFloat(totalValue[0]?.totalValue || 0),
                 criticalStockCount: parseInt(criticalStockCount[0].count),
                 attributeTypes: materialsByAttribute.length
             },

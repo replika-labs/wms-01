@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiFilter, FiEye, FiEdit2, FiTrash2, FiPackage, FiAlertTriangle, FiTrendingUp } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiFilter, FiEye, FiEdit2, FiTrash2, FiPackage, FiAlertTriangle, FiTrendingUp, FiRefreshCw } from 'react-icons/fi';
 import DashboardLayout from '@/app/components/DashboardLayout';
 import AuthWrapper from '@/app/components/AuthWrapper';
+import { formatCurrencyShort } from '@/utils/formatNominal';
 
 function MaterialsManagementPage() {
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -31,8 +33,6 @@ function MaterialsManagementPage() {
     description: '',
     unit: 'pcs',
     qtyOnHand: 0,
-    pricePerUnit: 0,
-    supplier: '',
     minStock: 0,
     maxStock: 0,
     reorderPoint: 0,
@@ -49,6 +49,7 @@ function MaterialsManagementPage() {
       const queryParams = new URLSearchParams({
         page: currentPage,
         limit: 20,
+        _timestamp: Date.now(), // Cache busting parameter
         ...filters
       });
 
@@ -345,8 +346,6 @@ function MaterialsManagementPage() {
         description: details.description || '',
         unit: details.unit || 'pcs',
         qtyOnHand: details.qtyOnHand || 0,
-        pricePerUnit: details.pricePerUnit || 0,
-        supplier: details.supplier || '',
         minStock: details.minStock || 0,
         maxStock: details.maxStock || 0,
         reorderPoint: details.reorderPoint || 0,
@@ -366,8 +365,6 @@ function MaterialsManagementPage() {
       description: '',
       unit: 'pcs',
       qtyOnHand: 0,
-      pricePerUnit: 0,
-      supplier: '',
       minStock: 0,
       maxStock: 0,
       reorderPoint: 0,
@@ -403,6 +400,13 @@ function MaterialsManagementPage() {
     setCurrentPage(page);
   };
 
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadMaterials();
+    setRefreshing(false);
+  };
+
   useEffect(() => {
     loadMaterials();
   }, [currentPage, filters]);
@@ -427,13 +431,23 @@ function MaterialsManagementPage() {
             <h1 className="text-2xl font-bold text-gray-900">Materials Management</h1>
             <p className="text-gray-600">Manage your materials inventory with enhanced tracking</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-          >
-            <FiPlus size={20} />
-            Add Material
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            >
+              <FiRefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            >
+              <FiPlus size={20} />
+              Add Material
+            </button>
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -464,7 +478,7 @@ function MaterialsManagementPage() {
               <div>
                 <p className="text-sm text-gray-600">Total Value</p>
                 <p className="text-xl font-bold">
-                  Rp {materials.reduce((sum, m) => sum + (m.qtyOnHand * (m.pricePerUnit || 0)), 0).toLocaleString()}
+                  {formatCurrencyShort(materials.reduce((sum, m) => sum + (m.totalValue || 0), 0))}
                 </p>
               </div>
             </div>
@@ -548,6 +562,17 @@ function MaterialsManagementPage() {
         </div>
       )}
 
+      {/* Info Note */}
+      <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-4">
+        <div className="flex items-center">
+          <FiPackage className="mr-2" />
+          <span className="text-sm">
+            <strong>Note:</strong> Stock levels are automatically updated when purchases are marked as &quot;RECEIVED&quot;.
+            Latest purchase data may take a moment to refresh. Use the &quot;Refresh&quot; button above to get the most recent data.
+          </span>
+        </div>
+      </div>
+
       {/* Materials Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
@@ -618,18 +643,24 @@ function MaterialsManagementPage() {
                         Supplier: {material.supplier || 'N/A'} |
                         Location: {material.location || 'N/A'}
                       </div>
+                      {material.latestPurchase && (
+                        <div className="text-xs text-blue-600">
+                          Last purchase: {new Date(material.latestPurchase.date).toLocaleDateString()}
+                          from {material.latestPurchase.supplier}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div>
                       <div className="font-medium">
-                        Price: Rp {(material.pricePerUnit || 0).toLocaleString()}
+                        Avg Price: {formatCurrencyShort(material.avgPrice || 0)}
                       </div>
                       <div className="text-gray-500">
                         Reorder: {material.reorderPoint || 0} / {material.reorderQty || 0}
                       </div>
                       <div className="text-xs text-gray-400">
-                        Value: Rp {((material.qtyOnHand || 0) * (material.pricePerUnit || 0)).toLocaleString()}
+                        Value: {formatCurrencyShort(material.totalValue || 0)}
                       </div>
                     </div>
                   </td>
@@ -649,13 +680,23 @@ function MaterialsManagementPage() {
                       >
                         <FiEdit2 size={16} />
                       </button>
-                      <button
-                        onClick={() => handleDeleteMaterial(material.id)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete Material"
-                      >
-                        <FiTrash2 size={16} />
-                      </button>
+                      {material.canDelete ? (
+                        <button
+                          onClick={() => handleDeleteMaterial(material.id)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete Material"
+                        >
+                          <FiTrash2 size={16} />
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="text-gray-400 cursor-not-allowed"
+                          title={`Cannot delete: Material has ${material.hasMovements ? 'existing movements' : ''}${material.hasMovements && material.hasRemainingMaterials ? ' and ' : ''}${material.hasRemainingMaterials ? 'remaining material records' : ''}`}
+                        >
+                          <FiTrash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -821,31 +862,6 @@ function MaterialsManagementPage() {
                       step="0.01"
                       value={formData.reorderQty}
                       onChange={(e) => setFormData({ ...formData, reorderQty: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price per Unit
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.pricePerUnit}
-                      onChange={(e) => setFormData({ ...formData, pricePerUnit: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Supplier
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.supplier}
-                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -1041,31 +1057,6 @@ function MaterialsManagementPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price per Unit
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.pricePerUnit}
-                      onChange={(e) => setFormData({ ...formData, pricePerUnit: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Supplier
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.supplier}
-                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Location
                     </label>
                     <input
@@ -1155,14 +1146,20 @@ function MaterialsManagementPage() {
                       <p className="text-gray-900">{selectedMaterial.unit}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Price per Unit</label>
+                      <label className="block text-sm font-medium text-gray-700">Average Price</label>
                       <p className="text-gray-900">
-                        {selectedMaterial.pricePerUnit ? `Rp ${selectedMaterial.pricePerUnit.toLocaleString()}` : 'N/A'}
+                        {selectedMaterial.avgPrice ? formatCurrencyShort(selectedMaterial.avgPrice) : 'No purchase data'}
                       </p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Supplier</label>
-                      <p className="text-gray-900">{selectedMaterial.supplier || 'N/A'}</p>
+                      <label className="block text-sm font-medium text-gray-700">Latest Supplier</label>
+                      <p className="text-gray-900">{selectedMaterial.latestSupplier || 'No purchases yet'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Total Value</label>
+                      <p className="text-gray-900 font-semibold text-green-600">
+                        {formatCurrencyShort(selectedMaterial.totalValue || 0)}
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Location</label>
@@ -1226,7 +1223,7 @@ function MaterialsManagementPage() {
                     <div className="bg-purple-50 p-3 rounded-lg">
                       <p className="text-sm text-purple-600">Total Value</p>
                       <p className="text-xl font-bold text-purple-800">
-                        Rp {selectedMaterial.purchaseHistory.summary.totalValue.toLocaleString()}
+                        {formatCurrencyShort(selectedMaterial.purchaseHistory.summary.totalValue)}
                       </p>
                     </div>
                   </div>

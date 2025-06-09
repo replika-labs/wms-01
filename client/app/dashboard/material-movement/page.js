@@ -13,7 +13,7 @@ export default function MaterialMovementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  
+
   // Pagination state
   const [pagination, setPagination] = useState({
     current: 1,
@@ -21,24 +21,22 @@ export default function MaterialMovementPage() {
     pages: 0,
     limit: 10
   });
-  
+
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingMovement, setEditingMovement] = useState(null);
   const [formData, setFormData] = useState({
     materialId: '',
-    qty: '',
-    movementType: 'MASUK',
-    description: '',
-    referenceNumber: '',
-    unitPrice: '',
-    notes: ''
+    quantity: '',
+    movementType: 'IN',
+    notes: '',
+    costPerUnit: '',
+    movementDate: ''
   });
-  
+
   // Filter state
   const [filter, setFilter] = useState({
     movementType: '',
-    movementSource: '',
     materialId: '',
     startDate: '',
     endDate: '',
@@ -46,11 +44,10 @@ export default function MaterialMovementPage() {
     page: 1,
     limit: 10
   });
-  
+
   // View state
-  const [activeTab, setActiveTab] = useState('movements'); // movements, analytics
   const [showAnalytics, setShowAnalytics] = useState(false);
-  
+
   // Submit state
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -82,8 +79,13 @@ export default function MaterialMovementPage() {
         }
 
         const movementsData = await movementsResponse.json();
-        setMovements(movementsData.movements || []);
-        setPagination(movementsData.pagination || {});
+
+        if (movementsData.success) {
+          setMovements(movementsData.data.movements || []);
+          setPagination(movementsData.data.pagination || {});
+        } else {
+          throw new Error(movementsData.message || 'Failed to fetch movements');
+        }
 
         // Fetch materials for dropdown
         const materialsResponse = await fetch('/api/materials', {
@@ -93,11 +95,23 @@ export default function MaterialMovementPage() {
         });
 
         if (!materialsResponse.ok) {
-          throw new Error('Failed to fetch materials');
-        }
+          console.warn('Failed to fetch materials, using empty array');
+          setMaterials([]);
+        } else {
+          const materialsData = await materialsResponse.json();
 
-        const materialsData = await materialsResponse.json();
-        setMaterials(Array.isArray(materialsData) ? materialsData : []);
+          if (materialsData.success && materialsData.data && Array.isArray(materialsData.data.materials)) {
+            setMaterials(materialsData.data.materials);
+          } else if (materialsData.success && Array.isArray(materialsData.data)) {
+            setMaterials(materialsData.data);
+          } else if (Array.isArray(materialsData)) {
+            // Handle case where API returns array directly
+            setMaterials(materialsData);
+          } else {
+            console.warn('Materials data is not in expected format:', materialsData);
+            setMaterials([]);
+          }
+        }
 
         // Fetch analytics if tab is active
         if (showAnalytics) {
@@ -109,7 +123,9 @@ export default function MaterialMovementPage() {
 
           if (analyticsResponse.ok) {
             const analyticsData = await analyticsResponse.json();
-            setAnalytics(analyticsData);
+            if (analyticsData.success) {
+              setAnalytics(analyticsData.data);
+            }
           }
         }
 
@@ -127,7 +143,7 @@ export default function MaterialMovementPage() {
   // Handle form input changes
   const handleChange = (e) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'number') {
       setFormData({
         ...formData,
@@ -163,7 +179,6 @@ export default function MaterialMovementPage() {
   const resetFilters = () => {
     setFilter({
       movementType: '',
-      movementSource: '',
       materialId: '',
       startDate: '',
       endDate: '',
@@ -177,12 +192,11 @@ export default function MaterialMovementPage() {
   const resetForm = () => {
     setFormData({
       materialId: '',
-      qty: '',
-      movementType: 'MASUK',
-      description: '',
-      referenceNumber: '',
-      unitPrice: '',
-      notes: ''
+      quantity: '',
+      movementType: 'IN',
+      notes: '',
+      costPerUnit: '',
+      movementDate: ''
     });
     setEditingMovement(null);
     setShowForm(false);
@@ -190,19 +204,18 @@ export default function MaterialMovementPage() {
 
   // Handle edit movement
   const handleEdit = (movement) => {
-    if (movement.movementSource === 'purchase') {
+    if (movement.purchaseLogId) {
       setError('Cannot edit purchase-generated movements');
       return;
     }
-    
+
     setFormData({
       materialId: movement.materialId,
-      qty: movement.qty,
+      quantity: movement.quantity,
       movementType: movement.movementType,
-      description: movement.description || '',
-      referenceNumber: movement.referenceNumber || '',
-      unitPrice: movement.unitPrice || '',
-      notes: movement.notes || ''
+      notes: movement.notes || '',
+      costPerUnit: movement.costPerUnit || '',
+      movementDate: movement.movementDate ? new Date(movement.movementDate).toISOString().split('T')[0] : ''
     });
     setEditingMovement(movement);
     setShowForm(true);
@@ -210,15 +223,15 @@ export default function MaterialMovementPage() {
 
   // Handle delete movement
   const handleDelete = async (movement) => {
-    if (movement.movementSource === 'purchase') {
+    if (movement.purchaseLogId) {
       setError('Cannot delete purchase-generated movements');
       return;
     }
-    
+
     if (!confirm('Are you sure you want to delete this movement?')) {
       return;
     }
-    
+
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/material-movements/${movement.id}`, {
@@ -227,16 +240,21 @@ export default function MaterialMovementPage() {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete movement');
+        throw new Error(errorData.message || 'Failed to delete movement');
       }
-      
-      setSuccess('Movement deleted successfully');
-      // Refresh data
-      setFilter({ ...filter });
-      
+
+      const result = await response.json();
+      if (result.success) {
+        setSuccess('Movement deleted successfully');
+        // Refresh data
+        setFilter({ ...filter });
+      } else {
+        throw new Error(result.message || 'Failed to delete movement');
+      }
+
     } catch (err) {
       setError(err.message);
     }
@@ -245,43 +263,42 @@ export default function MaterialMovementPage() {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       setIsSubmitting(true);
       setError(null);
       setSuccess(null);
-      
+
       // Validate form data
-      if (!formData.materialId || !formData.qty || !formData.movementType) {
+      if (!formData.materialId || !formData.quantity || !formData.movementType) {
         throw new Error('Material, quantity, and movement type are required');
       }
-      
-      if (formData.qty <= 0) {
+
+      if (formData.quantity <= 0) {
         throw new Error('Quantity must be greater than 0');
       }
-      
+
       const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('No authentication token found');
       }
-      
+
       // Prepare submission data
       const submitData = {
         materialId: parseInt(formData.materialId),
-        qty: parseFloat(formData.qty),
+        quantity: parseFloat(formData.quantity),
         movementType: formData.movementType,
-        description: formData.description,
-        referenceNumber: formData.referenceNumber,
-        unitPrice: formData.unitPrice ? parseFloat(formData.unitPrice) : null,
-        notes: formData.notes
+        notes: formData.notes,
+        costPerUnit: formData.costPerUnit ? parseFloat(formData.costPerUnit) : null,
+        movementDate: formData.movementDate ? formData.movementDate : null
       };
-      
+
       // Submit form data
-      const url = editingMovement 
+      const url = editingMovement
         ? `/api/material-movements/${editingMovement.id}`
         : '/api/material-movements';
       const method = editingMovement ? 'PUT' : 'POST';
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -290,21 +307,22 @@ export default function MaterialMovementPage() {
         },
         body: JSON.stringify(submitData)
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to ${editingMovement ? 'update' : 'create'} movement`);
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || `Failed to ${editingMovement ? 'update' : 'create'} movement`);
       }
-      
+
       // Reset form and fetch updated data
       resetForm();
       setSuccess(`Movement ${editingMovement ? 'updated' : 'created'} successfully`);
-      
+
       // Refresh data
       setTimeout(() => {
         setFilter({ ...filter });
       }, 500);
-      
+
     } catch (err) {
       setError(err.message);
       console.error('Error submitting movement:', err);
@@ -334,16 +352,15 @@ export default function MaterialMovementPage() {
     }).format(amount);
   };
 
-  // Get movement source badge
-  const getSourceBadge = (source) => {
+  // Get movement type badge
+  const getMovementTypeBadge = (movementType) => {
     const badges = {
-      purchase: 'bg-blue-100 text-blue-800',
-      manual: 'bg-gray-100 text-gray-800',
-      production: 'bg-purple-100 text-purple-800',
-      adjustment: 'bg-yellow-100 text-yellow-800'
+      IN: 'bg-green-100 text-green-800',
+      OUT: 'bg-red-100 text-red-800',
+      ADJUST: 'bg-yellow-100 text-yellow-800'
     };
-    
-    return badges[source] || 'bg-gray-100 text-gray-800';
+
+    return badges[movementType] || 'bg-gray-100 text-gray-800';
   };
 
   return (
@@ -360,11 +377,10 @@ export default function MaterialMovementPage() {
             <div className="flex space-x-3">
               <button
                 onClick={() => setShowAnalytics(!showAnalytics)}
-                className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium ${
-                  showAnalytics 
-                    ? 'text-blue-700 bg-blue-100 hover:bg-blue-200' 
-                    : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
-                }`}
+                className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium ${showAnalytics
+                  ? 'text-blue-700 bg-blue-100 hover:bg-blue-200'
+                  : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
+                  }`}
               >
                 📊 Analytics
               </button>
@@ -381,7 +397,7 @@ export default function MaterialMovementPage() {
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
               <span className="block sm:inline">{error}</span>
-              <button 
+              <button
                 onClick={() => setError(null)}
                 className="absolute top-0 bottom-0 right-0 px-4 py-3"
               >
@@ -390,11 +406,11 @@ export default function MaterialMovementPage() {
               </button>
             </div>
           )}
-          
+
           {success && (
             <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
               <span className="block sm:inline">{success}</span>
-              <button 
+              <button
                 onClick={() => setSuccess(null)}
                 className="absolute top-0 bottom-0 right-0 px-4 py-3"
               >
@@ -433,25 +449,25 @@ export default function MaterialMovementPage() {
                       </div>
                     </div>
                   </div>
-                  
-                  {analytics.movementsBySource && analytics.movementsBySource.map((source, index) => (
+
+                  {analytics.movementsByType && analytics.movementsByType.map((typeData, index) => (
                     <div key={index} className="bg-gray-50 overflow-hidden shadow rounded-lg">
                       <div className="p-5">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
                             <div className="w-8 h-8 bg-gray-500 rounded-md flex items-center justify-center">
                               <span className="text-white text-sm font-medium">
-                                {source.movementSource === 'purchase' ? '🛒' : '✋'}
+                                {typeData.movementType === 'IN' ? '⬇️' : typeData.movementType === 'OUT' ? '⬆️' : '🔄'}
                               </span>
                             </div>
                           </div>
                           <div className="ml-5 w-0 flex-1">
                             <dl>
                               <dt className="text-sm font-medium text-gray-500 truncate">
-                                {source.movementSource} Movements
+                                {typeData.movementType} Movements
                               </dt>
                               <dd className="text-lg font-medium text-gray-900">
-                                {source.dataValues?.count || 0}
+                                {typeData._count.id || 0}
                               </dd>
                             </dl>
                           </div>
@@ -487,8 +503,9 @@ export default function MaterialMovementPage() {
                           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                           required
                         >
-                          <option value="MASUK">MASUK (In)</option>
-                          <option value="KELUAR">KELUAR (Out)</option>
+                          <option value="IN">IN (Stock In)</option>
+                          <option value="OUT">OUT (Stock Out)</option>
+                          <option value="ADJUST">ADJUST (Stock Adjustment)</option>
                         </select>
                       </div>
 
@@ -506,7 +523,7 @@ export default function MaterialMovementPage() {
                           required
                         >
                           <option value="">Select Material</option>
-                          {materials.map((material) => (
+                          {Array.isArray(materials) && materials.map((material) => (
                             <option key={material.id} value={material.id}>
                               {material.name} ({material.code}) - Stock: {material.qtyOnHand} {material.unit}
                             </option>
@@ -516,85 +533,68 @@ export default function MaterialMovementPage() {
 
                       {/* Quantity */}
                       <div className="sm:col-span-2">
-                        <label htmlFor="qty" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
                           Quantity *
                         </label>
                         <input
                           type="number"
-                          name="qty"
-                          id="qty"
+                          name="quantity"
+                          id="quantity"
                           min="0.01"
                           step="0.01"
-                          value={formData.qty}
+                          value={formData.quantity}
                           onChange={handleChange}
                           className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                           required
                         />
                       </div>
 
-                      {/* Unit Price */}
+                      {/* Cost Per Unit */}
                       <div className="sm:col-span-2">
-                        <label htmlFor="unitPrice" className="block text-sm font-medium text-gray-700">
-                          Unit Price (IDR)
+                        <label htmlFor="costPerUnit" className="block text-sm font-medium text-gray-700">
+                          Cost Per Unit (IDR)
                         </label>
                         <input
                           type="number"
-                          name="unitPrice"
-                          id="unitPrice"
+                          name="costPerUnit"
+                          id="costPerUnit"
                           min="0"
                           step="0.01"
-                          value={formData.unitPrice}
+                          value={formData.costPerUnit}
                           onChange={handleChange}
                           className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                           placeholder="Optional"
                         />
                       </div>
 
-                      {/* Reference Number */}
+                      {/* Movement Date */}
                       <div className="sm:col-span-2">
-                        <label htmlFor="referenceNumber" className="block text-sm font-medium text-gray-700">
-                          Reference Number
+                        <label htmlFor="movementDate" className="block text-sm font-medium text-gray-700">
+                          Movement Date
                         </label>
                         <input
-                          type="text"
-                          name="referenceNumber"
-                          id="referenceNumber"
-                          value={formData.referenceNumber}
+                          type="date"
+                          name="movementDate"
+                          id="movementDate"
+                          value={formData.movementDate}
                           onChange={handleChange}
                           className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          placeholder="e.g., INV-001, ADJ-001"
-                        />
-                      </div>
-
-                      {/* Description */}
-                      <div className="sm:col-span-3">
-                        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                          Description
-                        </label>
-                        <input
-                          type="text"
-                          name="description"
-                          id="description"
-                          value={formData.description}
-                          onChange={handleChange}
-                          className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          placeholder="Brief description of movement"
                         />
                       </div>
 
                       {/* Notes */}
-                      <div className="sm:col-span-3">
+                      <div className="sm:col-span-6">
                         <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
                           Notes
                         </label>
                         <textarea
                           name="notes"
                           id="notes"
-                          rows={2}
+                          rows={3}
                           value={formData.notes}
                           onChange={handleChange}
                           className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          placeholder="Additional notes"
+                          placeholder="Additional notes about this movement"
                         />
                       </div>
                     </div>
@@ -641,28 +641,9 @@ export default function MaterialMovementPage() {
                     className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                   >
                     <option value="">All Types</option>
-                    <option value="MASUK">MASUK</option>
-                    <option value="KELUAR">KELUAR</option>
-                  </select>
-                </div>
-
-                {/* Movement Source Filter */}
-                <div className="sm:col-span-1">
-                  <label htmlFor="sourceFilter" className="block text-sm font-medium text-gray-700">
-                    Source
-                  </label>
-                  <select
-                    id="sourceFilter"
-                    name="movementSource"
-                    value={filter.movementSource}
-                    onChange={handleFilterChange}
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                  >
-                    <option value="">All Sources</option>
-                    <option value="purchase">Purchase</option>
-                    <option value="manual">Manual</option>
-                    <option value="production">Production</option>
-                    <option value="adjustment">Adjustment</option>
+                    <option value="IN">IN</option>
+                    <option value="OUT">OUT</option>
+                    <option value="ADJUST">ADJUST</option>
                   </select>
                 </div>
 
@@ -679,7 +660,7 @@ export default function MaterialMovementPage() {
                     className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                   >
                     <option value="">All Materials</option>
-                    {materials.map((material) => (
+                    {Array.isArray(materials) && materials.map((material) => (
                       <option key={material.id} value={material.id}>
                         {material.name} ({material.code})
                       </option>
@@ -717,8 +698,19 @@ export default function MaterialMovementPage() {
                   />
                 </div>
 
+                {/* Reset Button */}
+                <div className="sm:col-span-1 flex items-end">
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="w-full py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Reset
+                  </button>
+                </div>
+
                 {/* Search */}
-                <div className="sm:col-span-4">
+                <div className="sm:col-span-6">
                   <label htmlFor="search" className="block text-sm font-medium text-gray-700">
                     Search
                   </label>
@@ -729,19 +721,8 @@ export default function MaterialMovementPage() {
                     value={filter.search}
                     onChange={handleFilterChange}
                     className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                    placeholder="Search by description, notes, or reference number"
+                    placeholder="Search by notes, material name, or code"
                   />
-                </div>
-
-                {/* Reset Button */}
-                <div className="sm:col-span-2 flex items-end">
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                    className="w-full py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    Reset Filters
-                  </button>
                 </div>
               </div>
             </div>
@@ -766,19 +747,19 @@ export default function MaterialMovementPage() {
                           Type
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Source
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Material
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Quantity
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Value
+                          Stock After
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Reference
+                          Cost
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          User
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Purchase
@@ -799,28 +780,19 @@ export default function MaterialMovementPage() {
                         movements.map((movement) => (
                           <tr key={movement.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatDate(movement.createdAt)}
+                              {formatDate(movement.movementDate)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                movement.movementType === 'MASUK' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getMovementTypeBadge(movement.movementType)}`}>
                                 {movement.movementType}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSourceBadge(movement.movementSource)}`}>
-                                {movement.movementSource}
-                              </span>
-                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {movement.Material ? (
+                              {movement.material ? (
                                 <>
-                                  {movement.Material.name}
+                                  {movement.material.name}
                                   <span className="text-xs text-gray-500 ml-1">
-                                    ({movement.Material.code})
+                                    ({movement.material.code})
                                   </span>
                                 </>
                               ) : (
@@ -828,26 +800,29 @@ export default function MaterialMovementPage() {
                               )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {movement.qty} {movement.Material ? movement.Material.unit : 'units'}
+                              {movement.quantity} {movement.unit}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatCurrency(movement.totalValue)}
+                              {movement.qtyAfter} {movement.unit}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {movement.referenceNumber || '-'}
+                              {formatCurrency(movement.totalCost)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {movement.PurchaseLog ? (
+                              {movement.user ? movement.user.name : 'System'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {movement.purchaseLog ? (
                                 <div>
-                                  <div className="font-medium">{movement.PurchaseLog.supplier}</div>
+                                  <div className="font-medium">{movement.purchaseLog.supplier}</div>
                                   <div className="text-xs text-gray-400">
-                                    {formatDate(movement.PurchaseLog.purchasedDate)}
+                                    {formatDate(movement.purchaseLog.purchaseDate)}
                                   </div>
                                 </div>
                               ) : '-'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              {movement.movementSource !== 'purchase' ? (
+                              {!movement.purchaseLogId ? (
                                 <div className="flex space-x-2">
                                   <button
                                     onClick={() => handleEdit(movement)}
@@ -863,7 +838,7 @@ export default function MaterialMovementPage() {
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-gray-400">Auto-generated</span>
+                                <span className="text-gray-400">Purchase-generated</span>
                               )}
                             </td>
                           </tr>
@@ -920,11 +895,10 @@ export default function MaterialMovementPage() {
                               <button
                                 key={page}
                                 onClick={() => handlePageChange(page)}
-                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                  page === pagination.current
-                                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                                }`}
+                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${page === pagination.current
+                                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                  }`}
                               >
                                 {page}
                               </button>
