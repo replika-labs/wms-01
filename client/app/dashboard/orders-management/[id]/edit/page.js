@@ -53,8 +53,22 @@ export default function EditOrderManagement({ params }) {
         });
 
         // Fetch tailors for dropdown
-        const tailorsData = await ordersManagementAPI.getTailors();
-        setTailors(tailorsData);
+        const token = localStorage.getItem('token');
+        if (token) {
+          const response = await fetch('http://localhost:8080/api/contacts/type/WORKER', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+              setTailors(data.contacts || []);
+            }
+          }
+        }
 
       } catch (err) {
         setError('Error loading order data: ' + err.message);
@@ -65,6 +79,44 @@ export default function EditOrderManagement({ params }) {
     };
 
     fetchOrderData();
+  }, [id]);
+
+  // Fetch tailors on component mount
+  useEffect(() => {
+    const fetchTailors = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.warn('No authentication token for loading tailors');
+          return;
+        }
+
+        const response = await fetch('http://localhost:8080/api/contacts/type/WORKER', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setTailors(data.contacts || []);
+          } else {
+            console.error('Failed to load tailors:', data.message);
+          }
+        } else {
+          console.error('Tailors API error:', response.status, response.statusText);
+        }
+      } catch (err) {
+        console.error('Error loading tailors:', err);
+        // Don't show error for tailors, just log it
+      }
+    };
+
+    if (id) {
+      fetchTailors();
+    }
   }, [id]);
 
   const handleInputChange = (e) => {
@@ -148,11 +200,31 @@ export default function EditOrderManagement({ params }) {
   const handleRefreshTailors = async () => {
     try {
       setRefreshingTailors(true);
-      await ordersManagementAPI.clearTailorsCache();
-      const freshTailors = await ordersManagementAPI.getTailors(true);
-      setTailors(freshTailors);
-      setSuccess('Tailors list refreshed successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token required');
+      }
+
+      const response = await fetch('http://localhost:8080/api/contacts/type/WORKER', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setTailors(data.contacts || []);
+          setSuccess('Tailors list refreshed successfully!');
+          setTimeout(() => setSuccess(''), 3000);
+        } else {
+          throw new Error(data.message || 'Failed to refresh tailors');
+        }
+      } else {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
     } catch (error) {
       setError('Failed to refresh tailors: ' + error.message);
       setTimeout(() => setError(''), 5000);
@@ -327,7 +399,7 @@ export default function EditOrderManagement({ params }) {
                         <option value="">Select Tailor (Optional)</option>
                         {tailors.map(tailor => (
                           <option key={tailor.id} value={tailor.id}>
-                            {tailor.name} {tailor.company && `(${tailor.company})`}
+                            {tailor.name}
                           </option>
                         ))}
                       </select>

@@ -9,6 +9,7 @@ import { formatCurrencyShort } from '@/utils/formatNominal';
 function PurchaseLogsPage() {
   const [purchaseLogs, setPurchaseLogs] = useState([]);
   const [materials, setMaterials] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -141,6 +142,44 @@ function PurchaseLogsPage() {
     }
   };
 
+  // Load suppliers from contacts API
+  const loadSuppliers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+
+      if (!token) {
+        console.warn('No authentication token for loading suppliers');
+        return;
+      }
+
+      const response = await fetch('http://localhost:8080/api/contacts/type/SUPPLIER', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        if (data.success) {
+          const apiSuppliers = data.contacts || [];
+          console.log('Suppliers loaded for dropdown:', apiSuppliers.length);
+          setSuppliers(apiSuppliers);
+        } else {
+          console.error('Failed to load suppliers:', data.message);
+        }
+      } else if (response.status === 401) {
+        console.error('Authentication required for loading suppliers');
+      } else {
+        console.error('Suppliers API error:', response.status, response.statusText);
+      }
+
+    } catch (error) {
+      console.error('Error loading suppliers:', error);
+    }
+  };
+
   // Load purchase log details for view/edit
   const loadPurchaseLogDetails = async (purchaseLogId) => {
     if (!purchaseLogId) {
@@ -206,13 +245,22 @@ function PurchaseLogsPage() {
         return;
       }
 
+      // Find the selected supplier and use its company field
+      const selectedSupplier = suppliers.find(supplier => supplier.id.toString() === formData.supplier);
+      const supplierCompany = selectedSupplier ? (selectedSupplier.company || selectedSupplier.name) : '';
+
+      const submissionData = {
+        ...formData,
+        supplier: supplierCompany
+      };
+
       const response = await fetch('http://localhost:8080/api/purchase-logs', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submissionData)
       });
 
       if (!response.ok) {
@@ -265,13 +313,22 @@ function PurchaseLogsPage() {
         return;
       }
 
+      // Find the selected supplier and use its company field
+      const selectedSupplier = suppliers.find(supplier => supplier.id.toString() === formData.supplier);
+      const supplierCompany = selectedSupplier ? (selectedSupplier.company || selectedSupplier.name) : '';
+
+      const submissionData = {
+        ...formData,
+        supplier: supplierCompany
+      };
+
       const response = await fetch(`http://localhost:8080/api/purchase-logs/${selectedPurchaseLog.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submissionData)
       });
 
       if (!response.ok) {
@@ -423,12 +480,18 @@ function PurchaseLogsPage() {
     const details = await loadPurchaseLogDetails(purchaseLogId);
     if (details) {
       setSelectedPurchaseLog(details);
+
+      // Find the supplier ID based on the company name stored in the purchase log
+      const supplierMatch = suppliers.find(supplier =>
+        supplier.company === details.supplier || supplier.name === details.supplier
+      );
+
       setFormData({
         purchaseDate: details.purchaseDate ? new Date(details.purchaseDate).toISOString().split('T')[0] : '',
         materialId: details.materialId || '',
         quantity: details.quantity || '',
         unit: details.unit || 'pcs',
-        supplier: details.supplier || '',
+        supplier: supplierMatch ? supplierMatch.id.toString() : '',
         pricePerUnit: details.pricePerUnit || '',
         status: details.status || 'PENDING',
         invoiceNumber: details.invoiceNumber || '',
@@ -461,7 +524,6 @@ function PurchaseLogsPage() {
   const getStatusBadge = (status) => {
     const statusConfig = {
       'PENDING': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
-      'ORDERED': { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Ordered' },
       'RECEIVED': { bg: 'bg-green-100', text: 'text-green-800', label: 'Received' },
       'CANCELLED': { bg: 'bg-red-100', text: 'text-red-800', label: 'Cancelled' }
     };
@@ -469,7 +531,7 @@ function PurchaseLogsPage() {
     const config = statusConfig[status] || { bg: 'bg-gray-100', text: 'text-gray-800', label: status };
 
     return (
-      <span className={`px-2 py-1 text-xs font-medium ${config.bg} ${config.text} rounded-full`}>
+      <span className={`px-3 py-2 text-xs font-medium ${config.bg} ${config.text} rounded-full`}>
         {config.label}
       </span>
     );
@@ -492,6 +554,10 @@ function PurchaseLogsPage() {
 
   useEffect(() => {
     loadMaterials();
+  }, []);
+
+  useEffect(() => {
+    loadSuppliers();
   }, []);
 
   if (loading && purchaseLogs.length === 0) {
@@ -588,7 +654,6 @@ function PurchaseLogsPage() {
             >
               <option value="">All Status</option>
               <option value="PENDING">Pending</option>
-              <option value="ORDERED">Ordered</option>
               <option value="RECEIVED">Received</option>
               <option value="CANCELLED">Cancelled</option>
             </select>
@@ -728,19 +793,26 @@ function PurchaseLogsPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="space-y-2">
-                      {getStatusBadge(purchaseLog.status)}
-                      <select
-                        value={purchaseLog.status}
-                        onChange={(e) => handleUpdateStatus(purchaseLog.id, e.target.value)}
-                        className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="PENDING">Pending</option>
-                        <option value="ORDERED">Ordered</option>
-                        <option value="RECEIVED">Received</option>
-                        <option value="CANCELLED">Cancelled</option>
-                      </select>
-                    </div>
+                    {purchaseLog.status === 'PENDING' ? (
+                      <div className="relative">
+                        <select
+                          value={purchaseLog.status}
+                          onChange={(e) => handleUpdateStatus(purchaseLog.id, e.target.value)}
+                          className="appearance-none bg-yellow-100 text-yellow-800 px-3 py-2 text-xs font-medium rounded-full border-0 cursor-pointer hover:bg-yellow-200 focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+                        >
+                          <option value="PENDING">Pending</option>
+                          <option value="RECEIVED">Received</option>
+                          <option value="CANCELLED">Cancelled</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center mr-3 pointer-events-none">
+                          <svg className="w-3 h-3 text-yellow-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    ) : (
+                      getStatusBadge(purchaseLog.status)
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex space-x-2">
@@ -856,30 +928,11 @@ function PurchaseLogsPage() {
                     </label>
                     <input
                       type="number"
-                      step="0.001"
                       value={formData.quantity}
                       onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       required
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Unit *
-                    </label>
-                    <select
-                      value={formData.unit}
-                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    >
-                      <option value="pcs">Pieces</option>
-                      <option value="meter">Meter</option>
-                      <option value="yard">Yard</option>
-                      <option value="roll">Roll</option>
-                      <option value="kg">Kilogram</option>
-                    </select>
                   </div>
 
                   <div>
@@ -888,10 +941,9 @@ function PurchaseLogsPage() {
                     </label>
                     <input
                       type="number"
-                      step="0.01"
                       value={formData.pricePerUnit}
                       onChange={(e) => setFormData({ ...formData, pricePerUnit: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       required
                     />
                   </div>
@@ -900,13 +952,19 @@ function PurchaseLogsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Supplier *
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={formData.supplier}
                       onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
-                    />
+                    >
+                      <option value="">Select Supplier</option>
+                      {suppliers.map(supplier => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.company && supplier.company !== '-' ? `${supplier.company}` : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
@@ -919,7 +977,6 @@ function PurchaseLogsPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="PENDING">Pending</option>
-                      <option value="ORDERED">Ordered</option>
                       <option value="RECEIVED">Received</option>
                       <option value="CANCELLED">Cancelled</option>
                     </select>
@@ -933,20 +990,6 @@ function PurchaseLogsPage() {
                       type="date"
                       value={formData.deliveryDate}
                       onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Received Quantity
-                    </label>
-                    <input
-                      type="number"
-                      step="0.001"
-                      value={formData.receivedQuantity}
-                      onChange={(e) => setFormData({ ...formData, receivedQuantity: e.target.value })}
-                      placeholder="Leave empty if not received yet"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -1058,30 +1101,11 @@ function PurchaseLogsPage() {
                     </label>
                     <input
                       type="number"
-                      step="0.001"
                       value={formData.quantity}
                       onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       required
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Unit *
-                    </label>
-                    <select
-                      value={formData.unit}
-                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    >
-                      <option value="pcs">Pieces</option>
-                      <option value="meter">Meter</option>
-                      <option value="yard">Yard</option>
-                      <option value="roll">Roll</option>
-                      <option value="kg">Kilogram</option>
-                    </select>
                   </div>
 
                   <div>
@@ -1090,10 +1114,9 @@ function PurchaseLogsPage() {
                     </label>
                     <input
                       type="number"
-                      step="0.01"
                       value={formData.pricePerUnit}
                       onChange={(e) => setFormData({ ...formData, pricePerUnit: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       required
                     />
                   </div>
@@ -1102,13 +1125,19 @@ function PurchaseLogsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Supplier *
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={formData.supplier}
                       onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
-                    />
+                    >
+                      <option value="">Select Supplier</option>
+                      {suppliers.map(supplier => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name} {supplier.company && supplier.company !== '-' ? `(${supplier.company})` : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
@@ -1121,7 +1150,6 @@ function PurchaseLogsPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="PENDING">Pending</option>
-                      <option value="ORDERED">Ordered</option>
                       <option value="RECEIVED">Received</option>
                       <option value="CANCELLED">Cancelled</option>
                     </select>
@@ -1135,20 +1163,6 @@ function PurchaseLogsPage() {
                       type="date"
                       value={formData.deliveryDate}
                       onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Received Quantity
-                    </label>
-                    <input
-                      type="number"
-                      step="0.001"
-                      value={formData.receivedQuantity}
-                      onChange={(e) => setFormData({ ...formData, receivedQuantity: e.target.value })}
-                      placeholder="Leave empty if not received yet"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>

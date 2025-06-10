@@ -101,9 +101,32 @@ export default function OrdersManagement() {
   // Optimized fetch tailors using cached API
   const fetchTailors = async () => {
     try {
-      // Use cached API - automatically handles caching
-      const data = await ordersManagementAPI.getTailors();
-      setTailors(data);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('No authentication token for loading tailors');
+        setTailors([]);
+        return;
+      }
+
+      const response = await fetch('http://localhost:8080/api/contacts/type/WORKER', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setTailors(data.contacts || []);
+        } else {
+          console.error('Failed to load tailors:', data.message);
+          setTailors([]);
+        }
+      } else {
+        console.error('Tailors API error:', response.status, response.statusText);
+        setTailors([]);
+      }
     } catch (err) {
       console.error('Error loading tailors:', err.message);
       // Fallback to empty array on error
@@ -115,11 +138,31 @@ export default function OrdersManagement() {
   const handleRefreshTailors = async () => {
     try {
       setRefreshingTailors(true);
-      await ordersManagementAPI.clearTailorsCache();
-      const freshTailors = await ordersManagementAPI.getTailors(true);
-      setTailors(freshTailors);
-      setSuccess('Tailors list refreshed successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token required');
+      }
+
+      const response = await fetch('http://localhost:8080/api/contacts/type/WORKER', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setTailors(data.contacts || []);
+          setSuccess('Tailors list refreshed successfully!');
+          setTimeout(() => setSuccess(''), 3000);
+        } else {
+          throw new Error(data.message || 'Failed to refresh tailors');
+        }
+      } else {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
     } catch (error) {
       setError('Failed to refresh tailors: ' + error.message);
       setTimeout(() => setError(''), 5000);
@@ -502,12 +545,6 @@ export default function OrdersManagement() {
                   </svg>
                   Create New Order
                 </button>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Quick Create (Modal)
-                </button>
               </div>
             </div>
           </div>
@@ -858,321 +895,6 @@ export default function OrdersManagement() {
             )}
           </div>
 
-          {/* Create Modal */}
-          {showCreateModal && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-              <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
-                <div className="mt-3">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium text-gray-900">Create New Order</h3>
-                    <button
-                      onClick={() => { setShowCreateModal(false); resetForm(); }}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleCreate} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Due Date *
-                        </label>
-                        <input
-                          type="date"
-                          name="dueDate"
-                          value={formData.dueDate}
-                          onChange={handleInputChange}
-                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Priority
-                        </label>
-                        <select
-                          name="priority"
-                          value={formData.priority}
-                          onChange={handleInputChange}
-                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        >
-                          <option value="LOW">Low</option>
-                          <option value="MEDIUM">Medium</option>
-                          <option value="HIGH">High</option>
-                          <option value="URGENT">Urgent</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Tailor
-                        </label>
-                        <div className="flex items-center space-x-2">
-                          <select
-                            name="workerContactId"
-                            value={formData.workerContactId}
-                            onChange={handleInputChange}
-                            className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          >
-                            <option value="">Select Tailor (Optional)</option>
-                            {tailors.map(tailor => (
-                              <option key={tailor.id} value={tailor.id}>
-                                {tailor.name} {tailor.company && `(${tailor.company})`}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={handleRefreshTailors}
-                            disabled={refreshingTailors}
-                            className="px-2 py-2 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Refresh tailors list"
-                          >
-                            {refreshingTailors ? (
-                              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                            ) : (
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Products *
-                      </label>
-                      <ProductSelector
-                        selectedProducts={formData.products}
-                        onProductChange={handleProductChange}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Description
-                      </label>
-                      <textarea
-                        name="description"
-                        rows="3"
-                        value={formData.description}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="Enter order description..."
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Customer Note
-                      </label>
-                      <textarea
-                        name="customerNote"
-                        rows="2"
-                        value={formData.customerNote}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="Enter customer notes..."
-                      />
-                    </div>
-
-                    <div className="flex justify-end space-x-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={() => { setShowCreateModal(false); resetForm(); }}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        Create Order
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Edit Modal */}
-          {showEditModal && selectedOrder && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-              <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
-                <div className="mt-3">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium text-gray-900">
-                      Edit Order: {selectedOrder.orderNumber}
-                    </h3>
-                    <button
-                      onClick={() => { setShowEditModal(false); resetForm(); }}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleUpdate} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Status
-                        </label>
-                        <select
-                          name="status"
-                          value={formData.status}
-                          onChange={handleInputChange}
-                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        >
-                          <option value="CREATED">Created</option>
-                          <option value="CONFIRMED">Confirmed</option>
-                          <option value="PROCESSING">Processing</option>
-                          <option value="COMPLETED">Completed</option>
-                          <option value="SHIPPED">Shipped</option>
-                          <option value="DELIVERED">Delivered</option>
-                          <option value="CANCELLED">Cancelled</option>
-                          <option value="NEED_MATERIAL">Need Material</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Due Date *
-                        </label>
-                        <input
-                          type="date"
-                          name="dueDate"
-                          value={formData.dueDate}
-                          onChange={handleInputChange}
-                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Priority
-                        </label>
-                        <select
-                          name="priority"
-                          value={formData.priority}
-                          onChange={handleInputChange}
-                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        >
-                          <option value="LOW">Low</option>
-                          <option value="MEDIUM">Medium</option>
-                          <option value="HIGH">High</option>
-                          <option value="URGENT">Urgent</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Tailor
-                        </label>
-                        <div className="flex items-center space-x-2">
-                          <select
-                            name="workerContactId"
-                            value={formData.workerContactId}
-                            onChange={handleInputChange}
-                            className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          >
-                            <option value="">Select Tailor (Optional)</option>
-                            {tailors.map(tailor => (
-                              <option key={tailor.id} value={tailor.id}>
-                                {tailor.name} {tailor.company && `(${tailor.company})`}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={handleRefreshTailors}
-                            disabled={refreshingTailors}
-                            className="px-2 py-2 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Refresh tailors list"
-                          >
-                            {refreshingTailors ? (
-                              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                            ) : (
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Products *
-                      </label>
-                      <ProductSelector
-                        selectedProducts={formData.products}
-                        onProductChange={handleProductChange}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Description
-                      </label>
-                      <textarea
-                        name="description"
-                        rows="3"
-                        value={formData.description}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="Enter order description..."
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Customer Note
-                      </label>
-                      <textarea
-                        name="customerNote"
-                        rows="2"
-                        value={formData.customerNote}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="Enter customer notes..."
-                      />
-                    </div>
-
-                    <div className="flex justify-end space-x-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={() => { setShowEditModal(false); resetForm(); }}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        Update Order
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* View Modal */}
           {showViewModal && selectedOrder && (

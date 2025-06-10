@@ -24,3 +24,215 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Dark Theme for Dashboard */
+.dark-theme {
+  background-color: #111827;
+  color: #f9fafb;
+  min-height: 100vh;
+}
+
+.dark-theme .bg-white {
+  background-color: #1f2937 !important;
+}
+
+.dark-theme .bg-gray-50 {
+  background-color: #111827 !important;
+}
+
+.dark-theme .bg-gray-100 {
+  background-color: #1f2937 !important;
+}
+
+.dark-theme .text-gray-900 {
+  color: #f9fafb !important;
+}
+
+.dark-theme .text-gray-800 {
+  color: #e5e7eb !important;
+}
+
+.dark-theme .text-gray-700 {
+  color: #d1d5db !important;
+}
+
+.dark-theme .text-gray-600 {
+  color: #9ca3af !important;
+}
+
+.dark-theme .text-gray-500 {
+  color: #9ca3af !important;
+}
+
+.dark-theme .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+.dark-theme .border-gray-300 {
+  border-color: #374151 !important;
+}
+
+.dark-theme .border-gray-200 {
+  border-color: #374151 !important;
+}
+
+.dark-theme .border-gray-100 {
+  border-color: #374151 !important;
+}
+
+/* Form elements in dark theme */
+.dark-theme input,
+.dark-theme textarea,
+.dark-theme select {
+  background-color: #374151 !important;
+  border-color: #4b5563 !important;
+  color: #f9fafb !important;
+}
+
+.dark-theme input::placeholder,
+.dark-theme textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+.dark-theme input:focus,
+.dark-theme textarea:focus,
+.dark-theme select:focus {
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2) !important;
+}
+
+/* Table styling in dark theme */
+.dark-theme table {
+  background-color: #1f2937 !important;
+}
+
+.dark-theme th {
+  background-color: #111827 !important;
+  color: #f9fafb !important;
+}
+
+.dark-theme td {
+  border-color: #374151 !important;
+  color: #e5e7eb !important;
+}
+
+.dark-theme tr:nth-child(even) {
+  background-color: #1f2937 !important;
+}
+
+.dark-theme tr:hover {
+  background-color: #374151 !important;
+}
+
+/* Modal and card styling */
+.dark-theme .shadow,
+.dark-theme .shadow-sm,
+.dark-theme .shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Button adjustments for dark theme */
+.dark-theme .bg-blue-600 {
+  background-color: #2563eb !important;
+}
+
+.dark-theme .bg-blue-600:hover {
+  background-color: #1d4ed8 !important;
+}
+
+.dark-theme .border-transparent {
+  border-color: #374151 !important;
+}
+
+/* Specific overrides for better contrast */
+.dark-theme .text-blue-600 {
+  color: #60a5fa !important;
+}
+
+.dark-theme .text-green-600 {
+  color: #34d399 !important;
+}
+
+.dark-theme .text-red-600 {
+  color: #f87171 !important;
+}
+
+.dark-theme .text-yellow-600 {
+  color: #fbbf24 !important;
+}
+
+/* Progress bars and status indicators */
+.dark-theme .bg-yellow-100 {
+  background-color: #451a03 !important;
+}
+
+.dark-theme .bg-green-100 {
+  background-color: #064e3b !important;
+}
+
+.dark-theme .bg-blue-100 {
+  background-color: #1e3a8a !important;
+}
+
+.dark-theme .bg-red-100 {
+  background-color: #7f1d1d !important;
+}
+
+.dark-theme .text-yellow-800 {
+  color: #fbbf24 !important;
+}
+
+.dark-theme .text-green-800 {
+  color: #34d399 !important;
+}
+
+.dark-theme .text-blue-800 {
+  color: #60a5fa !important;
+}
+
+.dark-theme .text-red-800 {
+  color: #f87171 !important;
+}
+
+/* Additional dark theme improvements */
+.dark-theme .bg-blue-50 {
+  background-color: #1e3a8a !important;
+}
+
+.dark-theme .bg-green-50 {
+  background-color: #064e3b !important;
+}
+
+.dark-theme .bg-yellow-50 {
+  background-color: #451a03 !important;
+}
+
+.dark-theme .bg-red-50 {
+  background-color: #7f1d1d !important;
+}
+
+/* Hover states for buttons */
+.dark-theme .hover\:bg-gray-50:hover {
+  background-color: #374151 !important;
+}
+
+.dark-theme .hover\:bg-gray-100:hover {
+  background-color: #374151 !important;
+}
+
+/* Disabled states */
+.dark-theme input:disabled,
+.dark-theme textarea:disabled,
+.dark-theme select:disabled {
+  background-color: #1f2937 !important;
+  color: #6b7280 !important;
+  cursor: not-allowed !important;
+}
+
+/* Fixed backgrounds that need to stay light */
+.dark-theme .bg-blue-600,
+.dark-theme .bg-green-600,
+.dark-theme .bg-red-600,
+.dark-theme .bg-yellow-600 {
+  /* Keep these as they are for buttons and badges */
+}

@@ -214,8 +214,49 @@ const createPurchaseLog = async (req, res) => {
             });
         }
 
-        // Calculate total cost
-        const totalCost = parseFloat(quantity) * parseFloat(pricePerUnit);
+        // Validate numeric inputs
+        const parsedQuantity = parseFloat(quantity);
+        const parsedPricePerUnit = parseFloat(pricePerUnit);
+
+        if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Quantity must be a positive number'
+            });
+        }
+
+        if (isNaN(parsedPricePerUnit) || parsedPricePerUnit <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Price per unit must be a positive number'
+            });
+        }
+
+        // Check for reasonable limits to prevent overflow
+        if (parsedPricePerUnit > 999999999) {
+            return res.status(400).json({
+                success: false,
+                message: 'Price per unit is too large. Maximum allowed is 999,999,999'
+            });
+        }
+
+        if (parsedQuantity > 999999999) {
+            return res.status(400).json({
+                success: false,
+                message: 'Quantity is too large. Maximum allowed is 999,999,999'
+            });
+        }
+
+        // Calculate total cost with precision handling
+        const totalCost = Math.round((parsedQuantity * parsedPricePerUnit) * 100) / 100;
+
+        // Check if total cost is within reasonable limits
+        if (totalCost > 999999999999.99) {
+            return res.status(400).json({
+                success: false,
+                message: 'Total cost is too large. Please reduce quantity or price per unit'
+            });
+        }
 
         // Generate invoice number if not provided
         const generatedInvoiceNumber = invoiceNumber?.trim() ||
@@ -226,9 +267,9 @@ const createPurchaseLog = async (req, res) => {
             data: {
                 materialId: parseInt(materialId),
                 supplier: supplier.trim(),
-                quantity: parseFloat(quantity),
+                quantity: parsedQuantity,
                 unit: unit || material.unit || 'pcs',
-                pricePerUnit: parseFloat(pricePerUnit),
+                pricePerUnit: parsedPricePerUnit,
                 totalCost,
                 purchaseDate: new Date(purchaseDate),
                 invoiceNumber: generatedInvoiceNumber,
@@ -326,9 +367,45 @@ const updatePurchaseLog = async (req, res) => {
 
         if (materialId !== undefined) updateData.materialId = parseInt(materialId);
         if (supplier !== undefined) updateData.supplier = supplier.trim();
-        if (quantity !== undefined) updateData.quantity = parseFloat(quantity);
+
+        // Validate and process quantity
+        if (quantity !== undefined) {
+            const parsedQuantity = parseFloat(quantity);
+            if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Quantity must be a positive number'
+                });
+            }
+            if (parsedQuantity > 999999999) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Quantity is too large. Maximum allowed is 999,999,999'
+                });
+            }
+            updateData.quantity = parsedQuantity;
+        }
+
         if (unit !== undefined) updateData.unit = unit;
-        if (pricePerUnit !== undefined) updateData.pricePerUnit = parseFloat(pricePerUnit);
+
+        // Validate and process pricePerUnit
+        if (pricePerUnit !== undefined) {
+            const parsedPricePerUnit = parseFloat(pricePerUnit);
+            if (isNaN(parsedPricePerUnit) || parsedPricePerUnit <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Price per unit must be a positive number'
+                });
+            }
+            if (parsedPricePerUnit > 999999999) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Price per unit is too large. Maximum allowed is 999,999,999'
+                });
+            }
+            updateData.pricePerUnit = parsedPricePerUnit;
+        }
+
         if (purchaseDate !== undefined) updateData.purchaseDate = new Date(purchaseDate);
         if (invoiceNumber !== undefined) updateData.invoiceNumber = invoiceNumber?.trim() || null;
         if (receiptPath !== undefined) updateData.receiptPath = receiptPath?.trim() || null;
@@ -337,11 +414,11 @@ const updatePurchaseLog = async (req, res) => {
         if (receivedQuantity !== undefined) updateData.receivedQuantity = receivedQuantity ? parseFloat(receivedQuantity) : null;
         if (status !== undefined) {
             // Validate status
-            const validStatuses = ['PENDING', 'ORDERED', 'RECEIVED', 'CANCELLED'];
+            const validStatuses = ['PENDING', 'RECEIVED', 'CANCELLED'];
             if (!validStatuses.includes(status.toUpperCase())) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Invalid status. Must be one of: PENDING, ORDERED, RECEIVED, CANCELLED'
+                    message: 'Invalid status. Must be one of: PENDING, RECEIVED, CANCELLED'
                 });
             }
             updateData.status = status.toUpperCase();
@@ -349,9 +426,19 @@ const updatePurchaseLog = async (req, res) => {
 
         // Recalculate total cost if quantity or pricePerUnit changed
         if (quantity !== undefined || pricePerUnit !== undefined) {
-            const newQuantity = quantity !== undefined ? parseFloat(quantity) : existingPurchaseLog.quantity;
-            const newPricePerUnit = pricePerUnit !== undefined ? parseFloat(pricePerUnit) : existingPurchaseLog.pricePerUnit;
-            updateData.totalCost = newQuantity * newPricePerUnit;
+            const newQuantity = quantity !== undefined ? updateData.quantity : existingPurchaseLog.quantity;
+            const newPricePerUnit = pricePerUnit !== undefined ? updateData.pricePerUnit : existingPurchaseLog.pricePerUnit;
+            const newTotalCost = Math.round((newQuantity * newPricePerUnit) * 100) / 100;
+
+            // Check if total cost is within reasonable limits
+            if (newTotalCost > 999999999999.99) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Total cost is too large. Please reduce quantity or price per unit'
+                });
+            }
+
+            updateData.totalCost = newTotalCost;
         }
 
         // Handle material movement if status changes to/from RECEIVED
@@ -466,11 +553,11 @@ const updatePurchaseLogStatus = async (req, res) => {
         }
 
         // Validate status
-        const validStatuses = ['PENDING', 'ORDERED', 'RECEIVED', 'CANCELLED'];
+        const validStatuses = ['PENDING', 'RECEIVED', 'CANCELLED'];
         if (!validStatuses.includes(status.toUpperCase())) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid status. Must be one of: PENDING, ORDERED, RECEIVED, CANCELLED'
+                message: 'Invalid status. Must be one of: PENDING, RECEIVED, CANCELLED'
             });
         }
 

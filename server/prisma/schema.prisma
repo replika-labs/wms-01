@@ -72,7 +72,7 @@ model Product {
   code            String   @unique
   materialId      Int?     @map("materialId")
   category        String?
-  price           Decimal? @db.Decimal(10, 2)
+  price           Decimal? @db.Decimal(15,2)
   qtyOnHand       Int      @default(0) @map("qtyOnHand")
   unit            String   @default("pcs")
   description     String?
@@ -133,8 +133,8 @@ model OrderProduct {
   orderId         Int      @map("orderId")
   productId       Int      @map("productId")
   quantity        Int      @default(1)
-  unitPrice       Decimal? @db.Decimal(10, 2) @map("unitPrice")
-  totalPrice      Decimal? @db.Decimal(10, 2) @map("totalPrice")
+  unitPrice       Decimal? @db.Decimal(15,2) @map("unitPrice")
+  totalPrice      Decimal? @db.Decimal(15,2) @map("totalPrice")
   notes           String?
   completedQty    Int      @default(0) @map("completedQty")
   status          OrderProductStatus @default(PENDING)
@@ -159,8 +159,8 @@ model MaterialMovement {
   movementType    MaterialMovementType
   quantity        Decimal                @db.Decimal(10, 3)
   unit            String                 @default("pcs")
-  costPerUnit     Decimal?               @db.Decimal(10, 2) @map("costPerUnit")
-  totalCost       Decimal?               @db.Decimal(10, 2) @map("totalCost")
+  costPerUnit     Decimal?               @db.Decimal(15,2) @map("costPerUnit")
+  totalCost       Decimal?               @db.Decimal(15,2) @map("totalCost")
   notes           String?
   qtyAfter        Decimal                @db.Decimal(10, 3) @map("qtyAfter")
   movementDate    DateTime               @default(now()) @map("movementDate")
@@ -374,7 +374,7 @@ model ProductVariation {
   productId   Int      @map("productId")
   variationType String @map("variationType")
   variationValue String @map("variationValue")
-  priceAdjustment Decimal? @db.Decimal(10, 2) @map("priceAdjustment")
+  priceAdjustment Decimal? @db.Decimal(15,2) @map("priceAdjustment")
   isActive    Boolean  @default(true) @map("isActive")
   createdAt   DateTime @default(now()) @map("createdAt")
   updatedAt   DateTime @updatedAt @map("updatedAt")
@@ -419,7 +419,7 @@ model MaterialPurchaseAlert {
   resolvedBy        Int?                     @map("resolvedBy")
   resolvedAt        DateTime?                @map("resolvedAt")
   resolution        String?
-  estimatedCost     Decimal?                 @db.Decimal(10, 2) @map("estimatedCost")
+  estimatedCost     Decimal?                 @db.Decimal(15,2) @map("estimatedCost")
   suggestedSupplier String?                  @map("suggestedSupplier")
   createdAt         DateTime                 @default(now()) @map("createdAt")
   updatedAt         DateTime                 @updatedAt @map("updatedAt")
@@ -439,8 +439,8 @@ model PurchaseLog {
   supplier        String
   quantity        Decimal  @db.Decimal(10, 3)
   unit            String   @default("pcs")
-  pricePerUnit    Decimal  @default(0) @db.Decimal(10, 2)
-  totalCost       Decimal  @db.Decimal(10, 2) @map("totalCost")
+  pricePerUnit    Decimal  @default(0) @db.Decimal(15,2)
+  totalCost       Decimal  @db.Decimal(15,2) @map("totalCost")
   purchaseDate    DateTime @map("purchaseDate")
   invoiceNumber   String?  @map("invoiceNumber")
   receiptPath     String?  @map("receiptPath")

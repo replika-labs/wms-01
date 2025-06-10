@@ -88,7 +88,7 @@ export default function MaterialMovementPage() {
         }
 
         // Fetch materials for dropdown
-        const materialsResponse = await fetch('/api/materials', {
+        const materialsResponse = await fetch('/api/materials-management', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -357,7 +357,7 @@ export default function MaterialMovementPage() {
     const badges = {
       IN: 'bg-green-100 text-green-800',
       OUT: 'bg-red-100 text-red-800',
-      ADJUST: 'bg-yellow-100 text-yellow-800'
+      // ADJUST: 'bg-yellow-100 text-yellow-800'
     };
 
     return badges[movementType] || 'bg-gray-100 text-gray-800';
@@ -503,7 +503,7 @@ export default function MaterialMovementPage() {
                     <option value="">All Types</option>
                     <option value="IN">IN</option>
                     <option value="OUT">OUT</option>
-                    <option value="ADJUST">ADJUST</option>
+                    {/* <option value="ADJUST">ADJUST</option> */}
                   </select>
                 </div>
 
@@ -618,14 +618,11 @@ export default function MaterialMovementPage() {
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Cost
                         </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {/* <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           User
-                        </th>
+                        </th> */}
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Purchase
-                        </th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
+                          Description
                         </th>
                       </tr>
                     </thead>
@@ -668,9 +665,9 @@ export default function MaterialMovementPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {formatCurrency(movement.totalCost)}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {movement.user ? movement.user.name : 'System'}
-                            </td>
+                            </td> */}
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {movement.purchaseLog ? (
                                 <div>
@@ -680,26 +677,6 @@ export default function MaterialMovementPage() {
                                   </div>
                                 </div>
                               ) : '-'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              {!movement.purchaseLogId ? (
-                                <div className="flex space-x-2">
-                                  <button
-                                    onClick={() => handleEdit(movement)}
-                                    className="text-blue-600 hover:text-blue-900"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(movement)}
-                                    className="text-red-600 hover:text-red-900"
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">Purchase-generated</span>
-                              )}
                             </td>
                           </tr>
                         ))

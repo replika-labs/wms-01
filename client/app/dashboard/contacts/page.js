@@ -57,6 +57,21 @@ function ContactManagement() {
     followUpDate: ''
   });
 
+  // Helper functions for auto-clearing messages
+  const setSuccessWithTimeout = (message) => {
+    setSuccess(message);
+    setTimeout(() => {
+      setSuccess('');
+    }, 3000);
+  };
+
+  const setErrorWithTimeout = (message) => {
+    setError(message);
+    setTimeout(() => {
+      setError('');
+    }, 3000);
+  };
+
   // Fetch contacts
   const fetchContacts = async () => {
     try {
@@ -92,7 +107,7 @@ function ContactManagement() {
       setError('');
     } catch (error) {
       console.error('Error fetching contacts:', error);
-      setError('Failed to load contacts. Please try again.');
+      setErrorWithTimeout('Failed to load contacts. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -111,7 +126,13 @@ function ContactManagement() {
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+
+    // If changing contact type and it's not SUPPLIER, set company to "-"
+    if (name === 'contactType' && value !== 'SUPPLIER') {
+      setFormData(prev => ({ ...prev, [name]: value, company: '-' }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   // Handle note form input changes
@@ -146,9 +167,9 @@ function ContactManagement() {
 
       // Enhanced success message for workers (tailors)
       if (formData.contactType === 'WORKER') {
-        setSuccess(`${data.message} - Worker will be available in Orders Management immediately.`);
+        setSuccessWithTimeout(`${data.message} - Worker will be available in Orders Management immediately.`);
       } else {
-        setSuccess(data.message);
+        setSuccessWithTimeout(data.message);
       }
 
       setShowCreateModal(false);
@@ -156,7 +177,7 @@ function ContactManagement() {
       fetchContacts();
     } catch (error) {
       console.error('Error creating contact:', error);
-      setError(error.message);
+      setErrorWithTimeout(error.message);
     }
   };
 
@@ -183,9 +204,9 @@ function ContactManagement() {
 
       // Enhanced success message for workers (tailors)
       if (formData.contactType === 'WORKER' || selectedContact.contactType === 'WORKER') {
-        setSuccess(`${data.message} - Changes will be reflected in Orders Management immediately.`);
+        setSuccessWithTimeout(`${data.message} - Changes will be reflected in Orders Management immediately.`);
       } else {
-        setSuccess(data.message);
+        setSuccessWithTimeout(data.message);
       }
 
       setShowEditModal(false);
@@ -193,7 +214,7 @@ function ContactManagement() {
       fetchContacts();
     } catch (error) {
       console.error('Error updating contact:', error);
-      setError(error.message);
+      setErrorWithTimeout(error.message);
     }
   };
 
@@ -219,11 +240,11 @@ function ContactManagement() {
       }
 
       const data = await response.json();
-      setSuccess(data.message);
+      setSuccessWithTimeout(data.message);
       fetchContacts();
     } catch (error) {
       console.error('Error deleting contact:', error);
-      setError(error.message);
+      setErrorWithTimeout(error.message);
     }
   };
 
@@ -246,7 +267,7 @@ function ContactManagement() {
       setContactNotes(data.notes);
     } catch (error) {
       console.error('Error fetching contact notes:', error);
-      setError('Failed to load contact notes');
+      setErrorWithTimeout('Failed to load contact notes');
     }
   };
 
@@ -270,12 +291,12 @@ function ContactManagement() {
       }
 
       const data = await response.json();
-      setSuccess('Note created successfully');
+      setSuccessWithTimeout('Note created successfully');
       resetNoteForm();
       fetchContactNotes(selectedContact.id);
     } catch (error) {
       console.error('Error creating note:', error);
-      setError(error.message);
+      setErrorWithTimeout(error.message);
     }
   };
 
@@ -319,7 +340,7 @@ function ContactManagement() {
       phone: contact.phone || '',
       whatsappPhone: contact.whatsappPhone || '',
       address: contact.address || '',
-      company: contact.company || '',
+      company: contact.contactType === 'SUPPLIER' ? (contact.company || '') : '-',
       notes: contact.notes || ''
     });
     setShowEditModal(true);
@@ -530,7 +551,7 @@ function ContactManagement() {
                             ? 'bg-green-100 text-green-800'
                             : 'bg-purple-100 text-purple-800'
                           }`}>
-                          {contact.contactType}
+                          {contact.contactType === 'WORKER' ? 'TAILOR' : contact.contactType}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -744,18 +765,20 @@ function ContactManagement() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Company
-                    </label>
-                    <input
-                      type="text"
-                      name="company"
-                      value={formData.company}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
-                  </div>
+                  {formData.contactType === 'SUPPLIER' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Company
+                      </label>
+                      <input
+                        type="text"
+                        name="company"
+                        value={formData.company}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -884,18 +907,20 @@ function ContactManagement() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Company
-                    </label>
-                    <input
-                      type="text"
-                      name="company"
-                      value={formData.company}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
-                  </div>
+                  {formData.contactType === 'SUPPLIER' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Company
+                      </label>
+                      <input
+                        type="text"
+                        name="company"
+                        value={formData.company}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -965,7 +990,7 @@ function ContactManagement() {
                         ? 'bg-green-100 text-green-800'
                         : 'bg-purple-100 text-purple-800'
                       }`}>
-                      {selectedContact.contactType}
+                      {selectedContact.contactType === 'WORKER' ? 'TAILOR' : selectedContact.contactType}
                     </span>
                   </div>
                   <div>
