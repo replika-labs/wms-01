@@ -1225,4 +1225,4 @@ export default function ContactManagementWrapper() {
       </DashboardLayout>
     </AuthWrapper>
   );
-}
+} 

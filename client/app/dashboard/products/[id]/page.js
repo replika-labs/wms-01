@@ -54,7 +54,11 @@ export default function ProductDetailPage() {
         }
 
         const data = await response.json();
-        setProduct(data);
+        if (data.success && data.product) {
+          setProduct(data.product);
+        } else {
+          setProduct(data);
+        }
       } catch (error) {
         console.error('Error fetching product:', error);
         setError('Failed to load product details');
@@ -108,7 +112,8 @@ export default function ProductDetailPage() {
       });
 
       if (response.ok) {
-        const updatedProduct = await response.json();
+        const data = await response.json();
+        const updatedProduct = data.success && data.product ? data.product : data;
         setProduct(updatedProduct);
       } else {
         throw new Error('Failed to update product status');

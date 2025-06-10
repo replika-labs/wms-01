@@ -22,6 +22,16 @@ let productsCacheExpiry = null;
 const clearProductsCache = () => {
     productsCache = null;
     productsCacheExpiry = null;
+    console.log('Products cache cleared');
+};
+
+/**
+ * Clear all related caches
+ */
+const clearAllCaches = () => {
+    clearProductsCache();
+    clearMaterialCaches();
+    console.log('All related caches cleared');
 };
 
 /**
@@ -156,6 +166,9 @@ const getProducts = asyncHandler(async (req, res) => {
  */
 const getProductById = asyncHandler(async (req, res) => {
     try {
+        // Clear cache on read to ensure fresh data for individual product views
+        const cacheKey = `product_${req.params.id}`;
+
         const product = await prisma.product.findFirst({
             where: {
                 id: parseInt(req.params.id),
@@ -233,6 +246,7 @@ const createProduct = asyncHandler(async (req, res) => {
             materialId,
             category,
             price,
+            qtyOnHand = 0,
             unit = 'pcs',
             description,
             defaultTarget = 0,
@@ -240,6 +254,9 @@ const createProduct = asyncHandler(async (req, res) => {
             variations = [],
             materials = []
         } = req.body;
+
+        console.log('Create product request body:', req.body);
+        console.log('Extracted qtyOnHand:', qtyOnHand, typeof qtyOnHand);
 
         // Validation
         if (!name || !code) {
@@ -285,8 +302,8 @@ const createProduct = asyncHandler(async (req, res) => {
                 price: price ? parseFloat(price) : null,
                 unit,
                 description,
-                defaultTarget: parseInt(defaultTarget),
-                qtyOnHand: 0,
+                defaultTarget: parseInt(defaultTarget) || 0,
+                qtyOnHand: qtyOnHand ? parseInt(qtyOnHand) : 0,
                 isActive: true
             }
         });
@@ -334,9 +351,8 @@ const createProduct = asyncHandler(async (req, res) => {
             });
         }
 
-        // Clear caches
-        clearProductsCache();
-        clearMaterialCaches(); // Also clear materials cache since products can be related to materials
+        // Clear all related caches
+        clearAllCaches();
 
         // Get complete product with relationships
         const completeProduct = await prisma.product.findUnique({
@@ -388,6 +404,9 @@ const updateProduct = asyncHandler(async (req, res) => {
             qtyOnHand
         } = req.body;
 
+        console.log('Update product request body:', req.body);
+        console.log('Extracted qtyOnHand:', qtyOnHand, typeof qtyOnHand);
+
         const product = await prisma.product.findFirst({
             where: { id: productId, isActive: true }
         });
@@ -438,8 +457,8 @@ const updateProduct = asyncHandler(async (req, res) => {
                 price: price !== undefined ? (price ? parseFloat(price) : null) : product.price,
                 unit: unit || product.unit,
                 description: description !== undefined ? description : product.description,
-                defaultTarget: defaultTarget !== undefined ? parseInt(defaultTarget) : product.defaultTarget,
-                qtyOnHand: qtyOnHand !== undefined ? parseInt(qtyOnHand) : product.qtyOnHand
+                defaultTarget: defaultTarget !== undefined ? parseInt(defaultTarget) || 0 : product.defaultTarget,
+                qtyOnHand: qtyOnHand !== undefined ? (parseInt(qtyOnHand) || 0) : product.qtyOnHand
             },
             include: {
                 baseMaterial: true,
@@ -453,9 +472,8 @@ const updateProduct = asyncHandler(async (req, res) => {
             }
         });
 
-        // Clear caches
-        clearProductsCache();
-        clearMaterialCaches(); // Also clear materials cache since products can be related to materials
+        // Clear all related caches
+        clearAllCaches();
 
         res.json({
             success: true,
@@ -515,9 +533,8 @@ const deleteProduct = asyncHandler(async (req, res) => {
             data: { isActive: false }
         });
 
-        // Clear caches
-        clearProductsCache();
-        clearMaterialCaches(); // Also clear materials cache since products can be related to materials
+        // Clear all related caches
+        clearAllCaches();
 
         res.json({
             success: true,
@@ -575,5 +592,6 @@ module.exports = {
     updateProduct,
     deleteProduct,
     getProductCategories,
-    clearProductsCache
+    clearProductsCache,
+    clearAllCaches
 }; 

@@ -33,7 +33,16 @@ const port = process.env.PORT || 8080;
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Cache-Control',
+    'Pragma',
+    'Expires'
+  ],
   credentials: true,
   preflightContinue: false,
   optionsSuccessStatus: 200

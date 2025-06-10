@@ -2,18 +2,25 @@
 
 import { useState, useRef } from 'react';
 
-export default function ProductProgressCard({ 
-  product, 
-  orderProduct, 
-  productProgress, 
+export default function ProductProgressCard({
+  product,
+  orderProduct,
+  productProgress,
   onProgressChange,
   onPhotoUpload,
   isSubmitting = false,
-  errors = {}
+  errors = {},
+  completion = null // Pass existing completion data
 }) {
+  // Calculate existing progress and remaining work
+  const alreadyCompleted = completion?.completed || orderProduct.completedQty || 0;
+  const totalTarget = completion?.target || orderProduct.quantity || 0;
+  const remainingToComplete = Math.max(0, totalTarget - alreadyCompleted);
+  const currentSessionMax = remainingToComplete; // Max pieces that can be completed in this session
+
   const [localProgress, setLocalProgress] = useState({
     pcsFinished: productProgress?.pcsFinished || 0,
-    fabricUsed: productProgress?.fabricUsed || 0,
+    materialUsed: productProgress?.materialUsed || 0,
     workHours: productProgress?.workHours || 0,
     qualityScore: productProgress?.qualityScore || 100,
     qualityNotes: productProgress?.qualityNotes || '',
@@ -33,7 +40,7 @@ export default function ProductProgressCard({
       [field]: value
     };
     setLocalProgress(updatedProgress);
-    
+
     // Notify parent component
     onProgressChange(product.id, orderProduct.id, updatedProgress);
   };
@@ -47,7 +54,7 @@ export default function ProductProgressCard({
 
     for (let i = 0; i < Math.min(files.length, 5); i++) {
       const file = files[i];
-      
+
       // Validate file type
       if (!file.type.startsWith('image/')) {
         continue;
@@ -55,7 +62,7 @@ export default function ProductProgressCard({
 
       // Create preview URL
       const previewUrl = URL.createObjectURL(file);
-      
+
       const photoData = {
         id: Date.now() + i,
         file: file,
@@ -76,7 +83,7 @@ export default function ProductProgressCard({
 
     setLocalProgress(updatedProgress);
     onProgressChange(product.id, orderProduct.id, updatedProgress);
-    
+
     if (onPhotoUpload) {
       onPhotoUpload(product.id, newPhotos);
     }
@@ -118,8 +125,8 @@ export default function ProductProgressCard({
     onProgressChange(product.id, orderProduct.id, updatedProgress);
   };
 
-  // Calculate suggested fabric usage
-  const calculateSuggestedFabric = () => {
+  // Calculate suggested material usage
+  const calculateSuggestedMaterial = () => {
     if (!localProgress.pcsFinished || localProgress.pcsFinished <= 0) return 0;
     // Default estimation: 0.5 units per piece, can be customized per product
     return (localProgress.pcsFinished * 0.5).toFixed(2);
@@ -136,10 +143,17 @@ export default function ProductProgressCard({
     return { grade: 'D', color: 'text-red-600' };
   };
 
-  // Calculate completion percentage
+  // Calculate completion percentage (cumulative)
   const getCompletionPercentage = () => {
-    if (!orderProduct.qty || orderProduct.qty === 0) return 0;
-    return Math.round((localProgress.pcsFinished / orderProduct.qty) * 100);
+    if (!totalTarget || totalTarget === 0) return 0;
+    const cumulativeCompleted = alreadyCompleted + localProgress.pcsFinished;
+    return Math.round((cumulativeCompleted / totalTarget) * 100);
+  };
+
+  // Calculate current session percentage
+  const getCurrentSessionPercentage = () => {
+    if (!totalTarget || totalTarget === 0) return 0;
+    return Math.round((localProgress.pcsFinished / totalTarget) * 100);
   };
 
   const qualityGrade = getQualityGrade(localProgress.qualityScore);
@@ -152,8 +166,18 @@ export default function ProductProgressCard({
         <div>
           <h3 className="text-lg font-medium text-gray-900">{product.name}</h3>
           <p className="text-sm text-gray-500">
-            Target: {orderProduct.qty} pieces | Material: {product.Material?.name || 'No material'}
+            Target: {totalTarget} pieces | Material: {product.baseMaterial?.name || 'No material linked'}
           </p>
+          {alreadyCompleted > 0 && (
+            <p className="text-sm text-blue-600 font-medium">
+              ✅ Already completed: {alreadyCompleted} pieces | Remaining: {remainingToComplete} pieces
+            </p>
+          )}
+          {remainingToComplete === 0 && (
+            <p className="text-sm text-green-600 font-bold">
+              🎉 This product is fully completed!
+            </p>
+          )}
         </div>
         <div className="text-right">
           <div className={`text-2xl font-bold ${qualityGrade.color}`}>
@@ -166,18 +190,30 @@ export default function ProductProgressCard({
       {/* Progress Bar */}
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
-          <span className="text-sm text-gray-600">Progress</span>
-          <span className="text-sm font-medium">{completionPercentage}%</span>
+          <span className="text-sm text-gray-600">Overall Progress</span>
+          <span className="text-sm font-medium">
+            {completionPercentage}% ({alreadyCompleted + localProgress.pcsFinished}/{totalTarget})
+          </span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className={`h-2 rounded-full transition-all duration-300 ${
-              completionPercentage >= 100 ? 'bg-green-500' :
-              completionPercentage >= 75 ? 'bg-blue-500' :
-              completionPercentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-            }`}
-            style={{ width: `${Math.min(completionPercentage, 100)}%` }}
+        <div className="w-full bg-gray-200 rounded-full h-3 relative">
+          {/* Already completed progress */}
+          <div
+            className="h-3 rounded-l-full bg-green-400 absolute left-0"
+            style={{ width: `${Math.min((alreadyCompleted / totalTarget) * 100, 100)}%` }}
           />
+          {/* Current session progress */}
+          <div
+            className="h-3 bg-blue-500 absolute"
+            style={{
+              left: `${Math.min((alreadyCompleted / totalTarget) * 100, 100)}%`,
+              width: `${Math.min(getCurrentSessionPercentage(), 100 - (alreadyCompleted / totalTarget) * 100)}%`
+            }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <span>Previous: {alreadyCompleted}</span>
+          <span>This session: +{localProgress.pcsFinished}</span>
+          <span>Remaining: {remainingToComplete - localProgress.pcsFinished}</span>
         </div>
       </div>
 
@@ -186,34 +222,48 @@ export default function ProductProgressCard({
         {/* Pieces Completed */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Pieces Completed *
+            Pieces to Complete This Session *
+            {alreadyCompleted > 0 && (
+              <span className="text-xs text-blue-600 ml-1">(Additional to {alreadyCompleted} already done)</span>
+            )}
           </label>
           <input
             type="number"
             min="0"
-            max={orderProduct.qty}
+            max={currentSessionMax}
             value={localProgress.pcsFinished}
-            onChange={(e) => handleInputChange('pcsFinished', parseInt(e.target.value) || 0)}
-            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors[`product_${product.id}_pcs`] ? 'border-red-300' : 'border-gray-300'
-            }`}
-            disabled={isSubmitting}
-            placeholder="0"
+            onChange={(e) => {
+              const value = parseInt(e.target.value) || 0;
+              // Ensure the value doesn't exceed remaining capacity
+              const validValue = Math.min(value, currentSessionMax);
+              handleInputChange('pcsFinished', validValue);
+            }}
+            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors[`product_${product.id}_pcs`] ? 'border-red-300' : 'border-gray-300'
+              } ${remainingToComplete === 0 ? 'bg-gray-100' : ''}`}
+            disabled={isSubmitting || remainingToComplete === 0}
+            placeholder={remainingToComplete === 0 ? "Fully completed" : "0"}
           />
           {errors[`product_${product.id}_pcs`] && (
             <p className="text-xs text-red-600 mt-1">{errors[`product_${product.id}_pcs`]}</p>
           )}
-          <p className="text-xs text-gray-500 mt-1">
-            Max: {orderProduct.qty} pieces
-          </p>
+          <div className="text-xs text-gray-500 mt-1">
+            {remainingToComplete > 0 ? (
+              <>
+                <p>Max this session: {currentSessionMax} pieces</p>
+                <p>Will complete: {alreadyCompleted + localProgress.pcsFinished}/{totalTarget} total</p>
+              </>
+            ) : (
+              <p className="text-green-600">✅ This product is fully completed</p>
+            )}
+          </div>
         </div>
 
-        {/* Fabric Used */}
+        {/* Material Used */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Fabric Used
-            {product.Material && (
-              <span className="text-xs text-gray-500 ml-1">({product.Material.unit})</span>
+            Material Used
+            {product.baseMaterial && (
+              <span className="text-xs text-gray-500 ml-1">({product.baseMaterial.unit})</span>
             )}
           </label>
           <div className="flex">
@@ -221,15 +271,15 @@ export default function ProductProgressCard({
               type="number"
               step="0.01"
               min="0"
-              value={localProgress.fabricUsed}
-              onChange={(e) => handleInputChange('fabricUsed', parseFloat(e.target.value) || 0)}
+              value={localProgress.materialUsed}
+              onChange={(e) => handleInputChange('materialUsed', parseFloat(e.target.value) || 0)}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={isSubmitting}
               placeholder="0.00"
             />
             <button
               type="button"
-              onClick={() => handleInputChange('fabricUsed', parseFloat(calculateSuggestedFabric()))}
+              onClick={() => handleInputChange('materialUsed', parseFloat(calculateSuggestedMaterial()))}
               className="px-3 py-2 bg-blue-100 text-blue-600 text-xs rounded-r-md hover:bg-blue-200 transition-colors"
               disabled={isSubmitting || !localProgress.pcsFinished}
             >
@@ -238,48 +288,11 @@ export default function ProductProgressCard({
           </div>
           {localProgress.pcsFinished > 0 && (
             <p className="text-xs text-blue-600 mt-1">
-              💡 Suggested: {calculateSuggestedFabric()} {product.Material?.unit || 'units'}
+              💡 Suggested: {calculateSuggestedMaterial()} {product.baseMaterial?.unit || 'units'}
             </p>
           )}
         </div>
 
-        {/* Work Hours */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Work Hours
-          </label>
-          <input
-            type="number"
-            step="0.5"
-            min="0"
-            value={localProgress.workHours}
-            onChange={(e) => handleInputChange('workHours', parseFloat(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isSubmitting}
-            placeholder="0.0"
-          />
-        </div>
-
-        {/* Quality Score */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Quality Score (0-100)
-          </label>
-          <div className="flex items-center space-x-2">
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={localProgress.qualityScore}
-              onChange={(e) => handleInputChange('qualityScore', parseInt(e.target.value))}
-              className="flex-1"
-              disabled={isSubmitting}
-            />
-            <span className={`text-sm font-medium ${qualityGrade.color} min-w-[3rem]`}>
-              {localProgress.qualityScore}%
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* Quality Notes */}
@@ -317,12 +330,11 @@ export default function ProductProgressCard({
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Progress Photos ({localProgress.photos.length}/5)
         </label>
-        
+
         {/* Photo Upload Area */}
         <div
-          className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
-            isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
-          }`}
+          className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+            }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -336,7 +348,7 @@ export default function ProductProgressCard({
             className="hidden"
             disabled={isSubmitting || uploadingPhotos || localProgress.photos.length >= 5}
           />
-          
+
           {uploadingPhotos ? (
             <div className="flex items-center justify-center">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -400,24 +412,29 @@ export default function ProductProgressCard({
       </div>
 
       {/* Summary Stats */}
-      {localProgress.pcsFinished > 0 && (
+      {(localProgress.pcsFinished > 0 || alreadyCompleted > 0) && (
         <div className="bg-gray-50 rounded-lg p-3">
-          <h4 className="text-sm font-medium text-gray-900 mb-2">Summary</h4>
+          <h4 className="text-sm font-medium text-gray-900 mb-2">
+            {localProgress.pcsFinished > 0 ? 'Current Session Summary' : 'Product Status'}
+          </h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div>
-              <div className="text-gray-500">Efficiency</div>
+              <div className="text-gray-500">Total Progress</div>
               <div className="font-medium">
-                {localProgress.workHours > 0 
-                  ? `${(localProgress.pcsFinished / localProgress.workHours).toFixed(1)} pcs/hr`
-                  : 'N/A'
-                }
+                {alreadyCompleted + localProgress.pcsFinished}/{totalTarget} ({completionPercentage}%)
               </div>
             </div>
             <div>
-              <div className="text-gray-500">Fabric/Piece</div>
+              <div className="text-gray-500">This Session</div>
               <div className="font-medium">
-                {localProgress.pcsFinished > 0 && localProgress.fabricUsed > 0
-                  ? `${(localProgress.fabricUsed / localProgress.pcsFinished).toFixed(2)} ${product.Material?.unit || 'units'}`
+                +{localProgress.pcsFinished} pieces
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-500">Material/Piece</div>
+              <div className="font-medium">
+                {localProgress.pcsFinished > 0 && localProgress.materialUsed > 0
+                  ? `${(localProgress.materialUsed / localProgress.pcsFinished).toFixed(2)} ${product.baseMaterial?.unit || 'units'}`
                   : 'N/A'
                 }
               </div>
@@ -426,11 +443,17 @@ export default function ProductProgressCard({
               <div className="text-gray-500">Quality</div>
               <div className={`font-medium ${qualityGrade.color}`}>{qualityGrade.grade}</div>
             </div>
-            <div>
-              <div className="text-gray-500">Photos</div>
-              <div className="font-medium">{localProgress.photos.length}</div>
-            </div>
           </div>
+          {remainingToComplete - localProgress.pcsFinished > 0 && (
+            <div className="mt-2 text-xs text-blue-600">
+              📋 Still need: {remainingToComplete - localProgress.pcsFinished} more pieces to complete this product
+            </div>
+          )}
+          {(alreadyCompleted + localProgress.pcsFinished) >= totalTarget && (
+            <div className="mt-2 text-xs text-green-600 font-medium">
+              🎉 This will complete the entire product!
+            </div>
+          )}
         </div>
       )}
     </div>

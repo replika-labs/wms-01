@@ -60,6 +60,54 @@ export default function ProductsPage() {
     }
   }, [router]);
 
+  // Manual refresh function with cache busting
+  const refreshProducts = async () => {
+    const timestamp = Date.now();
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: pageSize.toString(),
+        sortBy,
+        sortOrder,
+        _t: timestamp.toString(), // Cache busting parameter
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value && value !== 'all')
+        )
+      });
+
+      const response = await fetch(`http://localhost:8080/api/products?${queryParams}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setProducts(data.products || []);
+        setTotalProducts(data.pagination?.total || 0);
+      } else {
+        setProducts(data.products || data || []);
+        setTotalProducts(data.total || data.length || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setError('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch products with filters and pagination
   const fetchProducts = async () => {
     try {
@@ -210,6 +258,14 @@ export default function ProductsPage() {
               <p className="text-gray-600">Manage your product catalog</p>
             </div>
             <div className="flex items-center space-x-3">
+              <button
+                onClick={refreshProducts}
+                disabled={loading}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 flex items-center space-x-2 disabled:opacity-50"
+              >
+                <span>🔄</span>
+                <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+              </button>
               <Link
                 href="/dashboard/products/analytics"
                 className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center space-x-2"

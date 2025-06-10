@@ -47,7 +47,7 @@ router.get('/:id', protect, getProductById);
 router.post('/', protect, adminOnly, uploadProductPhotos, createProduct);
 
 // PUT /api/products/:id - Update product (protected by middleware protect and adminOnly)
-router.put('/:id', protect, adminOnly, updateProduct);
+router.put('/:id', protect, adminOnly, uploadProductPhotos, updateProduct);
 
 // DELETE /api/products/:id - Delete product (protected by middleware protect and adminOnly)
 router.delete('/:id', protect, adminOnly, deleteProduct);

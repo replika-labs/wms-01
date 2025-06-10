@@ -13,12 +13,12 @@ export default function TailorProgressForm({ params }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   // NEW: Per-product progress state
   const [productProgressData, setProductProgressData] = useState({});
   const [overallNote, setOverallNote] = useState('');
   const [overallPhoto, setOverallPhoto] = useState('');
-  const [tailorName, setTailorName] = useState('');
+  const [workerName, setWorkerName] = useState('');
   const [progressType, setProgressType] = useState('per-product'); // Changed from 'legacy'
   const [validationErrors, setValidationErrors] = useState({});
 
@@ -34,9 +34,9 @@ export default function TailorProgressForm({ params }) {
   const [showMovementTickets, setShowMovementTickets] = useState(false);
   const [materialInventory, setMaterialInventory] = useState({});
 
-  // Tailor assignment state
-  const [isTailorFieldEditable, setIsTailorFieldEditable] = useState(true);
-  const [tailorAssignmentSource, setTailorAssignmentSource] = useState('manual');
+  // Worker assignment state
+  const [isWorkerFieldEditable, setIsWorkerFieldEditable] = useState(true);
+  const [workerAssignmentSource, setWorkerAssignmentSource] = useState('manual');
 
   // Simple form reset function
   const resetFormCompletely = async () => {
@@ -51,8 +51,8 @@ export default function TailorProgressForm({ params }) {
   const fetchOrderDetails = async () => {
     try {
       setLoading(true);
-      
-      const response = await fetch(`/api/order-links/${id}`, {
+
+      const response = await fetch(`http://localhost:8080/api/order-links/${id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -66,9 +66,9 @@ export default function TailorProgressForm({ params }) {
         // Enhanced error handling for non-JSON responses
         let errorMessage;
         const contentType = response.headers.get('content-type');
-        
+
         if (contentType && contentType.includes('application/json')) {
-        const data = await response.json();
+          const data = await response.json();
           errorMessage = data.message || 'Failed to fetch order details';
         } else {
           // Handle HTML error responses (like 500 Internal Server Error)
@@ -76,7 +76,7 @@ export default function TailorProgressForm({ params }) {
           console.error('Non-JSON response received:', textResponse);
           errorMessage = `Server error (${response.status}): Please try again`;
         }
-        
+
         if (response.status === 404) {
           throw new Error('Order link not found or inactive');
         }
@@ -87,28 +87,29 @@ export default function TailorProgressForm({ params }) {
       }
 
       const data = await response.json();
+      console.log('Order progress response:', data);
       setOrderLink(data.orderLink);
-      
+
       // NEW: Set completion data from enhanced API response
       if (data.completionSummary) {
         setCompletionSummary(data.completionSummary);
       }
-      
+
       if (data.incompleteProducts) {
         setIncompleteProducts(data.incompleteProducts);
       }
-      
+
       // Initialize per-product progress data
-      if (data.orderLink?.Order?.OrderProducts) {
+      if (data.orderLink?.order?.orderProducts) {
         const initialProgressData = {};
-        data.orderLink.Order.OrderProducts.forEach(orderProduct => {
-          const product = orderProduct.Product;
+        data.orderLink.order.orderProducts.forEach(orderProduct => {
+          const product = orderProduct.product;
           if (product) {
             initialProgressData[product.id] = {
               productId: product.id,
               orderProductId: orderProduct.id, // Now we have the correct OrderProduct ID
               pcsFinished: 0,
-              fabricUsed: 0,
+              materialUsed: 0,
               workHours: 0,
               qualityScore: 100,
               qualityNotes: '',
@@ -134,7 +135,7 @@ export default function TailorProgressForm({ params }) {
 
   // Fetch product materials when order is loaded
   useEffect(() => {
-    if (orderLink?.Order?.OrderProducts) {
+    if (orderLink?.order?.orderProducts) {
       fetchProductMaterials();
     }
   }, [orderLink]);
@@ -144,22 +145,22 @@ export default function TailorProgressForm({ params }) {
     let tailorName = '';
     let isEditable = true;
     let source = 'manual';
-    
-    // Priority 1: Order assigned tailor contact (from orders-management with tailorContactId)
-    if (orderLink?.Order?.TailorContact?.name) {
-      tailorName = orderLink.Order.TailorContact.name;
+
+    // Priority 1: Order assigned tailor contact (from orders-management with workerContactId)
+    if (orderLink?.order?.workerContact?.name) {
+      tailorName = orderLink.order.workerContact.name;
       isEditable = false;
       source = 'order';
     }
-    // Priority 2: Order assigned tailor (legacy User relationship)
-    else if (orderLink?.Order?.Tailor?.name) {
-      tailorName = orderLink.Order.Tailor.name;
+    // Priority 2: Order assigned worker (legacy User relationship)
+    else if (orderLink?.order?.worker?.name) {
+      tailorName = orderLink.order.worker.name;
       isEditable = false;
       source = 'order';
     }
     // Priority 3: OrderLink assigned user
-    else if (orderLink?.User?.name) {
-      tailorName = orderLink.User.name;
+    else if (orderLink?.user?.name) {
+      tailorName = orderLink.user.name;
       isEditable = false;
       source = 'orderlink';
     }
@@ -169,36 +170,36 @@ export default function TailorProgressForm({ params }) {
       isEditable = true;
       source = 'manual';
     }
-    
-    setTailorName(tailorName);
-    setIsTailorFieldEditable(isEditable);
-    setTailorAssignmentSource(source);
+
+    setWorkerName(tailorName);
+    setIsWorkerFieldEditable(isEditable);
+    setWorkerAssignmentSource(source);
   }, [orderLink]);
 
   // Fetch product material relationships
   const fetchProductMaterials = async () => {
-    if (!orderLink?.Order?.OrderProducts || orderLink.Order.OrderProducts.length === 0) {
+    if (!orderLink?.order?.orderProducts || orderLink.order.orderProducts.length === 0) {
       setProductMaterials([]);
       return;
     }
 
     try {
       setLoadingMaterials(true);
-      const orderProducts = orderLink.Order.OrderProducts;
-      
+      const orderProducts = orderLink.order.orderProducts;
+
       // Use material data already included in orderLink response
       const materialData = orderProducts.map((orderProduct) => {
-        const product = orderProduct.Product;
-        if (product?.Material) {
-          const quantity = orderProduct.qty || 1;
-          
+        const product = orderProduct.product;
+        if (product?.baseMaterial) {
+          const quantity = orderProduct.quantity || 1;
+
           return {
             productId: product.id,
             productName: product.name,
             materialId: product.materialId,
-            materialName: product.Material.name,
-            materialCode: product.Material.code,
-            materialUnit: product.Material.unit,
+            materialName: product.baseMaterial.name,
+            materialCode: product.baseMaterial.code,
+            materialUnit: product.baseMaterial.unit,
             quantity: quantity
           };
         } else {
@@ -206,7 +207,7 @@ export default function TailorProgressForm({ params }) {
           return null;
         }
       }).filter(Boolean);
-      
+
       setProductMaterials(materialData);
       console.log('Product materials loaded from orderLink:', materialData);
     } catch (error) {
@@ -227,7 +228,7 @@ export default function TailorProgressForm({ params }) {
         orderProductId
       }
     }));
-    
+
     // Clear validation errors for this product
     setValidationErrors(prev => {
       const newErrors = { ...prev };
@@ -246,10 +247,10 @@ export default function TailorProgressForm({ params }) {
     // Photos are already handled in the ProductProgressCard state
   };
 
-  // Calculate total completed pieces from per-product data
+  // Calculate total completed pieces from order data
   const getTotalCompleted = () => {
-    if (!orderLink?.Order?.ProgressReports) return 0;
-    return orderLink.Order.ProgressReports.reduce((total, report) => total + report.pcsFinished, 0);
+    if (!orderLink?.order?.completedPcs) return 0;
+    return orderLink.order.completedPcs;
   };
 
   // Calculate total pieces from current per-product progress
@@ -261,10 +262,10 @@ export default function TailorProgressForm({ params }) {
   const validateProgressData = () => {
     const errors = {};
     let hasProgress = false;
-    
+
     // Check if tailor name is provided
-    if (!tailorName || tailorName.trim() === '') {
-      errors.tailorName = 'Please enter your name';
+    if (!workerName || workerName.trim() === '') {
+      errors.workerName = 'Please enter your name';
       return { isValid: false, errors };
     }
 
@@ -272,11 +273,11 @@ export default function TailorProgressForm({ params }) {
     Object.values(productProgressData).forEach(progress => {
       if (progress.pcsFinished > 0) {
         hasProgress = true;
-        
+
         // Validate pieces finished doesn't exceed target
-        const orderProduct = orderLink.Order.OrderProducts.find(op => op.Product.id === progress.productId);
-        const targetQty = orderProduct?.qty || 0;
-        
+        const orderProduct = orderLink.order.orderProducts.find(op => op.product.id === progress.productId);
+        const targetQty = orderProduct?.quantity || 0;
+
         if (progress.pcsFinished > targetQty) {
           errors[`product_${progress.productId}_pcs`] = `Cannot exceed ${targetQty} pieces`;
         }
@@ -315,34 +316,34 @@ export default function TailorProgressForm({ params }) {
       console.log('🔍 =============================================');
       console.log('🔍 Total products in order:', Object.keys(productProgressData).length);
       console.log('🔍 Products with progress data:');
-      
-      let productsWithFabric = 0;
-      let totalFabricPlanned = 0;
-      
+
+      let productsWithMaterial = 0;
+      let totalMaterialPlanned = 0;
+
       Object.values(productProgressData).forEach((progress, index) => {
         const hasProgress = progress.pcsFinished > 0;
-        const hasFabric = progress.fabricUsed > 0;
-        
-        if (hasFabric) {
-          productsWithFabric++;
-          totalFabricPlanned += parseFloat(progress.fabricUsed || 0);
+        const hasMaterial = progress.materialUsed > 0;
+
+        if (hasMaterial) {
+          productsWithMaterial++;
+          totalMaterialPlanned += parseFloat(progress.materialUsed || 0);
         }
-        
+
         console.log(`🔍   Product ${index + 1}:`, {
           productId: progress.productId,
           orderProductId: progress.orderProductId,
           pcsFinished: progress.pcsFinished,
-          fabricUsed: progress.fabricUsed,
+          materialUsed: progress.materialUsed,
           hasProgress: hasProgress,
-          hasFabric: hasFabric,
-          willCreateMovement: hasProgress && hasFabric
+          hasMaterial: hasMaterial,
+          willCreateMovement: hasProgress && hasMaterial
         });
       });
-      
+
       console.log('🔍 Summary:');
-      console.log(`🔍   Products with fabric usage: ${productsWithFabric}`);
-      console.log(`🔍   Total fabric planned: ${totalFabricPlanned}`);
-      console.log(`🔍   Expected MaterialMovement records: ${productsWithFabric}`);
+      console.log(`🔍   Products with material usage: ${productsWithMaterial}`);
+      console.log(`🔍   Total material planned: ${totalMaterialPlanned}`);
+      console.log(`🔍   Expected MaterialMovement records: ${productsWithMaterial}`);
 
       // Prepare per-product progress data for API
       const apiProductProgressData = Object.values(productProgressData)
@@ -353,7 +354,7 @@ export default function TailorProgressForm({ params }) {
             orderProductId: progress.orderProductId,
             pcsFinished: parseInt(progress.pcsFinished),
             pcsTargetForThisReport: parseInt(progress.pcsFinished),
-            fabricUsed: parseFloat(progress.fabricUsed || 0),
+            materialUsed: parseFloat(progress.materialUsed || 0),
             workHours: parseFloat(progress.workHours || 0),
             qualityScore: parseInt(progress.qualityScore || 100),
             qualityNotes: progress.qualityNotes || null,
@@ -374,10 +375,10 @@ export default function TailorProgressForm({ params }) {
           console.log('🔍 Frontend mapping product:', progress.productId, {
             originalPcsFinished: progress.pcsFinished,
             parsedPcsFinished: parseInt(progress.pcsFinished),
-            originalFabricUsed: progress.fabricUsed,
-            parsedFabricUsed: parseFloat(progress.fabricUsed || 0),
+            originalMaterialUsed: progress.materialUsed,
+            parsedMaterialUsed: parseFloat(progress.materialUsed || 0),
             isValid: !isNaN(parseInt(progress.pcsFinished)) && parseInt(progress.pcsFinished) > 0,
-            willCreateMovement: parseFloat(progress.fabricUsed || 0) > 0,
+            willCreateMovement: parseFloat(progress.materialUsed || 0) > 0,
             mappedProgress
           });
 
@@ -387,7 +388,7 @@ export default function TailorProgressForm({ params }) {
       console.log('🔍 Frontend prepared API data:', {
         totalProducts: Object.keys(productProgressData).length,
         productsWithProgress: apiProductProgressData.length,
-        productsWithFabric: apiProductProgressData.filter(p => p.fabricUsed > 0).length,
+        productsWithMaterial: apiProductProgressData.filter(p => p.materialUsed > 0).length,
         apiProductProgressData
       });
 
@@ -399,19 +400,19 @@ export default function TailorProgressForm({ params }) {
       const currentProgress = getTotalCompleted();
       const newProgress = getCurrentTotalPieces();
       const totalProgress = currentProgress + newProgress;
-      const isCompletingOrder = totalProgress >= orderLink.Order.targetPcs;
+      const isCompletingOrder = totalProgress >= orderLink.order.targetPcs;
 
       console.log('🔍 Submitting per-product progress:', {
         progressType: 'per-product',
         productCount: apiProductProgressData.length,
-        fabricUsageCount: apiProductProgressData.filter(p => p.fabricUsed > 0).length,
-        totalFabricUsage: apiProductProgressData.reduce((sum, p) => sum + p.fabricUsed, 0),
+        materialUsageCount: apiProductProgressData.filter(p => p.materialUsed > 0).length,
+        totalMaterialUsage: apiProductProgressData.reduce((sum, p) => sum + p.materialUsed, 0),
         overallNote,
-        tailorName,
+        workerName,
         isCompletingOrder
       });
 
-      const response = await fetch(`/api/order-links/${id}/progress`, {
+      const response = await fetch(`http://localhost:8080/api/order-links/${id}/progress`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -424,7 +425,7 @@ export default function TailorProgressForm({ params }) {
           productProgressData: apiProductProgressData,
           overallNote: overallNote || 'Per-product progress update',
           overallPhoto: overallPhoto || null,
-          tailorName: tailorName,
+          workerName: workerName,
           isCompletingOrder: isCompletingOrder
         })
       });
@@ -433,7 +434,7 @@ export default function TailorProgressForm({ params }) {
       if (!response.ok) {
         let errorMessage;
         const contentType = response.headers.get('content-type');
-        
+
         if (contentType && contentType.includes('application/json')) {
           try {
             const errorData = await response.json();
@@ -448,7 +449,7 @@ export default function TailorProgressForm({ params }) {
           console.error('Non-JSON error response received:', textResponse);
           errorMessage = `Server error (${response.status}): Please refresh the page and try again`;
         }
-        
+
         throw new Error(errorMessage);
       }
 
@@ -466,12 +467,12 @@ export default function TailorProgressForm({ params }) {
       console.log('🔍 BACKEND RESPONSE ANALYSIS');
       console.log('🔍 =============================================');
       console.log('🔍 Success response received:', data);
-      console.log('🔍 Material movements created:', data.fabricMovements?.length || 0);
-      console.log('🔍 Total fabric processed:', data.totalFabricUsed || 0);
-      
-      if (data.fabricMovements && data.fabricMovements.length > 0) {
+      console.log('🔍 Material movements created:', data.materialMovements?.length || 0);
+      console.log('🔍 Total material processed:', data.totalMaterialUsed || 0);
+
+      if (data.materialMovements && data.materialMovements.length > 0) {
         console.log('🔍 MaterialMovement details:');
-        data.fabricMovements.forEach((movement, index) => {
+        data.materialMovements.forEach((movement, index) => {
           console.log(`🔍   Movement ${index + 1}:`, {
             id: movement.id,
             materialId: movement.materialId,
@@ -484,16 +485,16 @@ export default function TailorProgressForm({ params }) {
       }
 
       setSuccess(data.message || 'Per-product progress report submitted successfully!');
-      
+
       // Handle material movement tickets if created
-      if (data.fabricMovements && data.fabricMovements.length > 0) {
-        setMaterialMovementTickets(data.fabricMovements);
+      if (data.materialMovements && data.materialMovements.length > 0) {
+        setMaterialMovementTickets(data.materialMovements);
         setShowMovementTickets(true);
-        
-        const totalFabricUsed = data.totalFabricUsed || 0;
-        if (totalFabricUsed > 0) {
-          setSuccess(prev => `${prev}\n✅ Fabric usage recorded: ${totalFabricUsed} total units`);
-          setSuccess(prev => `${prev}\n✅ MaterialMovement records created: ${data.fabricMovements.length}`);
+
+        const totalMaterialUsed = data.totalMaterialUsed || 0;
+        if (totalMaterialUsed > 0) {
+          setSuccess(prev => `${prev}\n✅ Material usage recorded: ${totalMaterialUsed} total units`);
+          setSuccess(prev => `${prev}\n✅ MaterialMovement records created: ${data.materialMovements.length}`);
         }
       }
 
@@ -503,7 +504,7 @@ export default function TailorProgressForm({ params }) {
         resetProgressData[productId] = {
           ...productProgressData[productId],
           pcsFinished: 0,
-          fabricUsed: 0,
+          materialUsed: 0,
           workHours: 0,
           qualityScore: 100,
           qualityNotes: '',
@@ -512,7 +513,7 @@ export default function TailorProgressForm({ params }) {
           photos: []
         };
       });
-      
+
       setProductProgressData(resetProgressData);
       setOverallNote('');
       setOverallPhoto('');
@@ -550,30 +551,20 @@ export default function TailorProgressForm({ params }) {
 
   // NEW: Per-product completion helper functions
   const getProductCompletion = (orderProduct) => {
-    if (!completionSummary?.products) return null;
-    
-    const productCompletion = completionSummary.products.find(
-      p => p.orderProductId === orderProduct.id
-    );
-    
-    if (productCompletion) {
-      return {
-        completed: productCompletion.completedQty,
-        target: productCompletion.qty,
-        percentage: productCompletion.completionPercentage,
-        isComplete: productCompletion.isCompleted,
-        completionDate: productCompletion.completionDate,
-        remaining: productCompletion.remainingQty
-      };
-    }
-    
+    // Use the orderProduct data directly since API doesn't return per-product completion summary
+    const completed = orderProduct.completedQty || 0;
+    const target = orderProduct.quantity || 0;
+    const percentage = target > 0 ? Math.round((completed / target) * 100) : 0;
+    const isComplete = completed >= target;
+    const remaining = Math.max(0, target - completed);
+
     return {
-      completed: 0,
-      target: orderProduct.qty,
-      percentage: 0,
-      isComplete: false,
-      completionDate: null,
-      remaining: orderProduct.qty
+      completed,
+      target,
+      percentage,
+      isComplete,
+      completionDate: isComplete ? orderProduct.updatedAt : null,
+      remaining
     };
   };
 
@@ -583,13 +574,13 @@ export default function TailorProgressForm({ params }) {
   };
 
   const getCompletedProducts = () => {
-    if (!orderLink?.Order?.OrderProducts) return [];
-    return orderLink.Order.OrderProducts.filter(op => isProductComplete(op));
+    if (!orderLink?.order?.orderProducts) return [];
+    return orderLink.order.orderProducts.filter(op => isProductComplete(op));
   };
 
   const getIncompleteProducts = () => {
-    if (!orderLink?.Order?.OrderProducts) return [];
-    return orderLink.Order.OrderProducts.filter(op => !isProductComplete(op));
+    if (!orderLink?.order?.orderProducts) return [];
+    return orderLink.order.orderProducts.filter(op => !isProductComplete(op));
   };
 
   if (loading) {
@@ -616,7 +607,7 @@ export default function TailorProgressForm({ params }) {
     );
   }
 
-  const order = orderLink?.Order;
+  const order = orderLink?.order;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -626,22 +617,6 @@ export default function TailorProgressForm({ params }) {
           <p className="text-sm text-gray-600 text-center mt-2">
             Submit progress for each product in Order #{order?.orderNumber}
           </p>
-          {orderLink?.Order?.TailorContact?.name && (
-            <p className="text-xs text-blue-600 text-center mt-1">
-              Order assigned to: {orderLink.Order.TailorContact.name}
-              {orderLink.Order.TailorContact.company && ` (${orderLink.Order.TailorContact.company})`}
-            </p>
-          )}
-          {!orderLink?.Order?.TailorContact?.name && orderLink?.Order?.Tailor?.name && (
-            <p className="text-xs text-blue-600 text-center mt-1">
-              Order assigned to: {orderLink.Order.Tailor.name}
-            </p>
-          )}
-          {!orderLink?.Order?.TailorContact?.name && !orderLink?.Order?.Tailor?.name && orderLink?.User?.name && (
-            <p className="text-xs text-green-600 text-center mt-1">
-              OrderLink assigned to: {orderLink.User.name}
-            </p>
-          )}
         </div>
       </div>
 
@@ -649,27 +624,26 @@ export default function TailorProgressForm({ params }) {
         {/* Order Summary Card */}
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Details</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Order Number:</span>
+            <div className="flex">
+              <span className="text-sm text-gray-600 mr-2">Order Number:</span>
               <span className="text-sm font-medium text-gray-900">{order?.orderNumber}</span>
             </div>
-            
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Status:</span>
-              <span className={`text-sm font-medium px-2 py-1 rounded-full ${
-                order?.status === 'completed' ? 'bg-green-100 text-green-800' :
+
+            <div className="flex">
+              <span className="text-sm text-gray-600 mr-2">Status:</span>
+              <span className={`text-sm font-medium px-2 py-1 rounded-full ${order?.status === 'completed' ? 'bg-green-100 text-green-800' :
                 order?.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                order?.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
+                  order?.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
+                    'bg-gray-100 text-gray-800'
+                }`}>
                 {order?.status}
               </span>
             </div>
-            
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Due Date:</span>
+
+            <div className="flex">
+              <span className="text-sm text-gray-600 mr-2">Due Date:</span>
               <span className="text-sm font-medium text-gray-900">
                 {order?.dueDate ? new Date(order.dueDate).toLocaleDateString() : 'Not set'}
               </span>
@@ -687,33 +661,32 @@ export default function TailorProgressForm({ params }) {
         {/* Overall Progress Overview */}
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Overall Progress</h3>
-          
+
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Completed:</span>
               <span className="text-lg font-bold text-gray-900">{getTotalCompleted()} / {order?.targetPcs} pcs</span>
             </div>
-            
+
             <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
+              <div
                 className={`h-3 rounded-full transition-all duration-500 ${getProgressColor(calculateProgress(order))}`}
                 style={{ width: `${calculateProgress(order)}%` }}
               ></div>
             </div>
-            
+
             <div className="text-center">
-              <span className={`text-sm font-medium ${
-                calculateProgress(order) === 100 
-                  ? 'text-green-700 font-bold' 
-                  : 'text-gray-700'
-              }`}>
+              <span className={`text-sm font-medium ${calculateProgress(order) === 100
+                ? 'text-green-700 font-bold'
+                : 'text-gray-700'
+                }`}>
                 {calculateProgress(order)}% Complete
                 {calculateProgress(order) === 100 && (
                   <span className="ml-2">🎉</span>
                 )}
               </span>
             </div>
-            
+
             <div className="text-center">
               <span className="text-sm text-gray-600">
                 Remaining: {Math.max(0, order?.targetPcs - getTotalCompleted())} pieces
@@ -723,29 +696,35 @@ export default function TailorProgressForm({ params }) {
         </div>
 
         {/* Previous Progress Reports */}
-        {orderLink?.Order?.ProgressReports && orderLink.Order.ProgressReports.length > 0 && (
+        {orderLink?.order?.progressReports && orderLink.order.progressReports.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border p-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Previous Progress Reports</h3>
-            
+
             <div className="space-y-3">
-              {orderLink.Order.ProgressReports.slice(-3).reverse().map((report, index) => (
-                <div key={report.id} className="border border-gray-200 rounded-lg p-3">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-sm font-medium text-gray-900">
-                      {report.pcsFinished} pieces completed
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(report.reportedAt).toLocaleDateString()}
-                    </span>
+              {orderLink.order.progressReports.slice(-3).reverse().map((report, index) => {
+                // Extract pieces completed from reportText (e.g., "Completed 40 pieces of jaket mantap")
+                const pcsMatch = report.reportText?.match(/Completed (\d+) pieces/);
+                const pcsCompleted = pcsMatch ? pcsMatch[1] : 'Unknown';
+
+                return (
+                  <div key={report.id} className="border border-gray-200 rounded-lg p-3">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        {pcsCompleted} pieces completed
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(report.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {report.reportText && (
+                      <p className="text-sm text-gray-600 mb-1">{report.reportText}</p>
+                    )}
+                    <p className="text-xs text-blue-600">
+                      By: {report.order?.workerContact?.name || report.user?.name || 'Anonymous'}
+                    </p>
                   </div>
-                  {report.note && (
-                    <p className="text-sm text-gray-600 mb-1">{report.note}</p>
-                  )}
-                  <p className="text-xs text-blue-600">
-                    By: {report.User?.name || report.tailorName || 'Anonymous'}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -754,9 +733,9 @@ export default function TailorProgressForm({ params }) {
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Per-Product Progress Update
-            {order?.OrderProducts && (
+            {order?.orderProducts && (
               <span className="text-sm font-normal text-gray-500 ml-2">
-                ({order.OrderProducts.length} products)
+                ({order.orderProducts.length} products)
               </span>
             )}
           </h3>
@@ -766,7 +745,7 @@ export default function TailorProgressForm({ params }) {
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-              <p className="text-sm text-red-600">{error}</p>
+                  <p className="text-sm text-red-600">{error}</p>
                   {error.includes('JSON') && (
                     <p className="text-xs text-red-500 mt-1">
                       💡 Tip: This might be a caching issue. Try the reset button.
@@ -812,7 +791,7 @@ export default function TailorProgressForm({ params }) {
                   Hide
                 </button>
               </div>
-              
+
               <div className="space-y-2">
                 {materialMovementTickets.map((movement, index) => (
                   <div key={movement.id || index} className="bg-white border border-blue-200 rounded p-3">
@@ -832,39 +811,38 @@ export default function TailorProgressForm({ params }) {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Tailor Name Field */}
             <div>
-              <label htmlFor="tailorName" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="workerName" className="block text-sm font-medium text-gray-700 mb-1">
                 Tailor Name *
-                {tailorAssignmentSource === 'order' && (
+                {workerAssignmentSource === 'order' && (
                   <span className="ml-2 text-xs text-blue-600 font-normal">(Assigned to Order)</span>
                 )}
-                {tailorAssignmentSource === 'orderlink' && (
+                {workerAssignmentSource === 'orderlink' && (
                   <span className="ml-2 text-xs text-green-600 font-normal">(OrderLink Assigned)</span>
                 )}
-                {tailorAssignmentSource === 'manual' && (
+                {workerAssignmentSource === 'manual' && (
                   <span className="ml-2 text-xs text-gray-600 font-normal">(Manual Entry)</span>
                 )}
               </label>
               <input
                 type="text"
-                id="tailorName"
-                name="tailorName"
-                value={tailorName}
-                onChange={(e) => setTailorName(e.target.value)}
-                disabled={!isTailorFieldEditable}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none ${
-                  isTailorFieldEditable 
-                    ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white' 
-                    : 'border-gray-200 bg-gray-50 text-gray-600 cursor-not-allowed'
-                } ${validationErrors.tailorName ? 'border-red-300' : ''}`}
-                placeholder={isTailorFieldEditable ? "Enter your name" : ""}
+                id="workerName"
+                name="workerName"
+                value={workerName}
+                onChange={(e) => setWorkerName(e.target.value)}
+                disabled={!isWorkerFieldEditable}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none ${isWorkerFieldEditable
+                  ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white'
+                  : 'border-gray-200 bg-gray-50 text-gray-600 cursor-not-allowed'
+                  } ${validationErrors.workerName ? 'border-red-300' : ''}`}
+                placeholder={isWorkerFieldEditable ? "Enter your name" : ""}
                 required
               />
-              {validationErrors.tailorName && (
-                <p className="text-xs text-red-600 mt-1">{validationErrors.tailorName}</p>
+              {validationErrors.workerName && (
+                <p className="text-xs text-red-600 mt-1">{validationErrors.workerName}</p>
               )}
-              {tailorAssignmentSource === 'order' && (
+              {workerAssignmentSource === 'order' && (
                 <p className="text-xs text-blue-600 mt-1">
-                  ✓ This order is assigned to {orderLink?.Order?.TailorContact?.name || orderLink?.Order?.Tailor?.name}. Name cannot be changed.
+                  ✓ This order is assigned to {orderLink?.order?.workerContact?.name || orderLink?.order?.worker?.name}. Name cannot be changed.
                 </p>
               )}
             </div>
@@ -872,7 +850,7 @@ export default function TailorProgressForm({ params }) {
             {/* Per-Product Progress Cards */}
             <div className="space-y-6">
               <h4 className="text-md font-medium text-gray-900">Product Progress</h4>
-              
+
               {/* NEW: Completed Products Summary */}
               {getCompletedProducts().length > 0 && (
                 <div className="bg-green-50 rounded-lg p-4 mb-6">
@@ -888,11 +866,11 @@ export default function TailorProgressForm({ params }) {
                       {showCompletedProducts ? 'Hide' : 'Show'} Details
                     </button>
                   </div>
-                  
+
                   {showCompletedProducts && (
                     <div className="space-y-2">
                       {getCompletedProducts().map(orderProduct => {
-                        const product = orderProduct.Product;
+                        const product = orderProduct.product;
                         const completion = getProductCompletion(orderProduct);
                         return (
                           <div key={orderProduct.id} className="bg-white border border-green-200 rounded p-3">
@@ -941,16 +919,16 @@ export default function TailorProgressForm({ params }) {
                   </div>
                 </div>
               )}
-              
-              {order?.OrderProducts && order.OrderProducts.length > 0 ? (
+
+              {order?.orderProducts && order.orderProducts.length > 0 ? (
                 // NEW: Only show incomplete products by default
                 getIncompleteProducts().length > 0 ? (
                   getIncompleteProducts().map((orderProduct, index) => {
-                    const product = orderProduct.Product;
+                    const product = orderProduct.product;
                     if (!product) return null;
-                    
+
                     const completion = getProductCompletion(orderProduct);
-                    
+
                     return (
                       <div key={product.id} className="relative">
                         {/* NEW: Product completion indicator */}
@@ -962,7 +940,7 @@ export default function TailorProgressForm({ params }) {
                             )}
                           </div>
                         )}
-                        
+
                         <ProductProgressCard
                           key={product.id}
                           product={product}
@@ -1010,28 +988,27 @@ export default function TailorProgressForm({ params }) {
             <button
               type="submit"
               disabled={submitting || order?.status === 'completed' || getCurrentTotalPieces() === 0 || getIncompleteProducts().length === 0}
-              className={`w-full py-3 px-4 text-white font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                submitting || order?.status === 'completed' || getCurrentTotalPieces() === 0 || getIncompleteProducts().length === 0
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+              className={`w-full py-3 px-4 text-white font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${submitting || order?.status === 'completed' || getCurrentTotalPieces() === 0 || getIncompleteProducts().length === 0
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
+                }`}
             >
-              {submitting ? 'Submitting Per-Product Progress...' : 
-               order?.status === 'completed' ? 'Order Completed' :
-               getIncompleteProducts().length === 0 ? 'All Products Completed' :
-               getCurrentTotalPieces() === 0 ? 'Enter Progress for at Least One Product' :
-               `Submit Progress for ${getCurrentTotalPieces()} Total Pieces`}
+              {submitting ? 'Submitting Per-Product Progress...' :
+                order?.status === 'completed' ? 'Order Completed' :
+                  getIncompleteProducts().length === 0 ? 'All Products Completed' :
+                    getCurrentTotalPieces() === 0 ? 'Enter Progress for at Least One Product' :
+                      `Submit Progress for ${getCurrentTotalPieces()} Total Pieces`}
             </button>
-            
+
             {getCurrentTotalPieces() > 0 && getIncompleteProducts().length > 0 && (
               <p className="text-center text-sm text-gray-600">
-                Submitting progress for {Object.values(productProgressData).filter(p => p.pcsFinished > 0).length} products, 
+                Submitting progress for {Object.values(productProgressData).filter(p => p.pcsFinished > 0).length} products,
                 {getCurrentTotalPieces()} total pieces
               </p>
             )}
-            
+
             {/* NEW: All products completed message */}
-            {getIncompleteProducts().length === 0 && order?.OrderProducts?.length > 0 && (
+            {getIncompleteProducts().length === 0 && order?.orderProducts?.length > 0 && (
               <div className="text-center py-4">
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <p className="text-green-800 font-medium">🎉 Congratulations!</p>

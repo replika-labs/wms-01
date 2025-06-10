@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-export default function RemainingFabricPage({ params }) {
+export default function RemainingMaterialsPage({ params }) {
   const { token } = params;
   const router = useRouter();
   const [orderLink, setOrderLink] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     qtyRemaining: 0,
     photoUrl: '',
@@ -25,20 +25,20 @@ export default function RemainingFabricPage({ params }) {
     const fetchOrderLink = async () => {
       try {
         setLoading(true);
-        
-        const response = await fetch(`/api/order-links/${token}`);
-        
+
+        const response = await fetch(`http://localhost:8080/api/order-links/${token}`);
+
         if (!response.ok) {
           const data = await response.json();
           throw new Error(data.message || 'Failed to fetch order link');
         }
-        
+
         const data = await response.json();
-        
+
         if (!data.success) {
           throw new Error(data.message || 'Invalid or expired order link');
         }
-        
+
         setOrderLink(data.orderLink);
       } catch (err) {
         setError(err.message);
@@ -47,7 +47,7 @@ export default function RemainingFabricPage({ params }) {
         setLoading(false);
       }
     };
-    
+
     fetchOrderLink();
   }, [token]);
 
@@ -67,11 +67,11 @@ export default function RemainingFabricPage({ params }) {
   // Handle form change
   const handleChange = (e) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'number') {
       // Ensure non-negative values
       const newValue = Math.max(0, parseInt(value, 10) || 0);
-      
+
       setFormData(prev => ({
         ...prev,
         [name]: newValue
@@ -87,21 +87,21 @@ export default function RemainingFabricPage({ params }) {
   // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       setFormData(prev => ({ ...prev, isSubmitting: true, error: null, success: null }));
-      
+
       // Validation
       if (formData.qtyRemaining < 0) {
-        throw new Error('Remaining fabric quantity cannot be negative');
+        throw new Error('Remaining material quantity cannot be negative');
       }
-      
+
       if (!formData.photoUrl) {
-        throw new Error('Please upload a photo of the remaining fabric');
+        throw new Error('Please upload a photo of the remaining material');
       }
-      
+
       // Submit via API
-      const response = await fetch(`/api/order-links/${token}/remaining-fabric`, {
+      const response = await fetch(`http://localhost:8080/api/order-links/${token}/remaining-materials`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -112,14 +112,14 @@ export default function RemainingFabricPage({ params }) {
           note: formData.note || null
         })
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit remaining fabric report');
+        throw new Error(errorData.message || 'Failed to submit remaining material report');
       }
-      
+
       const data = await response.json();
-      
+
       // Success - update form state
       setFormData({
         qtyRemaining: 0,
@@ -127,14 +127,14 @@ export default function RemainingFabricPage({ params }) {
         note: '',
         isSubmitting: false,
         error: null,
-        success: data.message || 'Remaining fabric report submitted successfully'
+        success: data.message || 'Remaining material report submitted successfully'
       });
-      
+
       // Redirect back to the main order page after a short delay
       setTimeout(() => {
         router.push(`/order-link/${token}`);
       }, 3000);
-      
+
     } catch (err) {
       setFormData(prev => ({
         ...prev,
@@ -189,7 +189,7 @@ export default function RemainingFabricPage({ params }) {
     return null;
   }
 
-  const { Order, User } = orderLink;
+  const { order: Order, user: User } = orderLink;
 
   // Don't allow remaining fabric reports for orders that aren't completed
   const isCompleted = Order.status === 'completed';
@@ -202,19 +202,18 @@ export default function RemainingFabricPage({ params }) {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Remaining Fabric Report
+                Remaining Material Report
               </h1>
               <p className="mt-1 text-sm text-gray-600">
                 Order: {Order.orderNumber} | Assigned to: {User.name}
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                Order.status === 'completed' ? 'bg-green-100 text-green-800' :
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${Order.status === 'completed' ? 'bg-green-100 text-green-800' :
                 Order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                Order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                'bg-blue-100 text-blue-800'
-              }`}>
+                  Order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                    'bg-blue-100 text-blue-800'
+                }`}>
                 {Order.status}
               </span>
               <Link
@@ -232,9 +231,9 @@ export default function RemainingFabricPage({ params }) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white shadow overflow-hidden rounded-lg">
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">Remaining Fabric Report</h2>
+            <h2 className="text-lg font-medium text-gray-900">Remaining Material Report</h2>
             <p className="mt-1 text-sm text-gray-500">
-              Report any remaining fabric after order completion to help with inventory management.
+              Report any remaining materials after order completion to help with inventory management.
             </p>
           </div>
           <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
@@ -250,7 +249,7 @@ export default function RemainingFabricPage({ params }) {
                     <h3 className="text-sm font-medium text-yellow-800">Order Not Completed</h3>
                     <div className="mt-2 text-sm text-yellow-700">
                       <p>
-                        This order is not yet marked as completed. Remaining fabric should only be reported after the order is complete.
+                        This order is not yet marked as completed. Remaining materials should only be reported after the order is complete.
                       </p>
                     </div>
                   </div>
@@ -289,10 +288,10 @@ export default function RemainingFabricPage({ params }) {
                   </div>
                 )}
 
-                {/* Remaining Fabric Quantity */}
+                {/* Remaining Material Quantity */}
                 <div>
                   <label htmlFor="qtyRemaining" className="block text-sm font-medium text-gray-700">
-                    Remaining Fabric Quantity (cm) *
+                    Remaining Material Quantity *
                   </label>
                   <div className="mt-1 flex rounded-md shadow-sm">
                     <input
@@ -300,24 +299,25 @@ export default function RemainingFabricPage({ params }) {
                       name="qtyRemaining"
                       id="qtyRemaining"
                       min="0"
+                      step="0.001"
                       value={formData.qtyRemaining}
                       onChange={handleChange}
                       className="flex-1 focus:ring-blue-500 focus:border-blue-500 block w-full min-w-0 rounded-md sm:text-sm border-gray-300"
                       required
                     />
                     <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
-                      cm
+                      units
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-gray-500">
-                    Enter the total length of remaining fabric in centimeters.
+                    Enter the quantity of remaining material.
                   </p>
                 </div>
 
                 {/* Photo Upload */}
                 <div>
                   <label htmlFor="photoUrl" className="block text-sm font-medium text-gray-700">
-                    Photo of Remaining Fabric *
+                    Photo of Remaining Material *
                   </label>
                   <div className="mt-1 flex items-center">
                     <input
@@ -339,7 +339,7 @@ export default function RemainingFabricPage({ params }) {
                     </p>
                   </div>
                   <p className="mt-1 text-xs text-gray-500">
-                    Take a photo of the remaining fabric with a measuring tape visible.
+                    Take a photo of the remaining material.
                   </p>
                 </div>
 
@@ -366,7 +366,7 @@ export default function RemainingFabricPage({ params }) {
                     disabled={formData.isSubmitting || !formData.photoUrl}
                     className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {formData.isSubmitting ? 'Submitting...' : 'Submit Remaining Fabric Report'}
+                    {formData.isSubmitting ? 'Submitting...' : 'Submit Remaining Material Report'}
                   </button>
                 </div>
               </form>

@@ -210,10 +210,24 @@ export default function CreateProductPage() {
 
       // Add form data
       Object.keys(formData).forEach(key => {
-        if (formData[key] !== '') {
-          submitData.append(key, formData[key]);
+        if (formData[key] !== '' && formData[key] !== null && formData[key] !== undefined) {
+          // For numeric fields, ensure they're sent as numbers
+          if (key === 'qtyOnHand' || key === 'defaultTarget' || key === 'price') {
+            const numValue = Number(formData[key]);
+            if (!isNaN(numValue)) {
+              submitData.append(key, numValue.toString());
+            }
+          } else {
+            submitData.append(key, formData[key]);
+          }
         }
       });
+
+      // Debug: Log what's being sent
+      console.log('Form data being sent:');
+      for (let [key, value] of submitData.entries()) {
+        console.log(key, value);
+      }
 
       // Add photos
       photos.forEach((photo, index) => {

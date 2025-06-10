@@ -77,7 +77,10 @@ export default function EditProductPage() {
           throw new Error('Failed to fetch product data');
         }
 
-        const productData = await productResponse.json();
+        const productResponse_data = await productResponse.json();
+        const productData = productResponse_data.success && productResponse_data.product
+          ? productResponse_data.product
+          : productResponse_data;
 
         // Set form data
         setFormData({
@@ -272,10 +275,24 @@ export default function EditProductPage() {
 
       // Add form data
       Object.keys(formData).forEach(key => {
-        if (formData[key] !== '') {
-          submitData.append(key, formData[key]);
+        if (formData[key] !== '' && formData[key] !== null && formData[key] !== undefined) {
+          // For numeric fields, ensure they're sent as numbers
+          if (key === 'qtyOnHand' || key === 'defaultTarget' || key === 'price') {
+            const numValue = Number(formData[key]);
+            if (!isNaN(numValue)) {
+              submitData.append(key, numValue.toString());
+            }
+          } else {
+            submitData.append(key, formData[key]);
+          }
         }
       });
+
+      // Debug: Log what's being sent
+      console.log('Form data being sent for update:');
+      for (let [key, value] of submitData.entries()) {
+        console.log(key, value);
+      }
 
       // Add new photos
       newPhotos.forEach((photo, index) => {
@@ -314,12 +331,16 @@ export default function EditProductPage() {
       }
 
       const result = await response.json();
-      setSuccess('Product updated successfully!');
 
-      // Redirect to product detail after a short delay
-      setTimeout(() => {
-        router.push(`/dashboard/products/${productId}`);
-      }, 2000);
+      if (result.success) {
+        setSuccess('Product updated successfully!');
+
+        setTimeout(() => {
+          router.push(`/dashboard/products`);
+        }, 1000);
+      } else {
+        throw new Error(result.message || 'Failed to update product');
+      }
 
     } catch (error) {
       console.error('Error updating product:', error);

@@ -10,12 +10,23 @@ export default function OrderLinkPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('details');
-  
+  const [materials, setMaterials] = useState([]);
+
   // Material Receipt Form State
   const [materialForm, setMaterialForm] = useState({
     confirmed: false,
     photoUrl: '',
     note: '',
+    isSubmitting: false,
+    error: null,
+    success: null,
+  });
+
+  // Material Usage Form State
+  const [materialUsageForm, setMaterialUsageForm] = useState({
+    materialId: '',
+    quantity: 0,
+    notes: '',
     isSubmitting: false,
     error: null,
     success: null,
@@ -37,20 +48,21 @@ export default function OrderLinkPage({ params }) {
     const fetchOrderLink = async () => {
       try {
         setLoading(true);
-        
-        const response = await fetch(`/api/order-links/${token}`);
-        
+
+        const response = await fetch(`http://localhost:8080/api/order-links/${token}`);
+
         if (!response.ok) {
           const data = await response.json();
           throw new Error(data.message || 'Failed to fetch order link');
         }
-        
+
         const data = await response.json();
-        
+        console.log('Order link response:', data);
+
         if (!data.success) {
           throw new Error(data.message || 'Invalid or expired order link');
         }
-        
+
         setOrderLink(data.orderLink);
       } catch (err) {
         setError(err.message);
@@ -59,8 +71,26 @@ export default function OrderLinkPage({ params }) {
         setLoading(false);
       }
     };
-    
+
+    const fetchMaterials = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/materials-management?limit=100');
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data?.materials) {
+            setMaterials(data.data.materials);
+          } else {
+            setMaterials(data.materials || data || []);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching materials:', err);
+      }
+    };
+
     fetchOrderLink();
+    fetchMaterials();
   }, [token]);
 
   // Handle file upload
@@ -79,7 +109,7 @@ export default function OrderLinkPage({ params }) {
   // Handle material receipt form change
   const handleMaterialFormChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     setMaterialForm(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -89,18 +119,18 @@ export default function OrderLinkPage({ params }) {
   // Submit material receipt
   const handleMaterialSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       setMaterialForm(prev => ({ ...prev, isSubmitting: true, error: null, success: null }));
-      
+
       // Validation
       if (!materialForm.confirmed) {
         throw new Error('You must confirm that you have received the materials');
       }
-      
+
       // In a real implementation, you would upload the photo and then submit the form
       // For now, we'll just simulate a successful submission
-      
+
       // Simulated API call - replace with actual endpoint when available
       setTimeout(() => {
         setMaterialForm({
@@ -112,7 +142,7 @@ export default function OrderLinkPage({ params }) {
           success: 'Material receipt confirmed successfully'
         });
       }, 1000);
-      
+
     } catch (err) {
       setMaterialForm(prev => ({
         ...prev,
@@ -126,12 +156,12 @@ export default function OrderLinkPage({ params }) {
   // Handle progress form change
   const handleProgressFormChange = (e) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'number') {
       // Ensure pcsFinished is not more than remaining
-      const remaining = orderLink?.Order ? orderLink.Order.targetPcs - orderLink.Order.completedPcs : 0;
+      const remaining = orderLink?.order ? orderLink.order.targetPcs - orderLink.order.completedPcs : 0;
       const newValue = Math.min(parseInt(value, 10) || 0, remaining);
-      
+
       setProgressForm(prev => ({
         ...prev,
         [name]: newValue
@@ -160,17 +190,17 @@ export default function OrderLinkPage({ params }) {
   // Submit progress report
   const handleProgressSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       setProgressForm(prev => ({ ...prev, isSubmitting: true, error: null, success: null }));
-      
+
       // Validation
       if (!progressForm.pcsFinished || progressForm.pcsFinished <= 0) {
         throw new Error('Completed pieces must be greater than 0');
       }
-      
+
       // Submit progress report via API
-      const response = await fetch(`/api/order-links/${token}/progress`, {
+      const response = await fetch(`http://localhost:8080/api/order-links/${token}/progress`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -182,14 +212,14 @@ export default function OrderLinkPage({ params }) {
           note: progressForm.note || null
         })
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to submit progress report');
       }
-      
+
       const data = await response.json();
-      
+
       // Success - reset form and refresh order link data
       setProgressForm({
         pcsFinished: 0,
@@ -200,10 +230,10 @@ export default function OrderLinkPage({ params }) {
         error: null,
         success: data.message || 'Progress report submitted successfully'
       });
-      
+
       // Refresh order link data
-      fetchOrderLink();
-      
+      window.location.reload();
+
     } catch (err) {
       setProgressForm(prev => ({
         ...prev,
@@ -211,6 +241,75 @@ export default function OrderLinkPage({ params }) {
         error: err.message
       }));
       console.error('Error submitting progress report:', err);
+    }
+  };
+
+  // Handle material usage form changes
+  const handleMaterialUsageChange = (e) => {
+    const { name, value, type } = e.target;
+
+    setMaterialUsageForm(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseFloat(value) || 0 : value
+    }));
+  };
+
+  // Submit material usage
+  const handleMaterialUsageSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      setMaterialUsageForm(prev => ({ ...prev, isSubmitting: true, error: null, success: null }));
+
+      // Validation
+      if (!materialUsageForm.materialId) {
+        throw new Error('Please select a material');
+      }
+
+      if (!materialUsageForm.quantity || materialUsageForm.quantity <= 0) {
+        throw new Error('Quantity must be greater than 0');
+      }
+
+      // Submit material usage via API
+      const response = await fetch(`http://localhost:8080/api/order-links/${token}/materials`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          materialId: parseInt(materialUsageForm.materialId),
+          quantity: materialUsageForm.quantity,
+          notes: materialUsageForm.notes || null
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to record material usage');
+      }
+
+      const data = await response.json();
+
+      // Success - reset form and refresh order link data
+      setMaterialUsageForm({
+        materialId: '',
+        quantity: 0,
+        notes: '',
+        isSubmitting: false,
+        error: null,
+        success: data.message || 'Material usage recorded successfully'
+      });
+
+      // Refresh order link data
+      window.location.reload();
+
+    } catch (err) {
+      setMaterialUsageForm(prev => ({
+        ...prev,
+        isSubmitting: false,
+        error: err.message
+      }));
+      console.error('Error recording material usage:', err);
     }
   };
 
@@ -258,7 +357,7 @@ export default function OrderLinkPage({ params }) {
     return null;
   }
 
-  const { Order, User } = orderLink;
+  const { order: Order, user: User } = orderLink;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -273,12 +372,11 @@ export default function OrderLinkPage({ params }) {
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                Order.status === 'completed' ? 'bg-green-100 text-green-800' :
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${Order.status === 'completed' ? 'bg-green-100 text-green-800' :
                 Order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                Order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                'bg-blue-100 text-blue-800'
-              }`}>
+                  Order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                    'bg-blue-100 text-blue-800'
+                }`}>
                 {Order.status}
               </span>
               <span className="text-sm text-gray-500">
@@ -295,39 +393,45 @@ export default function OrderLinkPage({ params }) {
           <nav className="flex -mb-px">
             <button
               onClick={() => setActiveTab('details')}
-              className={`py-4 px-6 border-b-2 font-medium text-sm ${
-                activeTab === 'details'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-4 px-6 border-b-2 font-medium text-sm ${activeTab === 'details'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Order Details
             </button>
             <button
               onClick={() => setActiveTab('materials')}
-              className={`py-4 px-6 border-b-2 font-medium text-sm ${
-                activeTab === 'materials'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-4 px-6 border-b-2 font-medium text-sm ${activeTab === 'materials'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Material Receipt
             </button>
             <button
               onClick={() => setActiveTab('progress')}
-              className={`py-4 px-6 border-b-2 font-medium text-sm ${
-                activeTab === 'progress'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-4 px-6 border-b-2 font-medium text-sm ${activeTab === 'progress'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Progress Report
             </button>
-            <Link 
-              href={`/order-link/${token}/remaining-fabric`}
+            <button
+              onClick={() => setActiveTab('material-usage')}
+              className={`py-4 px-6 border-b-2 font-medium text-sm ${activeTab === 'material-usage'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+            >
+              Material Usage
+            </button>
+            <Link
+              href={`/order-link/${token}/remaining-materials`}
               className="py-4 px-6 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
             >
-              Remaining Fabric
+              Remaining Materials
             </Link>
           </nav>
         </div>
@@ -351,12 +455,11 @@ export default function OrderLinkPage({ params }) {
                 <div>
                   <dt className="text-sm font-medium text-gray-500">Status</dt>
                   <dd className="mt-1 text-sm">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      Order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${Order.status === 'completed' ? 'bg-green-100 text-green-800' :
                       Order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                      Order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
+                        Order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                          'bg-blue-100 text-blue-800'
+                      }`}>
                       {Order.status}
                     </span>
                   </dd>
@@ -505,6 +608,166 @@ export default function OrderLinkPage({ params }) {
           </div>
         )}
 
+        {/* Material Usage Tab */}
+        {activeTab === 'material-usage' && (
+          <div className="bg-white shadow overflow-hidden rounded-lg">
+            <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">Material Usage</h2>
+              <p className="mt-1 text-gray-500">Record materials used for this order.</p>
+            </div>
+            <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
+              {/* Material Usage Form */}
+              <form onSubmit={handleMaterialUsageSubmit} className="space-y-6">
+                {/* Form success/error messages */}
+                {materialUsageForm.success && (
+                  <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-green-800">{materialUsageForm.success}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {materialUsageForm.error && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-red-800">{materialUsageForm.error}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Material Selection */}
+                <div>
+                  <label htmlFor="materialId" className="block text-sm font-medium text-gray-700">
+                    Material *
+                  </label>
+                  <select
+                    id="materialId"
+                    name="materialId"
+                    value={materialUsageForm.materialId}
+                    onChange={handleMaterialUsageChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  >
+                    <option value="">Select a material</option>
+                    {materials.map(material => (
+                      <option key={material.id} value={material.id}>
+                        {material.name} ({material.code}) - {material.qtyOnHand} {material.unit} available
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Quantity */}
+                <div>
+                  <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                    Quantity Used *
+                  </label>
+                  <div className="mt-1 flex rounded-md shadow-sm">
+                    <input
+                      type="number"
+                      name="quantity"
+                      id="quantity"
+                      min="0.001"
+                      step="0.001"
+                      value={materialUsageForm.quantity}
+                      onChange={handleMaterialUsageChange}
+                      className="flex-1 focus:ring-blue-500 focus:border-blue-500 block w-full min-w-0 rounded-md sm:text-sm border-gray-300"
+                      required
+                    />
+                    <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
+                      {materials.find(m => m.id === parseInt(materialUsageForm.materialId))?.unit || 'units'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+                    Notes
+                  </label>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    rows={3}
+                    value={materialUsageForm.notes}
+                    onChange={handleMaterialUsageChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Add any notes about this material usage..."
+                  ></textarea>
+                </div>
+
+                {/* Submit Button */}
+                <div>
+                  <button
+                    type="submit"
+                    disabled={materialUsageForm.isSubmitting || !materialUsageForm.materialId || materialUsageForm.quantity <= 0}
+                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {materialUsageForm.isSubmitting ? 'Recording...' : 'Record Material Usage'}
+                  </button>
+                </div>
+              </form>
+
+              {/* Material Usage History */}
+              <div className="mt-10">
+                <h3 className="text-base font-medium text-gray-900 mb-4">Material Usage History</h3>
+                {orderLink?.order?.materialMovements && orderLink.order.materialMovements.length > 0 ? (
+                  <div className="flow-root">
+                    <ul className="-mb-8">
+                      {orderLink.order.materialMovements.map((movement, movementIdx) => (
+                        <li key={movement.id}>
+                          <div className="relative pb-8">
+                            {movementIdx !== orderLink.order.materialMovements.length - 1 ? (
+                              <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
+                            ) : null}
+                            <div className="relative flex space-x-3">
+                              <div>
+                                <span className="h-8 w-8 rounded-full bg-red-500 flex items-center justify-center ring-8 ring-white">
+                                  <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                                  </svg>
+                                </span>
+                              </div>
+                              <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                                <div>
+                                  <p className="text-sm text-gray-500">
+                                    Used <span className="font-medium text-gray-900">{movement.quantity} {movement.unit}</span> of{' '}
+                                    <span className="font-medium text-gray-900">{movement.material.name}</span>
+                                    {movement.notes && <span> - {movement.notes}</span>}
+                                  </p>
+                                </div>
+                                <div className="text-right text-sm whitespace-nowrap text-gray-500">
+                                  {formatDate(movement.movementDate)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">No material usage recorded yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Progress Report Tab */}
         {activeTab === 'progress' && (
           <div className="bg-white shadow overflow-hidden rounded-lg">
@@ -518,14 +781,13 @@ export default function OrderLinkPage({ params }) {
                 <h3 className="text-base font-medium text-gray-900 mb-2">Current Progress</h3>
                 <div className="flex items-center mb-2">
                   <div className="w-full bg-gray-200 rounded-full h-2.5 mr-2 flex-grow">
-                    <div 
-                      className={`h-2.5 rounded-full ${
-                        Order.completedPcs / Order.targetPcs < 0.3 
-                          ? 'bg-red-500' 
-                          : Order.completedPcs / Order.targetPcs < 0.7 
-                            ? 'bg-yellow-500' 
-                            : 'bg-green-500'
-                      }`} 
+                    <div
+                      className={`h-2.5 rounded-full ${Order.completedPcs / Order.targetPcs < 0.3
+                        ? 'bg-red-500'
+                        : Order.completedPcs / Order.targetPcs < 0.7
+                          ? 'bg-yellow-500'
+                          : 'bg-green-500'
+                        }`}
                       style={{ width: `${Math.round((Order.completedPcs / Order.targetPcs) * 100)}%` }}
                     ></div>
                   </div>
@@ -673,13 +935,13 @@ export default function OrderLinkPage({ params }) {
               {/* Progress History */}
               <div className="mt-10">
                 <h3 className="text-base font-medium text-gray-900 mb-4">Progress History</h3>
-                {Order.ProgressReports && Order.ProgressReports.length > 0 ? (
+                {Order.progressReports && Order.progressReports.length > 0 ? (
                   <div className="flow-root">
                     <ul className="-mb-8">
-                      {Order.ProgressReports.map((report, reportIdx) => (
+                      {Order.progressReports.map((report, reportIdx) => (
                         <li key={report.id}>
                           <div className="relative pb-8">
-                            {reportIdx !== Order.ProgressReports.length - 1 ? (
+                            {reportIdx !== Order.progressReports.length - 1 ? (
                               <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
                             ) : null}
                             <div className="relative flex space-x-3">

@@ -114,13 +114,14 @@ export default function ProductSelector({
   const handleQuantityChange = (productId, quantity) => {
     // Find the product to check stock limits
     const product = products.find(p => p.id === productId);
-    const maxQuantity = product ? product.qtyOnHand : 0;
+    const currentStock = product ? product.qtyOnHand : 0;
 
-    // Ensure quantity doesn't exceed stock and isn't negative
-    const validQuantity = Math.max(0, Math.min(quantity, maxQuantity));
+    // Allow any positive quantity, even if it exceeds current stock
+    // This is because admin can create orders for out-of-stock items
+    const validQuantity = Math.max(0, quantity);
 
     if (onProductChange) {
-      onProductChange(productId, validQuantity);
+      onProductChange(productId, validQuantity, currentStock); // Pass current stock for reference
     }
   };
 
@@ -193,36 +194,59 @@ export default function ProductSelector({
   return (
     <div className={`space-y-4 ${className}`}>
       {/* PROMINENT SUMMARY SECTION */}
-      {selectedProducts.length > 0 && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">📦</span>
+      {selectedProducts.length > 0 && (() => {
+        // Calculate restock requirements
+        const productsNeedingRestock = selectedProducts.filter(sp => {
+          const product = products.find(p => p.id === sp.productId);
+          return product && sp.quantity > product.qtyOnHand;
+        });
+
+        const totalNeedRestock = productsNeedingRestock.reduce((sum, sp) => {
+          const product = products.find(p => p.id === sp.productId);
+          return sum + (sp.quantity - (product?.qtyOnHand || 0));
+        }, 0);
+
+        return (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">📦</span>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-900">Selected Products Summary</h3>
+                  <div className="flex items-center space-x-4 mt-1 flex-wrap">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                      Selected Products: {selectedProducts.length} items
+                    </span>
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                      Total Quantity: {selectedProducts.reduce((sum, p) => sum + p.quantity, 0)} pcs
+                    </span>
+                    {productsNeedingRestock.length > 0 && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+                        📦 Need Restock: {productsNeedingRestock.length} products ({totalNeedRestock} pcs)
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-blue-900">Selected Products Summary</h3>
-                <div className="flex items-center space-x-4 mt-1">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                    Selected Products: {selectedProducts.length} items
-                  </span>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                    Total Quantity: {selectedProducts.reduce((sum, p) => sum + p.quantity, 0)} pcs
-                  </span>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-blue-600">
+                  {selectedProducts.reduce((sum, p) => sum + p.quantity, 0)}
                 </div>
+                <div className="text-sm text-blue-500">Total Pcs</div>
+                {productsNeedingRestock.length > 0 && (
+                  <div className="text-sm text-orange-600 font-medium mt-1">
+                    +{totalNeedRestock} need restock
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-blue-600">
-                {selectedProducts.reduce((sum, p) => sum + p.quantity, 0)}
-              </div>
-              <div className="text-sm text-blue-500">Total Pcs</div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Search and Filter Controls */}
       <div className="space-y-3">
@@ -327,37 +351,42 @@ export default function ProductSelector({
                         <input
                           type="number"
                           min="0"
-                          max={product.qtyOnHand}
                           value={currentQuantity}
                           onChange={(e) => handleQuantityChange(product.id, parseInt(e.target.value) || 0)}
                           className={`flex-1 px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 min-w-0 ${product.qtyOnHand === 0
-                            ? 'border-red-300 bg-red-50 cursor-not-allowed'
-                            : currentQuantity === product.qtyOnHand
-                              ? 'border-yellow-300 focus:ring-yellow-500 focus:border-yellow-500'
+                            ? 'border-orange-300 bg-orange-50 focus:ring-orange-500 focus:border-orange-500'
+                            : currentQuantity > product.qtyOnHand
+                              ? 'border-yellow-300 bg-yellow-50 focus:ring-yellow-500 focus:border-yellow-500'
                               : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                             }`}
-                          placeholder={product.qtyOnHand === 0 ? "Out of stock" : "0"}
-                          disabled={product.qtyOnHand === 0}
+                          placeholder={product.qtyOnHand === 0 ? "Enter qty (will restock)" : "0"}
                         />
                       </div>
-                      {product.qtyOnHand === 0 && (
+                      {product.qtyOnHand === 0 && currentQuantity > 0 && (
                         <div className="flex items-center justify-center mb-1">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                            ⚠ Out of Stock
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                            📦 Need Restock: {currentQuantity}
                           </span>
                         </div>
                       )}
-                      {currentQuantity === product.qtyOnHand && currentQuantity > 0 && (
+                      {product.qtyOnHand === 0 && currentQuantity === 0 && (
+                        <div className="flex items-center justify-center mb-1">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-600">
+                            📋 Out of Stock (Can Order)
+                          </span>
+                        </div>
+                      )}
+                      {currentQuantity > product.qtyOnHand && product.qtyOnHand > 0 && (
                         <div className="flex items-center justify-center mb-1">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                            ⚠ Max Stock
+                            📦 Need: +{currentQuantity - product.qtyOnHand} stock
                           </span>
                         </div>
                       )}
-                      {isSelected && product.qtyOnHand > 0 && (
+                      {isSelected && currentQuantity <= product.qtyOnHand && product.qtyOnHand > 0 && (
                         <div className="flex items-center justify-center">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                            ✓ Selected
+                            ✓ In Stock
                           </span>
                         </div>
                       )}
