@@ -12,7 +12,7 @@ const getProductColours = asyncHandler(async (req, res) => {
 
         const colours = await prisma.productColour.findMany({
             where: { productId },
-            orderBy: { colourName: 'asc' }
+            orderBy: { colorName: 'asc' }
         });
 
         res.status(200).json(colours);
@@ -59,12 +59,12 @@ const searchProductColours = asyncHandler(async (req, res) => {
         const colours = await prisma.productColour.findMany({
             where: {
                 productId,
-                colourName: {
+                colorName: {
                     contains: colourName,
                     mode: 'insensitive'
                 }
             },
-            orderBy: { colourName: 'asc' }
+            orderBy: { colorName: 'asc' }
         });
 
         res.status(200).json(colours);
@@ -80,11 +80,11 @@ const searchProductColours = asyncHandler(async (req, res) => {
 const createProductColour = asyncHandler(async (req, res) => {
     try {
         const productId = parseInt(req.params.productId);
-        const { colourName, colourCode, hexCode } = req.body;
+        const { colorName, colorCode } = req.body;
 
         // Validation
-        if (!colourName) {
-            return res.status(400).json({ message: 'Colour name is required' });
+        if (!colorName) {
+            return res.status(400).json({ message: 'Color name is required' });
         }
 
         // Check if product exists
@@ -95,23 +95,23 @@ const createProductColour = asyncHandler(async (req, res) => {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        // Check for duplicate colour name for this product
+        // Check for duplicate color name for this product
         const existingColour = await prisma.productColour.findFirst({
             where: {
                 productId,
-                colourName
+                colorName
             }
         });
         if (existingColour) {
-            return res.status(400).json({ message: 'Colour name already exists for this product' });
+            return res.status(400).json({ message: 'Color name already exists for this product' });
         }
 
         const colour = await prisma.productColour.create({
             data: {
                 productId,
-                colourName,
-                colourCode,
-                hexCode
+                colorName,
+                colorCode,
+                isActive: true
             }
         });
 
@@ -129,7 +129,7 @@ const updateProductColour = asyncHandler(async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         const productId = parseInt(req.params.productId);
-        const { colourName, colourCode, hexCode } = req.body;
+        const { colorName, colorCode } = req.body;
 
         const colour = await prisma.productColour.findFirst({
             where: {
@@ -141,26 +141,25 @@ const updateProductColour = asyncHandler(async (req, res) => {
             return res.status(404).json({ message: 'Product colour not found' });
         }
 
-        // Check for duplicate colour name (excluding current record)
-        if (colourName && colourName !== colour.colourName) {
+        // Check for duplicate color name (excluding current record)
+        if (colorName && colorName !== colour.colorName) {
             const existingColour = await prisma.productColour.findFirst({
                 where: {
                     productId,
-                    colourName,
+                    colorName,
                     id: { not: id }
                 }
             });
             if (existingColour) {
-                return res.status(400).json({ message: 'Colour name already exists for this product' });
+                return res.status(400).json({ message: 'Color name already exists for this product' });
             }
         }
 
         const updatedColour = await prisma.productColour.update({
             where: { id },
             data: {
-                colourName: colourName || colour.colourName,
-                colourCode: colourCode !== undefined ? colourCode : colour.colourCode,
-                hexCode: hexCode !== undefined ? hexCode : colour.hexCode
+                colorName: colorName || colour.colorName,
+                colorCode: colorCode !== undefined ? colorCode : colour.colorCode
             }
         });
 

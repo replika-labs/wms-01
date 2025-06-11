@@ -35,6 +35,36 @@ const clearAllCaches = () => {
 };
 
 /**
+ * Helper function to calculate final price with variation adjustment
+ */
+const calculateFinalPrice = (basePrice, priceAdjustment) => {
+    if (!basePrice) return null;
+    if (!priceAdjustment) return parseFloat(basePrice);
+    return parseFloat(basePrice) + parseFloat(priceAdjustment);
+};
+
+/**
+ * Helper function to add final price to product
+ */
+const addFinalPriceToProduct = (product) => {
+    const finalPrice = calculateFinalPrice(
+        product.price,
+        product.productVariation?.priceAdjustment
+    );
+    return {
+        ...product,
+        finalPrice: finalPrice
+    };
+};
+
+/**
+ * Helper function to add final price to multiple products
+ */
+const addFinalPriceToProducts = (products) => {
+    return products.map(addFinalPriceToProduct);
+};
+
+/**
  * @desc    Get all products with filtering and pagination
  * @route   GET /api/products
  * @access  Private
@@ -46,7 +76,8 @@ const getProducts = asyncHandler(async (req, res) => {
             limit = 50,
             search,
             category,
-            isActive = 'true',
+            isActive = 'all',
+            status,
             sortBy = 'name',
             sortOrder = 'asc'
         } = req.query;
@@ -65,8 +96,26 @@ const getProducts = asyncHandler(async (req, res) => {
         // Build where clause
         const where = {};
 
-        if (isActive !== 'all') {
-            where.isActive = isActive === 'true';
+        // Handle status filter (from frontend) or isActive filter (legacy)
+        let activeFilter = isActive;
+        if (status) {
+            // Map frontend status values to isActive values
+            switch (status) {
+                case 'active':
+                    activeFilter = 'true';
+                    break;
+                case 'inactive':
+                    activeFilter = 'false';
+                    break;
+                case 'all':
+                default:
+                    activeFilter = 'all';
+                    break;
+            }
+        }
+
+        if (activeFilter !== 'all') {
+            where.isActive = activeFilter === 'true';
         }
 
         if (category && category !== 'all') {
@@ -96,16 +145,14 @@ const getProducts = asyncHandler(async (req, res) => {
                             unit: true
                         }
                     },
-                    colours: {
-                        where: { isActive: true },
+                    productColor: {
                         select: {
                             id: true,
                             colorName: true,
                             colorCode: true
                         }
                     },
-                    variations: {
-                        where: { isActive: true },
+                    productVariation: {
                         select: {
                             id: true,
                             variationType: true,
@@ -132,9 +179,11 @@ const getProducts = asyncHandler(async (req, res) => {
             prisma.product.count({ where })
         ]);
 
+        const productsWithFinalPrice = addFinalPriceToProducts(products);
+
         const result = {
             success: true,
-            products,
+            products: productsWithFinalPrice,
             pagination: {
                 total: totalCount,
                 pages: Math.ceil(totalCount / parseInt(limit)),
@@ -169,10 +218,18 @@ const getProductById = asyncHandler(async (req, res) => {
         // Clear cache on read to ensure fresh data for individual product views
         const cacheKey = `product_${req.params.id}`;
 
+        const productId = parseInt(req.params.id);
+
+        if (isNaN(productId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid product ID'
+            });
+        }
+
         const product = await prisma.product.findFirst({
             where: {
-                id: parseInt(req.params.id),
-                isActive: true
+                id: productId
             },
             include: {
                 baseMaterial: {
@@ -184,30 +241,24 @@ const getProductById = asyncHandler(async (req, res) => {
                         qtyOnHand: true
                     }
                 },
-                colours: {
-                    where: { isActive: true },
-                    orderBy: { id: 'asc' }
+                productColor: {
+                    select: {
+                        id: true,
+                        colorName: true,
+                        colorCode: true
+                    }
                 },
-                variations: {
-                    where: { isActive: true },
-                    orderBy: { id: 'asc' }
+                productVariation: {
+                    select: {
+                        id: true,
+                        variationType: true,
+                        variationValue: true,
+                        priceAdjustment: true
+                    }
                 },
                 photos: {
                     where: { isActive: true },
                     orderBy: { sortOrder: 'asc' }
-                },
-                productMaterials: {
-                    include: {
-                        material: {
-                            select: {
-                                id: true,
-                                name: true,
-                                code: true,
-                                unit: true,
-                                qtyOnHand: true
-                            }
-                        }
-                    }
                 }
             }
         });
@@ -219,9 +270,21 @@ const getProductById = asyncHandler(async (req, res) => {
             });
         }
 
+        // Calculate final price including variation adjustment
+        let finalPrice = product.price;
+        if (product.productVariation && product.productVariation.priceAdjustment && product.price) {
+            finalPrice = parseFloat(product.price) + parseFloat(product.productVariation.priceAdjustment);
+        }
+
+        // Add calculated final price to the response
+        const productWithFinalPrice = {
+            ...product,
+            finalPrice: finalPrice
+        };
+
         res.json({
             success: true,
-            product
+            product: productWithFinalPrice
         });
     } catch (error) {
         console.error('Error fetching product:', error);
@@ -242,7 +305,6 @@ const createProduct = asyncHandler(async (req, res) => {
     try {
         const {
             name,
-            code,
             materialId,
             category,
             price,
@@ -250,33 +312,58 @@ const createProduct = asyncHandler(async (req, res) => {
             unit = 'pcs',
             description,
             defaultTarget = 0,
-            colours = [],
-            variations = [],
-            materials = []
+            productColorId,
+            productVariationId
         } = req.body;
 
         console.log('Create product request body:', req.body);
         console.log('Extracted qtyOnHand:', qtyOnHand, typeof qtyOnHand);
 
         // Validation
-        if (!name || !code) {
+        if (!name || !category) {
             return res.status(400).json({
                 success: false,
-                message: 'Name and code are required'
+                message: 'Name and category are required'
             });
         }
 
-        // Check for duplicate code
-        const existingProduct = await prisma.product.findFirst({
-            where: { code, isActive: true }
-        });
-
-        if (existingProduct) {
+        // Validate category
+        const validCategories = ['Hijab', 'Scrunchie'];
+        if (!validCategories.includes(category)) {
             return res.status(400).json({
                 success: false,
-                message: 'Product code already exists'
+                message: 'Invalid category. Must be Hijab or Scrunchie'
             });
         }
+
+        // Generate product code
+        const generateProductCode = async (category) => {
+            const categoryPrefix = category.substring(0, 4).toUpperCase();
+            const today = new Date();
+            const dateStr = today.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD format
+
+            // Find the latest sequence for today
+            const latestProduct = await prisma.product.findFirst({
+                where: {
+                    code: {
+                        startsWith: `${categoryPrefix}-${dateStr}-`
+                    }
+                },
+                orderBy: {
+                    code: 'desc'
+                }
+            });
+
+            let sequence = 1;
+            if (latestProduct) {
+                const lastSequence = parseInt(latestProduct.code.split('-')[2]);
+                sequence = lastSequence + 1;
+            }
+
+            return `${categoryPrefix}-${dateStr}-${sequence.toString().padStart(3, '0')}`;
+        };
+
+        const code = await generateProductCode(category);
 
         // Validate base material if provided
         if (materialId) {
@@ -298,6 +385,8 @@ const createProduct = asyncHandler(async (req, res) => {
                 name,
                 code,
                 materialId: materialId ? parseInt(materialId) : null,
+                productColorId: productColorId ? parseInt(productColorId) : null,
+                productVariationId: productVariationId ? parseInt(productVariationId) : null,
                 category,
                 price: price ? parseFloat(price) : null,
                 unit,
@@ -308,46 +397,22 @@ const createProduct = asyncHandler(async (req, res) => {
             }
         });
 
-        // Create colours if provided
-        if (colours.length > 0) {
-            const colourData = colours.map(colour => ({
+        // Create photos if processed images are available
+        if (req.processedImages && req.processedImages.length > 0) {
+            const photoData = req.processedImages.map((image, index) => ({
                 productId: product.id,
-                colorName: colour.colorName,
-                colorCode: colour.colorCode || null,
+                photoPath: image.photoUrl,
+                thumbnailPath: image.thumbnailUrl,
+                description: `Product photo ${index + 1}`,
+                isPrimary: image.isMainPhoto || index === 0,
+                sortOrder: image.sortOrder || index,
+                fileSize: image.fileSize,
+                mimeType: image.mimeType,
                 isActive: true
             }));
 
-            await prisma.productColour.createMany({
-                data: colourData
-            });
-        }
-
-        // Create variations if provided
-        if (variations.length > 0) {
-            const variationData = variations.map(variation => ({
-                productId: product.id,
-                variationType: variation.variationType,
-                variationValue: variation.variationValue,
-                priceAdjustment: variation.priceAdjustment ? parseFloat(variation.priceAdjustment) : null,
-                isActive: true
-            }));
-
-            await prisma.productVariation.createMany({
-                data: variationData
-            });
-        }
-
-        // Create product materials relationships if provided
-        if (materials.length > 0) {
-            const materialData = materials.map(material => ({
-                productId: product.id,
-                materialId: parseInt(material.materialId),
-                quantity: parseFloat(material.quantity),
-                unit: material.unit || 'pcs'
-            }));
-
-            await prisma.productMaterial.createMany({
-                data: materialData
+            await prisma.productPhoto.createMany({
+                data: photoData
             });
         }
 
@@ -359,20 +424,19 @@ const createProduct = asyncHandler(async (req, res) => {
             where: { id: product.id },
             include: {
                 baseMaterial: true,
-                colours: { where: { isActive: true } },
-                variations: { where: { isActive: true } },
-                productMaterials: {
-                    include: {
-                        material: true
-                    }
-                }
+                productColor: true,
+                productVariation: true,
+                photos: { where: { isActive: true } }
             }
         });
+
+        // Add final price calculation to response
+        const productWithFinalPrice = addFinalPriceToProduct(completeProduct);
 
         res.status(201).json({
             success: true,
             message: 'Product created successfully',
-            product: completeProduct
+            product: productWithFinalPrice
         });
     } catch (error) {
         console.error('Error creating product:', error);
@@ -394,21 +458,23 @@ const updateProduct = asyncHandler(async (req, res) => {
         const productId = parseInt(req.params.id);
         const {
             name,
-            code,
             materialId,
             category,
             price,
             unit,
             description,
             defaultTarget,
-            qtyOnHand
+            qtyOnHand,
+            productColorId,
+            productVariationId,
+            isActive
         } = req.body;
 
         console.log('Update product request body:', req.body);
         console.log('Extracted qtyOnHand:', qtyOnHand, typeof qtyOnHand);
 
         const product = await prisma.product.findFirst({
-            where: { id: productId, isActive: true }
+            where: { id: productId }
         });
 
         if (!product) {
@@ -418,16 +484,13 @@ const updateProduct = asyncHandler(async (req, res) => {
             });
         }
 
-        // Check for duplicate code if code is being changed
-        if (code && code !== product.code) {
-            const existingProduct = await prisma.product.findFirst({
-                where: { code, isActive: true, id: { not: productId } }
-            });
-
-            if (existingProduct) {
+        // Validate category if provided
+        if (category) {
+            const validCategories = ['Hijab', 'Scrunchie'];
+            if (!validCategories.includes(category)) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Product code already exists'
+                    message: 'Invalid category. Must be Hijab or Scrunchie'
                 });
             }
         }
@@ -451,34 +514,35 @@ const updateProduct = asyncHandler(async (req, res) => {
             where: { id: productId },
             data: {
                 name: name || product.name,
-                code: code || product.code,
                 materialId: materialId !== undefined ? (materialId ? parseInt(materialId) : null) : product.materialId,
+                productColorId: productColorId !== undefined ? (productColorId ? parseInt(productColorId) : null) : product.productColorId,
+                productVariationId: productVariationId !== undefined ? (productVariationId ? parseInt(productVariationId) : null) : product.productVariationId,
                 category: category !== undefined ? category : product.category,
                 price: price !== undefined ? (price ? parseFloat(price) : null) : product.price,
                 unit: unit || product.unit,
                 description: description !== undefined ? description : product.description,
                 defaultTarget: defaultTarget !== undefined ? parseInt(defaultTarget) || 0 : product.defaultTarget,
-                qtyOnHand: qtyOnHand !== undefined ? (parseInt(qtyOnHand) || 0) : product.qtyOnHand
+                qtyOnHand: qtyOnHand !== undefined ? (parseInt(qtyOnHand) || 0) : product.qtyOnHand,
+                isActive: isActive !== undefined ? isActive : product.isActive
             },
             include: {
                 baseMaterial: true,
-                colours: { where: { isActive: true } },
-                variations: { where: { isActive: true } },
-                productMaterials: {
-                    include: {
-                        material: true
-                    }
-                }
+                productColor: true,
+                productVariation: true,
+                photos: { where: { isActive: true } }
             }
         });
 
         // Clear all related caches
         clearAllCaches();
 
+        // Add final price calculation to response
+        const productWithFinalPrice = addFinalPriceToProduct(updatedProduct);
+
         res.json({
             success: true,
             message: 'Product updated successfully',
-            product: updatedProduct
+            product: productWithFinalPrice
         });
     } catch (error) {
         console.error('Error updating product:', error);
@@ -500,7 +564,7 @@ const deleteProduct = asyncHandler(async (req, res) => {
         const productId = parseInt(req.params.id);
 
         const product = await prisma.product.findFirst({
-            where: { id: productId, isActive: true }
+            where: { id: productId }
         });
 
         if (!product) {
@@ -512,10 +576,10 @@ const deleteProduct = asyncHandler(async (req, res) => {
 
         // Check if product is used in any active orders
         const orderProducts = await prisma.orderProduct.findMany({
-            where: { productId },
-            include: {
+            where: {
+                productId: productId,
                 order: {
-                    where: { isActive: true }
+                    isActive: true
                 }
             }
         });
@@ -527,10 +591,46 @@ const deleteProduct = asyncHandler(async (req, res) => {
             });
         }
 
-        // Soft delete product
-        await prisma.product.update({
-            where: { id: productId },
-            data: { isActive: false }
+        // Use transaction to ensure data consistency
+        await prisma.$transaction(async (tx) => {
+            // Get all photos before deletion for file cleanup
+            const photos = await tx.productPhoto.findMany({
+                where: { productId: productId },
+                select: { photoPath: true, thumbnailPath: true }
+            });
+
+            // Delete related records in correct order (due to foreign key constraints)
+
+            // 1. Delete product progress photos (child of product progress reports)
+            await tx.productProgressPhoto.deleteMany({
+                where: {
+                    productProgressReport: {
+                        productId: productId
+                    }
+                }
+            });
+
+            // 2. Delete product progress reports
+            await tx.productProgressReport.deleteMany({
+                where: { productId: productId }
+            });
+
+            // 3. Delete progress reports
+            await tx.progressReport.deleteMany({
+                where: { productId: productId }
+            });
+
+            // 4. Delete the product (this will cascade delete ProductPhoto and RecurringPlan due to onDelete: Cascade)
+            await tx.product.delete({
+                where: { id: productId }
+            });
+
+            // Note: File system cleanup would happen here if needed
+            // photos.forEach(photo => {
+            //     // Delete photo files from file system
+            //     if (photo.photoPath) fs.unlinkSync(photo.photoPath);
+            //     if (photo.thumbnailPath) fs.unlinkSync(photo.thumbnailPath);
+            // });
         });
 
         // Clear all related caches
@@ -538,7 +638,7 @@ const deleteProduct = asyncHandler(async (req, res) => {
 
         res.json({
             success: true,
-            message: `Product ${product.name} deleted successfully`
+            message: `Product "${product.name}" deleted permanently from database`
         });
     } catch (error) {
         console.error('Error deleting product:', error);
@@ -585,6 +685,252 @@ const getProductCategories = asyncHandler(async (req, res) => {
     }
 });
 
+/**
+ * @desc    Get all available product colors
+ * @route   GET /api/products/colors
+ * @access  Private
+ */
+const getProductColors = asyncHandler(async (req, res) => {
+    try {
+        const colors = await prisma.productColour.findMany({
+            where: { isActive: true },
+            select: {
+                id: true,
+                colorName: true,
+                colorCode: true
+            },
+            orderBy: { colorName: 'asc' }
+        });
+
+        res.json({
+            success: true,
+            colors: colors
+        });
+    } catch (error) {
+        console.error('Error fetching colors:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching colors',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Get all available product variations
+ * @route   GET /api/products/variations
+ * @access  Private
+ */
+const getProductVariations = asyncHandler(async (req, res) => {
+    try {
+        const variations = await prisma.productVariation.findMany({
+            where: { isActive: true },
+            select: {
+                id: true,
+                variationType: true,
+                variationValue: true,
+                priceAdjustment: true
+            },
+            orderBy: [
+                { variationType: 'asc' },
+                { variationValue: 'asc' }
+            ]
+        });
+
+        // Group by variation type
+        const groupedVariations = variations.reduce((acc, variation) => {
+            if (!acc[variation.variationType]) {
+                acc[variation.variationType] = [];
+            }
+            acc[variation.variationType].push(variation);
+            return acc;
+        }, {});
+
+        res.json({
+            success: true,
+            variations: groupedVariations,
+            variationTypes: Object.keys(groupedVariations)
+        });
+    } catch (error) {
+        console.error('Error fetching variations:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching variations',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Bulk actions for products
+ * @route   POST /api/products/bulk/:action
+ * @access  Private (Admin only)
+ */
+const bulkDeleteProducts = asyncHandler(async (req, res) => {
+    try {
+        const { productIds } = req.body;
+
+        if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Product IDs array is required'
+            });
+        }
+
+        // Check if any products are used in active orders
+        const orderProducts = await prisma.orderProduct.findMany({
+            where: {
+                productId: { in: productIds.map(id => parseInt(id)) },
+                order: {
+                    isActive: true
+                }
+            }
+        });
+
+        if (orderProducts.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot delete products that are used in existing orders'
+            });
+        }
+
+        const productIdsInt = productIds.map(id => parseInt(id));
+
+        // Use transaction to ensure data consistency
+        await prisma.$transaction(async (tx) => {
+            // Get all photos before deletion for file cleanup
+            const photos = await tx.productPhoto.findMany({
+                where: {
+                    productId: { in: productIdsInt }
+                },
+                select: { photoPath: true, thumbnailPath: true }
+            });
+
+            // Delete related records in correct order (due to foreign key constraints)
+
+            // 1. Delete product progress photos (child of product progress reports)
+            await tx.productProgressPhoto.deleteMany({
+                where: {
+                    productProgressReport: {
+                        productId: { in: productIdsInt }
+                    }
+                }
+            });
+
+            // 2. Delete product progress reports
+            await tx.productProgressReport.deleteMany({
+                where: { productId: { in: productIdsInt } }
+            });
+
+            // 3. Delete progress reports
+            await tx.progressReport.deleteMany({
+                where: { productId: { in: productIdsInt } }
+            });
+
+            // 4. Delete the products (this will cascade delete ProductPhoto and RecurringPlan due to onDelete: Cascade)
+            await tx.product.deleteMany({
+                where: {
+                    id: { in: productIdsInt }
+                }
+            });
+
+            // Note: File system cleanup would happen here if needed
+            // photos.forEach(photo => {
+            //     // Delete photo files from file system
+            //     if (photo.photoPath) fs.unlinkSync(photo.photoPath);
+            //     if (photo.thumbnailPath) fs.unlinkSync(photo.thumbnailPath);
+            // });
+        });
+
+        // Clear all related caches
+        clearAllCaches();
+
+        res.json({
+            success: true,
+            message: `${productIds.length} products deleted permanently from database`
+        });
+    } catch (error) {
+        console.error('Error in bulk delete:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting products',
+            error: error.message
+        });
+    }
+});
+
+const bulkActivateProducts = asyncHandler(async (req, res) => {
+    try {
+        const { productIds } = req.body;
+
+        if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Product IDs array is required'
+            });
+        }
+
+        // Activate products
+        await prisma.product.updateMany({
+            where: {
+                id: { in: productIds.map(id => parseInt(id)) }
+            },
+            data: { isActive: true }
+        });
+
+        // Clear all related caches
+        clearAllCaches();
+
+        res.json({
+            success: true,
+            message: `${productIds.length} products activated successfully`
+        });
+    } catch (error) {
+        console.error('Error in bulk activate:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error activating products',
+            error: error.message
+        });
+    }
+});
+
+const bulkDeactivateProducts = asyncHandler(async (req, res) => {
+    try {
+        const { productIds } = req.body;
+
+        if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Product IDs array is required'
+            });
+        }
+
+        // Deactivate products
+        await prisma.product.updateMany({
+            where: {
+                id: { in: productIds.map(id => parseInt(id)) }
+            },
+            data: { isActive: false }
+        });
+
+        // Clear all related caches
+        clearAllCaches();
+
+        res.json({
+            success: true,
+            message: `${productIds.length} products deactivated successfully`
+        });
+    } catch (error) {
+        console.error('Error in bulk deactivate:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deactivating products',
+            error: error.message
+        });
+    }
+});
+
 module.exports = {
     getProducts,
     getProductById,
@@ -592,6 +938,11 @@ module.exports = {
     updateProduct,
     deleteProduct,
     getProductCategories,
+    getProductColors,
+    getProductVariations,
     clearProductsCache,
-    clearAllCaches
+    clearAllCaches,
+    bulkDeleteProducts,
+    bulkActivateProducts,
+    bulkDeactivateProducts
 }; 

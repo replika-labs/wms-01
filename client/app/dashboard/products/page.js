@@ -42,6 +42,9 @@ export default function ProductsPage() {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [bulkAction, setBulkAction] = useState('');
 
+  // Delete confirmation state
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, productId: null, productName: '' });
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
@@ -221,6 +224,20 @@ export default function ProductsPage() {
   const handleBulkAction = async () => {
     if (!bulkAction || selectedProducts.length === 0) return;
 
+    // Confirm bulk delete
+    if (bulkAction === 'delete') {
+      if (!confirm(`Are you sure you want to delete ${selectedProducts.length} products? This action cannot be undone.`)) {
+        return;
+      }
+    }
+
+    // Handle export separately (placeholder for future implementation)
+    if (bulkAction === 'export') {
+      alert('Export functionality will be implemented soon');
+      setBulkAction('');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:8080/api/products/bulk/${bulkAction}`, {
@@ -232,13 +249,45 @@ export default function ProductsPage() {
         body: JSON.stringify({ productIds: selectedProducts }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        fetchProducts();
+        refreshProducts(); // Use refreshProducts to get latest data
         setSelectedProducts([]);
         setBulkAction('');
+
+        // Show success message (you can enhance this with a proper toast notification)
+        alert(data.message || `Bulk ${bulkAction} completed successfully`);
+      } else {
+        throw new Error(data.message || `Failed to ${bulkAction} products`);
       }
     } catch (error) {
       console.error('Bulk action failed:', error);
+      setError(error.message || `Failed to ${bulkAction} products`);
+    }
+  };
+
+  // Individual delete function
+  const handleDeleteProduct = async (productId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8080/api/products/${productId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        setDeleteConfirm({ show: false, productId: null, productName: '' });
+        refreshProducts(); // Use refreshProducts to get latest data
+      } else {
+        throw new Error('Failed to delete product');
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+      setError('Failed to delete product');
     }
   };
 
@@ -435,7 +484,6 @@ export default function ProductsPage() {
                   <option value="delete">Delete</option>
                   <option value="activate">Activate</option>
                   <option value="deactivate">Deactivate</option>
-                  <option value="export">Export</option>
                 </select>
                 <button
                   onClick={handleBulkAction}
@@ -517,7 +565,7 @@ export default function ProductsPage() {
                               <div className="h-12 w-12 bg-gray-200 rounded-lg overflow-hidden relative">
                                 {product.photos && product.photos.length > 0 ? (
                                   <Image
-                                    src={`http://localhost:8080${product.photos.find(p => p.isMainPhoto)?.thumbnailUrl || product.photos[0]?.thumbnailUrl}`}
+                                    src={`http://localhost:8080${product.photos.find(p => p.isPrimary)?.thumbnailPath || product.photos[0]?.thumbnailPath || product.photos.find(p => p.isPrimary)?.photoPath || product.photos[0]?.photoPath}`}
                                     alt={product.name}
                                     fill
                                     className="object-cover"
@@ -578,7 +626,14 @@ export default function ProductsPage() {
                               >
                                 Edit
                               </Link>
-                              <button className="text-red-600 hover:text-red-900">
+                              <button
+                                onClick={() => setDeleteConfirm({
+                                  show: true,
+                                  productId: product.id,
+                                  productName: product.name
+                                })}
+                                className="text-red-600 hover:text-red-900"
+                              >
                                 Delete
                               </button>
                             </td>
@@ -595,7 +650,7 @@ export default function ProductsPage() {
                       <div className="aspect-square bg-gray-200 relative">
                         {product.photos && product.photos.length > 0 ? (
                           <Image
-                            src={`http://localhost:8080${product.photos.find(p => p.isMainPhoto)?.photoUrl || product.photos[0]?.photoUrl}`}
+                            src={`http://localhost:8080${product.photos.find(p => p.isPrimary)?.photoPath || product.photos[0]?.photoPath}`}
                             alt={product.name}
                             fill
                             className="object-cover"
@@ -680,6 +735,32 @@ export default function ProductsPage() {
                 </div>
               )}
             </>
+          )}
+
+          {/* Delete Confirmation Modal */}
+          {deleteConfirm.show && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Product</h3>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to delete &quot;{deleteConfirm.productName}&quot;? This action cannot be undone.
+                </p>
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => setDeleteConfirm({ show: false, productId: null, productName: '' })}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDeleteProduct(deleteConfirm.productId)}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </DashboardLayout>

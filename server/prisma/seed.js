@@ -343,6 +343,131 @@ async function main() {
 
         console.log('✓ Sample products created')
 
+        // Create sample product colors
+        const productColors = [
+            // Basic colors
+            { colorName: 'Ash Brown', colorCode: 'ASHBR' },
+            { colorName: 'Ash Grey', colorCode: 'ASHGR' },
+            { colorName: 'Beige', colorCode: 'BEIG' },
+            { colorName: 'Burgundy', colorCode: 'BGDY' },
+            { colorName: 'Black', colorCode: 'BLCK' },
+            { colorName: 'Baby Pink', colorCode: 'BPNK' },
+            { colorName: 'Broken White', colorCode: 'BW' },
+            { colorName: 'Cloud', colorCode: 'CLD' },
+            { colorName: 'Cotton', colorCode: 'CTN' },
+            { colorName: 'Dark Ash', colorCode: 'DASH' },
+            { colorName: 'Dark Navy', colorCode: 'DNVY' },
+            { colorName: 'Dark Olive', colorCode: 'DOLV' },
+            { colorName: 'Dusty Pink', colorCode: 'DPNK' },
+            { colorName: 'Forest Green', colorCode: 'FGRN' },
+            { colorName: 'Grey', colorCode: 'GREY' },
+            { colorName: 'Hunter Green', colorCode: 'HGRN' },
+            { colorName: 'Ivory', colorCode: 'IVRY' },
+            { colorName: 'Khaki', colorCode: 'KHAK' },
+            { colorName: 'Light Blue', colorCode: 'LBLU' },
+            { colorName: 'Light Grey', colorCode: 'LGRY' },
+            { colorName: 'Maroon', colorCode: 'MARN' },
+            { colorName: 'Mustard', colorCode: 'MSTD' },
+            { colorName: 'Navy', colorCode: 'NAVY' },
+            { colorName: 'Nude', colorCode: 'NUDE' },
+            { colorName: 'Olive', colorCode: 'OLIV' },
+            { colorName: 'Pink', colorCode: 'PINK' },
+            { colorName: 'Purple', colorCode: 'PRPL' },
+            { colorName: 'Red', colorCode: 'RED' },
+            { colorName: 'Sage Green', colorCode: 'SGRN' },
+            { colorName: 'Tan', colorCode: 'TAN' },
+            { colorName: 'Teal', colorCode: 'TEAL' },
+            { colorName: 'White', colorCode: 'WHT' },
+            { colorName: 'Wine', colorCode: 'WINE' },
+            { colorName: 'Yellow', colorCode: 'YLLOW' }
+        ];
+
+        // Create sample product variations (sizes)
+        const productVariations = [
+            // Standard sizes
+            { variationType: 'Size', variationValue: '180x60' },
+            { variationType: 'Size', variationValue: '190x70' },
+            { variationType: 'Size', variationValue: '200x200' },
+
+            // Additional size variations
+            { variationType: 'Size', variationValue: 'XS' },
+            { variationType: 'Size', variationValue: 'S' },
+            { variationType: 'Size', variationValue: 'M' },
+            { variationType: 'Size', variationValue: 'L' },
+            { variationType: 'Size', variationValue: 'XL' },
+            { variationType: 'Size', variationValue: 'XXL' },
+
+            // Style variations
+            { variationType: 'Style', variationValue: 'Regular' },
+            { variationType: 'Style', variationValue: 'Slim' },
+            { variationType: 'Style', variationValue: 'Loose' },
+            { variationType: 'Style', variationValue: 'Oversized' },
+        ];
+
+        // Create standalone colors and variations
+        for (const color of productColors) {
+            const existingColor = await prisma.productColour.findFirst({
+                where: {
+                    colorName: color.colorName,
+                    colorCode: color.colorCode
+                }
+            });
+
+            if (!existingColor) {
+                await prisma.productColour.create({
+                    data: {
+                        colorName: color.colorName,
+                        colorCode: color.colorCode,
+                        isActive: true
+                    }
+                });
+            }
+        }
+
+        for (const variation of productVariations) {
+            const existingVariation = await prisma.productVariation.findFirst({
+                where: {
+                    variationType: variation.variationType,
+                    variationValue: variation.variationValue
+                }
+            });
+
+            if (!existingVariation) {
+                await prisma.productVariation.create({
+                    data: {
+                        variationType: variation.variationType,
+                        variationValue: variation.variationValue,
+                        priceAdjustment: Math.random() > 0.7 ? (Math.random() * 20000) : null, // 30% chance of price adjustment
+                        isActive: true
+                    }
+                });
+            }
+        }
+
+        // Update existing products to reference colors and variations
+        const existingProducts = await prisma.product.findMany({
+            where: { isActive: true }
+        });
+
+        const allColors = await prisma.productColour.findMany();
+        const allVariations = await prisma.productVariation.findMany();
+
+        for (const product of existingProducts) {
+            // Assign random color and variation to existing products
+            const randomColor = allColors[Math.floor(Math.random() * allColors.length)];
+            const randomVariation = allVariations[Math.floor(Math.random() * allVariations.length)];
+
+            await prisma.product.update({
+                where: { id: product.id },
+                data: {
+                    productColorId: randomColor.id,
+                    productVariationId: randomVariation.id
+                }
+            });
+        }
+
+        console.log('✓ Sample product colors and variations created')
+
         // Create sample contacts
         const contacts = [
             {

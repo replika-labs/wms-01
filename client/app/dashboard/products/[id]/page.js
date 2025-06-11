@@ -106,7 +106,6 @@ export default function ProductDetailPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...product,
           isActive: !product.isActive
         }),
       });
@@ -177,7 +176,7 @@ export default function ProductDetailPage() {
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleStatusToggle}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${product.isActive
+                className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${product.isActive
                   ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
                   : 'bg-green-100 text-green-800 hover:bg-green-200'
                   }`}
@@ -192,7 +191,7 @@ export default function ProductDetailPage() {
               </Link>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 cursor-pointer"
               >
                 Delete
               </button>
@@ -216,7 +215,7 @@ export default function ProductDetailPage() {
                   {/* Main Photo */}
                   <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
                     <img
-                      src={`http://localhost:8080${product.photos[currentPhotoIndex]?.photoUrl}`}
+                      src={`http://localhost:8080${product.photos[currentPhotoIndex]?.photoPath}`}
                       alt={product.name}
                       className="w-full h-full object-cover"
                     />
@@ -233,7 +232,7 @@ export default function ProductDetailPage() {
                             }`}
                         >
                           <img
-                            src={`http://localhost:8080${photo.thumbnailUrl || photo.photoUrl}`}
+                            src={`http://localhost:8080${photo.thumbnailPath || photo.photoPath}`}
                             alt={`${product.name} ${index + 1}`}
                             className="w-full h-full object-cover"
                           />
@@ -308,27 +307,30 @@ export default function ProductDetailPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Price</label>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <label className="block text-sm font-medium text-gray-500">Base Price</label>
+                    <p className="text-lg font-semibold text-gray-900">
                       {product.price ? `Rp ${Number(product.price).toLocaleString('id-ID')}` : '-'}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Current Stock</label>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {product.qtyOnHand} {product.unit}
+                    <label className="block text-sm font-medium text-gray-500">Final Price</label>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {product.finalPrice ? `Rp ${Number(product.finalPrice).toLocaleString('id-ID')}` : '-'}
                     </p>
+                    {product.productVariation?.priceAdjustment && (
+                      <p className="text-sm text-green-600">
+                        +Rp {Number(product.productVariation.priceAdjustment).toLocaleString('id-ID')} variation
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Unit</label>
-                    <p className="text-gray-900 capitalize">{product.unit}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500">Default Target</label>
-                    <p className="text-gray-900">{product.defaultTarget || 0}</p>
+                    <label className="block text-sm font-medium text-gray-500">Current Stock</label>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {product.qtyOnHand} {product.unit}
+                    </p>
                   </div>
                 </div>
 
@@ -353,63 +355,41 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Product Variations */}
-          {product.variations && product.variations.length > 0 && (
+          {/* Product Variation */}
+          {product.productVariation && (
             <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Variations</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Variation</h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {product.variations.map((variation) => (
-                  <div key={variation.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{variation.size}</h3>
-                        <p className="text-sm text-gray-500">Code: {variation.code}</p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${variation.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                        }`}>
-                        {variation.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    {variation.additionalPrice !== 0 && (
-                      <p className="mt-2 text-sm text-gray-600">
-                        Additional Price: {variation.additionalPrice > 0 ? '+' : ''}
-                        Rp {Number(variation.additionalPrice).toLocaleString('id-ID')}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-medium text-gray-900">{product.productVariation.variationType}: {product.productVariation.variationValue}</h3>
+                    {product.productVariation.priceAdjustment && (
+                      <p className="text-sm text-gray-500">
+                        Price Adjustment: {product.productVariation.priceAdjustment > 0 ? '+' : ''}
+                        Rp {Number(product.productVariation.priceAdjustment).toLocaleString('id-ID')}
                       </p>
                     )}
                   </div>
-                ))}
+                </div>
               </div>
             </div>
           )}
 
-          {/* Product Colors */}
-          {product.colours && product.colours.length > 0 && (
+          {/* Product Color */}
+          {product.productColor && (
             <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Available Colors</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Color</h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {product.colours.map((color) => (
-                  <div key={color.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{color.colourName}</h3>
-                        <p className="text-sm text-gray-500">Code: {color.code}</p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${color.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                        }`}>
-                        {color.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    {color.notes && (
-                      <p className="mt-2 text-sm text-gray-600">{color.notes}</p>
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-medium text-gray-900">{product.productColor.colorName}</h3>
+                    {product.productColor.colorCode && (
+                      <p className="text-sm text-gray-500">Code: {product.productColor.colorCode}</p>
                     )}
                   </div>
-                ))}
+                </div>
               </div>
             </div>
           )}

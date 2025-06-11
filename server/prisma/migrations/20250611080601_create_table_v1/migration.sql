@@ -79,8 +79,10 @@ CREATE TABLE "products" (
     "name" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "materialId" INTEGER,
+    "productColorId" INTEGER,
+    "productVariationId" INTEGER,
     "category" TEXT,
-    "price" DECIMAL(10,2),
+    "price" DECIMAL(15,2),
     "qtyOnHand" INTEGER NOT NULL DEFAULT 0,
     "unit" TEXT NOT NULL DEFAULT 'pcs',
     "description" TEXT,
@@ -119,8 +121,8 @@ CREATE TABLE "order_products" (
     "orderId" INTEGER NOT NULL,
     "productId" INTEGER NOT NULL,
     "quantity" INTEGER NOT NULL DEFAULT 1,
-    "unitPrice" DECIMAL(10,2),
-    "totalPrice" DECIMAL(10,2),
+    "unitPrice" DECIMAL(15,2),
+    "totalPrice" DECIMAL(15,2),
     "notes" TEXT,
     "completedQty" INTEGER NOT NULL DEFAULT 0,
     "status" "OrderProductStatus" NOT NULL DEFAULT 'pending',
@@ -140,8 +142,8 @@ CREATE TABLE "material_movements" (
     "movementType" "MaterialMovementType" NOT NULL,
     "quantity" DECIMAL(10,3) NOT NULL,
     "unit" TEXT NOT NULL DEFAULT 'pcs',
-    "costPerUnit" DECIMAL(10,2),
-    "totalCost" DECIMAL(10,2),
+    "costPerUnit" DECIMAL(15,2),
+    "totalCost" DECIMAL(15,2),
     "notes" TEXT,
     "qtyAfter" DECIMAL(10,3) NOT NULL,
     "movementDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -243,19 +245,6 @@ CREATE TABLE "order_links" (
 );
 
 -- CreateTable
-CREATE TABLE "product_materials" (
-    "id" SERIAL NOT NULL,
-    "productId" INTEGER NOT NULL,
-    "materialId" INTEGER NOT NULL,
-    "quantity" DECIMAL(10,3) NOT NULL,
-    "unit" TEXT NOT NULL DEFAULT 'pcs',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "product_materials_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "shipments" (
     "id" SERIAL NOT NULL,
     "orderId" INTEGER NOT NULL,
@@ -303,7 +292,6 @@ CREATE TABLE "status_changes" (
 -- CreateTable
 CREATE TABLE "product_colours" (
     "id" SERIAL NOT NULL,
-    "productId" INTEGER NOT NULL,
     "colorName" TEXT NOT NULL,
     "colorCode" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -316,10 +304,9 @@ CREATE TABLE "product_colours" (
 -- CreateTable
 CREATE TABLE "product_variations" (
     "id" SERIAL NOT NULL,
-    "productId" INTEGER NOT NULL,
     "variationType" TEXT NOT NULL,
     "variationValue" TEXT NOT NULL,
-    "priceAdjustment" DECIMAL(10,2),
+    "priceAdjustment" DECIMAL(15,2),
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -360,7 +347,7 @@ CREATE TABLE "material_purchase_alerts" (
     "resolvedBy" INTEGER,
     "resolvedAt" TIMESTAMP(3),
     "resolution" TEXT,
-    "estimatedCost" DECIMAL(10,2),
+    "estimatedCost" DECIMAL(15,2),
     "suggestedSupplier" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -375,8 +362,8 @@ CREATE TABLE "purchase_logs" (
     "supplier" TEXT NOT NULL,
     "quantity" DECIMAL(10,3) NOT NULL,
     "unit" TEXT NOT NULL DEFAULT 'pcs',
-    "pricePerUnit" DECIMAL(10,2) NOT NULL DEFAULT 0,
-    "totalCost" DECIMAL(10,2) NOT NULL,
+    "pricePerUnit" DECIMAL(15,2) NOT NULL DEFAULT 0,
+    "totalCost" DECIMAL(15,2) NOT NULL,
     "purchaseDate" TIMESTAMP(3) NOT NULL,
     "invoiceNumber" TEXT,
     "receiptPath" TEXT,
@@ -458,6 +445,12 @@ CREATE UNIQUE INDEX "shipments_orderId_key" ON "shipments"("orderId");
 ALTER TABLE "products" ADD CONSTRAINT "products_materialId_fkey" FOREIGN KEY ("materialId") REFERENCES "materials"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "products" ADD CONSTRAINT "products_productColorId_fkey" FOREIGN KEY ("productColorId") REFERENCES "product_colours"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "products" ADD CONSTRAINT "products_productVariationId_fkey" FOREIGN KEY ("productVariationId") REFERENCES "product_variations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "orders" ADD CONSTRAINT "orders_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -518,12 +511,6 @@ ALTER TABLE "order_links" ADD CONSTRAINT "order_links_orderId_fkey" FOREIGN KEY 
 ALTER TABLE "order_links" ADD CONSTRAINT "order_links_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "product_materials" ADD CONSTRAINT "product_materials_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "product_materials" ADD CONSTRAINT "product_materials_materialId_fkey" FOREIGN KEY ("materialId") REFERENCES "materials"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "shipments" ADD CONSTRAINT "shipments_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -534,12 +521,6 @@ ALTER TABLE "status_changes" ADD CONSTRAINT "status_changes_orderId_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "status_changes" ADD CONSTRAINT "status_changes_changedBy_fkey" FOREIGN KEY ("changedBy") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "product_colours" ADD CONSTRAINT "product_colours_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "product_variations" ADD CONSTRAINT "product_variations_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "product_photos" ADD CONSTRAINT "product_photos_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;

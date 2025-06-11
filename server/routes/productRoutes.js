@@ -8,15 +8,14 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
-  getProductCategories
+  getProductCategories,
+  getProductColors,
+  getProductVariations,
+  bulkDeleteProducts,
+  bulkActivateProducts,
+  bulkDeactivateProducts
 } = require('../controllers/productController');
-const {
-  getProductMaterials,
-  addProductMaterial,
-  updateProductMaterial,
-  removeProductMaterial,
-  checkMaterialAvailability
-} = require('../controllers/productMaterialController');
+
 const {
   getProductColours,
   getProductColourById,
@@ -25,7 +24,7 @@ const {
   deleteProductColour
 } = require('../controllers/productColourController');
 const {
-  getProductVariations,
+  getProductVariations: getIndividualProductVariations,
   getProductVariationById,
   createProductVariation,
   updateProductVariation,
@@ -36,6 +35,12 @@ const router = express.Router();
 
 // GET /api/products/categories - Get all product categories
 router.get('/categories', protect, getProductCategories);
+
+// GET /api/products/colors - Get all available product colors
+router.get('/colors', protect, getProductColors);
+
+// GET /api/products/variations - Get all available product variations
+router.get('/variations', protect, getProductVariations);
 
 // GET /api/products - Get all products with filtering and pagination
 router.get('/', protect, getProducts);
@@ -52,21 +57,15 @@ router.put('/:id', protect, adminOnly, uploadProductPhotos, updateProduct);
 // DELETE /api/products/:id - Delete product (protected by middleware protect and adminOnly)
 router.delete('/:id', protect, adminOnly, deleteProduct);
 
-// Product Material Management Routes
-// GET /api/products/:id/materials - Get materials required for a product
-router.get('/:id/materials', protect, getProductMaterials);
+// Bulk actions
+// POST /api/products/bulk/delete - Bulk delete products
+router.post('/bulk/delete', protect, adminOnly, bulkDeleteProducts);
 
-// POST /api/products/:id/materials - Add material requirement to product
-router.post('/:id/materials', protect, adminOnly, addProductMaterial);
+// POST /api/products/bulk/activate - Bulk activate products
+router.post('/bulk/activate', protect, adminOnly, bulkActivateProducts);
 
-// PUT /api/products/:id/materials/:materialId - Update material requirement
-router.put('/:id/materials/:materialId', protect, adminOnly, updateProductMaterial);
-
-// DELETE /api/products/:id/materials/:materialId - Remove material requirement
-router.delete('/:id/materials/:materialId', protect, adminOnly, removeProductMaterial);
-
-// GET /api/products/:id/materials/availability - Check material availability for production
-router.get('/:id/materials/availability', protect, checkMaterialAvailability);
+// POST /api/products/bulk/deactivate - Bulk deactivate products
+router.post('/bulk/deactivate', protect, adminOnly, bulkDeactivateProducts);
 
 // PUT /api/products/:id/toggle-main-photo/:photoId - Toggle main photo (protected by middleware protect and adminOnly)
 router.put('/:id/toggle-main-photo/:photoId', protect, adminOnly, asyncHandler(async (req, res) => {
@@ -100,18 +99,18 @@ router.put('/:id/photos/sort', protect, adminOnly, asyncHandler(async (req, res)
   });
 }));
 
-// Product Colour Routes
-router.get('/colours', protect, getProductColours);
-router.get('/colours/:id', protect, getProductColourById);
-router.post('/colours', protect, adminOnly, createProductColour);
-router.put('/colours/:id', protect, adminOnly, updateProductColour);
-router.delete('/colours/:id', protect, adminOnly, deleteProductColour);
+// Product Colour Routes - Individual product colors
+router.get('/:productId/colours', protect, getProductColours);
+router.get('/:productId/colours/:id', protect, getProductColourById);
+router.post('/:productId/colours', protect, adminOnly, createProductColour);
+router.put('/:productId/colours/:id', protect, adminOnly, updateProductColour);
+router.delete('/:productId/colours/:id', protect, adminOnly, deleteProductColour);
 
-// Product Variation Routes
-router.get('/variations', protect, getProductVariations);
-router.get('/variations/:id', protect, getProductVariationById);
-router.post('/variations', protect, adminOnly, createProductVariation);
-router.put('/variations/:id', protect, adminOnly, updateProductVariation);
-router.delete('/variations/:id', protect, adminOnly, deleteProductVariation);
+// Product Variation Routes - Individual product variations
+router.get('/:productId/variations', protect, getIndividualProductVariations);
+router.get('/:productId/variations/:id', protect, getProductVariationById);
+router.post('/:productId/variations', protect, adminOnly, createProductVariation);
+router.put('/:productId/variations/:id', protect, adminOnly, updateProductVariation);
+router.delete('/:productId/variations/:id', protect, adminOnly, deleteProductVariation);
 
 module.exports = router; 

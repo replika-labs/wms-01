@@ -12,7 +12,7 @@ const getProductVariations = asyncHandler(async (req, res) => {
 
         const variations = await prisma.productVariation.findMany({
             where: { productId },
-            orderBy: { size: 'asc' }
+            orderBy: { variationType: 'asc' }
         });
 
         res.status(200).json(variations);
@@ -59,12 +59,12 @@ const searchProductVariations = asyncHandler(async (req, res) => {
         const variations = await prisma.productVariation.findMany({
             where: {
                 productId,
-                size: {
+                variationValue: {
                     contains: size,
                     mode: 'insensitive'
                 }
             },
-            orderBy: { size: 'asc' }
+            orderBy: { variationType: 'asc' }
         });
 
         res.status(200).json(variations);
@@ -80,11 +80,11 @@ const searchProductVariations = asyncHandler(async (req, res) => {
 const createProductVariation = asyncHandler(async (req, res) => {
     try {
         const productId = parseInt(req.params.productId);
-        const { size, priceModifier, isActive } = req.body;
+        const { variationType, variationValue, priceAdjustment, isActive } = req.body;
 
         // Validation
-        if (!size) {
-            return res.status(400).json({ message: 'Size is required' });
+        if (!variationType || !variationValue) {
+            return res.status(400).json({ message: 'Variation type and value are required' });
         }
 
         // Check if product exists
@@ -95,22 +95,24 @@ const createProductVariation = asyncHandler(async (req, res) => {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        // Check for duplicate size for this product
+        // Check for duplicate variation for this product
         const existingVariation = await prisma.productVariation.findFirst({
             where: {
                 productId,
-                size
+                variationType,
+                variationValue
             }
         });
         if (existingVariation) {
-            return res.status(400).json({ message: 'Size already exists for this product' });
+            return res.status(400).json({ message: 'Variation already exists for this product' });
         }
 
         const variation = await prisma.productVariation.create({
             data: {
                 productId,
-                size,
-                priceModifier: priceModifier || 0,
+                variationType,
+                variationValue,
+                priceAdjustment: priceAdjustment || null,
                 isActive: isActive !== undefined ? isActive : true
             }
         });
@@ -129,7 +131,7 @@ const updateProductVariation = asyncHandler(async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         const productId = parseInt(req.params.productId);
-        const { size, priceModifier, isActive } = req.body;
+        const { variationType, variationValue, priceAdjustment, isActive } = req.body;
 
         const variation = await prisma.productVariation.findFirst({
             where: {
@@ -141,25 +143,28 @@ const updateProductVariation = asyncHandler(async (req, res) => {
             return res.status(404).json({ message: 'Product variation not found' });
         }
 
-        // Check for duplicate size (excluding current record)
-        if (size && size !== variation.size) {
+        // Check for duplicate variation (excluding current record)
+        if ((variationType && variationValue) &&
+            (variationType !== variation.variationType || variationValue !== variation.variationValue)) {
             const existingVariation = await prisma.productVariation.findFirst({
                 where: {
                     productId,
-                    size,
+                    variationType,
+                    variationValue,
                     id: { not: id }
                 }
             });
             if (existingVariation) {
-                return res.status(400).json({ message: 'Size already exists for this product' });
+                return res.status(400).json({ message: 'Variation already exists for this product' });
             }
         }
 
         const updatedVariation = await prisma.productVariation.update({
             where: { id },
             data: {
-                size: size || variation.size,
-                priceModifier: priceModifier !== undefined ? priceModifier : variation.priceModifier,
+                variationType: variationType || variation.variationType,
+                variationValue: variationValue || variation.variationValue,
+                priceAdjustment: priceAdjustment !== undefined ? priceAdjustment : variation.priceAdjustment,
                 isActive: isActive !== undefined ? isActive : variation.isActive
             }
         });

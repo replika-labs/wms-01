@@ -57,7 +57,6 @@ model Material {
 
   // Relations
   materialMovements    MaterialMovement[]
-  productMaterials     ProductMaterial[]
   remainingMaterials   RemainingMaterial[]
   products             Product[]
   purchaseAlerts       MaterialPurchaseAlert[]
@@ -71,6 +70,8 @@ model Product {
   name            String
   code            String   @unique
   materialId      Int?     @map("materialId")
+  productColorId  Int?     @map("productColorId")
+  productVariationId Int?  @map("productVariationId")
   category        String?
   price           Decimal? @db.Decimal(15,2)
   qtyOnHand       Int      @default(0) @map("qtyOnHand")
@@ -83,11 +84,10 @@ model Product {
 
   // Relations
   baseMaterial             Material?              @relation(fields: [materialId], references: [id])
+  productColor             ProductColour?         @relation(fields: [productColorId], references: [id])
+  productVariation         ProductVariation?      @relation(fields: [productVariationId], references: [id])
   orderProducts            OrderProduct[]
-  productMaterials         ProductMaterial[]
   recurringPlans           RecurringPlan[]
-  colours                  ProductColour[]
-  variations               ProductVariation[]
   photos                   ProductPhoto[]
   individualProgressReports ProgressReport[]     @relation("ProductProgressReports")  
   productProgressReports   ProductProgressReport[]
@@ -284,22 +284,6 @@ model OrderLink {
   @@map("order_links")
 }
 
-model ProductMaterial {
-  id          Int      @id @default(autoincrement())
-  productId   Int      @map("productId")
-  materialId  Int      @map("materialId")
-  quantity    Decimal  @db.Decimal(10, 3)
-  unit        String   @default("pcs")
-  createdAt   DateTime @default(now()) @map("createdAt")
-  updatedAt   DateTime @updatedAt @map("updatedAt")
-
-  // Relations
-  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  material Material @relation(fields: [materialId], references: [id])
-
-  @@map("product_materials")
-}
-
 model Shipment {
   id             Int       @id @default(autoincrement())
   orderId        Int       @unique @map("orderId")
@@ -352,11 +336,8 @@ model StatusChange {
   @@map("status_changes")
 }
 
-
-
 model ProductColour {
   id          Int      @id @default(autoincrement())
-  productId   Int      @map("productId")
   colorName   String   @map("colorName")
   colorCode   String?  @map("colorCode")
   isActive    Boolean  @default(true) @map("isActive")
@@ -364,14 +345,13 @@ model ProductColour {
   updatedAt   DateTime @updatedAt @map("updatedAt")
 
   // Relations
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  products Product[]
 
   @@map("product_colours")
 }
 
 model ProductVariation {
   id          Int      @id @default(autoincrement())
-  productId   Int      @map("productId")
   variationType String @map("variationType")
   variationValue String @map("variationValue")
   priceAdjustment Decimal? @db.Decimal(15,2) @map("priceAdjustment")
@@ -380,7 +360,7 @@ model ProductVariation {
   updatedAt   DateTime @updatedAt @map("updatedAt")
 
   // Relations
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  products Product[]
 
   @@map("product_variations")
 }

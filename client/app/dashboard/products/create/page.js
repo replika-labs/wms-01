@@ -10,6 +10,8 @@ import Image from 'next/image';
 export default function CreateProductPage() {
   const [user, setUser] = useState(null);
   const [materials, setMaterials] = useState([]);
+  const [availableColors, setAvailableColors] = useState([]);
+  const [availableVariations, setAvailableVariations] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -18,7 +20,6 @@ export default function CreateProductPage() {
   // Form state
   const [formData, setFormData] = useState({
     name: '',
-    code: '',
     materialId: '',
     category: '',
     price: '',
@@ -26,6 +27,8 @@ export default function CreateProductPage() {
     unit: 'pcs',
     description: '',
     defaultTarget: 0,
+    productColorId: '',
+    productVariationId: '',
     isActive: true
   });
 
@@ -55,32 +58,63 @@ export default function CreateProductPage() {
     }
   }, [router]);
 
-  // Fetch materials for dropdown
+  // Fetch materials, colors, and variations for dropdowns
   useEffect(() => {
-    const fetchMaterials = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8080/api/materials-management?limit=100', {
+
+        // Fetch materials
+        const materialsResponse = await fetch('http://localhost:8080/api/materials-management?limit=100', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
         });
 
-        if (response.ok) {
-          const data = await response.json();
+        if (materialsResponse.ok) {
+          const data = await materialsResponse.json();
           if (data.success && data.data?.materials) {
             setMaterials(data.data.materials);
           } else {
             setMaterials(data.materials || data || []);
           }
         }
+
+        // Fetch available colors
+        const colorsResponse = await fetch('http://localhost:8080/api/products/colors', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (colorsResponse.ok) {
+          const colorsData = await colorsResponse.json();
+          if (colorsData.success) {
+            setAvailableColors(colorsData.colors || []);
+          }
+        }
+
+        // Fetch available variations
+        const variationsResponse = await fetch('http://localhost:8080/api/products/variations', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (variationsResponse.ok) {
+          const variationsData = await variationsResponse.json();
+          if (variationsData.success) {
+            setAvailableVariations(variationsData.variations || {});
+          }
+        }
+
       } catch (error) {
-        console.error('Error fetching materials:', error);
+        console.error('Error fetching data:', error);
       }
     };
 
     if (user) {
-      fetchMaterials();
+      fetchData();
     }
   }, [user]);
 
@@ -172,11 +206,7 @@ export default function CreateProductPage() {
       newErrors.name = 'Product name is required';
     }
 
-    if (!formData.code.trim()) {
-      newErrors.code = 'Product code is required';
-    }
-
-    if (!formData.category.trim()) {
+    if (!formData.category) {
       newErrors.category = 'Category is required';
     }
 
@@ -228,6 +258,8 @@ export default function CreateProductPage() {
       for (let [key, value] of submitData.entries()) {
         console.log(key, value);
       }
+
+
 
       // Add photos
       photos.forEach((photo, index) => {
@@ -323,33 +355,19 @@ export default function CreateProductPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Product Code *
-                  </label>
-                  <input
-                    type="text"
-                    name="code"
-                    value={formData.code}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.code ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                    placeholder="Enter product code"
-                  />
-                  {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Category *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="category"
                     value={formData.category}
                     onChange={handleInputChange}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.category ? 'border-red-300' : 'border-gray-300'
                       }`}
-                    placeholder="e.g., Hijab, Dress, Pants"
-                  />
+                  >
+                    <option value="">Select category</option>
+                    <option value="Hijab">Hijab</option>
+                    <option value="Scrunchie">Scrunchie</option>
+                  </select>
                   {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
                 </div>
 
@@ -370,6 +388,15 @@ export default function CreateProductPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Product Code
+                  </label>
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
+                    Auto-generated after creation
+                  </div>
                 </div>
               </div>
             </div>
@@ -452,20 +479,6 @@ export default function CreateProductPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Default Target
-                    </label>
-                    <input
-                      type="number"
-                      name="defaultTarget"
-                      value={formData.defaultTarget}
-                      onChange={handleInputChange}
-                      min="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="0"
-                    />
-                  </div>
 
                   <div className="flex items-center">
                     <input
@@ -479,6 +492,58 @@ export default function CreateProductPage() {
                       Product is active
                     </label>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Colors and Variations */}
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Color & Variation</h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Color Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Product Color
+                  </label>
+                  <select
+                    name="productColorId"
+                    value={formData.productColorId}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select color (optional)</option>
+                    {availableColors.map(color => (
+                      <option key={color.id} value={color.id}>
+                        {color.colorName} ({color.colorCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Variation Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Product Variation
+                  </label>
+                  <select
+                    name="productVariationId"
+                    value={formData.productVariationId}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select variation (optional)</option>
+                    {Object.keys(availableVariations).map(type => (
+                      <optgroup key={type} label={type}>
+                        {(availableVariations[type] || []).map(variation => (
+                          <option key={variation.id} value={variation.id}>
+                            {variation.variationValue}
+                            {variation.priceAdjustment && ` (+Rp ${Number(variation.priceAdjustment).toLocaleString()})`}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

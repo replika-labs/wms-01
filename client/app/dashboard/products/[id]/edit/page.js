@@ -9,6 +9,8 @@ import Link from 'next/link';
 export default function EditProductPage() {
   const [user, setUser] = useState(null);
   const [materials, setMaterials] = useState([]);
+  const [availableColors, setAvailableColors] = useState([]);
+  const [availableVariations, setAvailableVariations] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -20,7 +22,6 @@ export default function EditProductPage() {
   // Form state
   const [formData, setFormData] = useState({
     name: '',
-    code: '',
     materialId: '',
     category: '',
     price: '',
@@ -28,6 +29,8 @@ export default function EditProductPage() {
     unit: 'pcs',
     description: '',
     defaultTarget: 0,
+    productColorId: '',
+    productVariationId: '',
     isActive: true
   });
 
@@ -40,6 +43,9 @@ export default function EditProductPage() {
 
   // Validation state
   const [errors, setErrors] = useState({});
+
+  // Product code state (read-only)
+  const [productCode, setProductCode] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -85,7 +91,6 @@ export default function EditProductPage() {
         // Set form data
         setFormData({
           name: productData.name || '',
-          code: productData.code || '',
           materialId: productData.materialId || '',
           category: productData.category || '',
           price: productData.price || '',
@@ -93,14 +98,19 @@ export default function EditProductPage() {
           unit: productData.unit || 'pcs',
           description: productData.description || '',
           defaultTarget: productData.defaultTarget || 0,
+          productColorId: productData.productColorId || '',
+          productVariationId: productData.productVariationId || '',
           isActive: productData.isActive !== false
         });
+
+        // Set product code (read-only)
+        setProductCode(productData.code || '');
 
         // Set existing photos
         if (productData.photos) {
           setExistingPhotos(productData.photos);
           // Set main photo index
-          const mainPhotoIdx = productData.photos.findIndex(photo => photo.isMainPhoto);
+          const mainPhotoIdx = productData.photos.findIndex(photo => photo.isPrimary);
           setMainPhotoIndex(mainPhotoIdx >= 0 ? mainPhotoIdx : 0);
         }
 
@@ -117,6 +127,34 @@ export default function EditProductPage() {
             setMaterials(materialsData.data.materials);
           } else {
             setMaterials(materialsData.materials || materialsData || []);
+          }
+        }
+
+        // Fetch available colors
+        const colorsResponse = await fetch('http://localhost:8080/api/products/colors', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (colorsResponse.ok) {
+          const colorsData = await colorsResponse.json();
+          if (colorsData.success) {
+            setAvailableColors(colorsData.colors || []);
+          }
+        }
+
+        // Fetch available variations
+        const variationsResponse = await fetch('http://localhost:8080/api/products/variations', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (variationsResponse.ok) {
+          const variationsData = await variationsResponse.json();
+          if (variationsData.success) {
+            setAvailableVariations(variationsData.variations || {});
           }
         }
 
@@ -146,6 +184,8 @@ export default function EditProductPage() {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
+
+
 
   // Handle drag and drop for new photos
   const handleDrag = (e) => {
@@ -237,11 +277,7 @@ export default function EditProductPage() {
       newErrors.name = 'Product name is required';
     }
 
-    if (!formData.code.trim()) {
-      newErrors.code = 'Product code is required';
-    }
-
-    if (!formData.category.trim()) {
+    if (!formData.category) {
       newErrors.category = 'Category is required';
     }
 
@@ -287,6 +323,8 @@ export default function EditProductPage() {
           }
         }
       });
+
+
 
       // Debug: Log what's being sent
       console.log('Form data being sent for update:');
@@ -428,33 +466,19 @@ export default function EditProductPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Product Code *
-                  </label>
-                  <input
-                    type="text"
-                    name="code"
-                    value={formData.code}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.code ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                    placeholder="Enter product code"
-                  />
-                  {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Category *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="category"
                     value={formData.category}
                     onChange={handleInputChange}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.category ? 'border-red-300' : 'border-gray-300'
                       }`}
-                    placeholder="e.g., Hijab, Dress, Pants"
-                  />
+                  >
+                    <option value="">Select category</option>
+                    <option value="Hijab">Hijab</option>
+                    <option value="Scrunchie">Scrunchie</option>
+                  </select>
                   {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
                 </div>
 
@@ -475,6 +499,18 @@ export default function EditProductPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Product Code
+                  </label>
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 font-mono">
+                    {productCode || 'Loading...'}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Product codes cannot be modified after creation
+                  </p>
                 </div>
               </div>
             </div>
@@ -557,20 +593,6 @@ export default function EditProductPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Default Target
-                    </label>
-                    <input
-                      type="number"
-                      name="defaultTarget"
-                      value={formData.defaultTarget}
-                      onChange={handleInputChange}
-                      min="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="0"
-                    />
-                  </div>
 
                   <div className="flex items-center">
                     <input
@@ -584,6 +606,58 @@ export default function EditProductPage() {
                       Product is active
                     </label>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Colors and Variations */}
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Color & Variation</h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Color Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Product Color
+                  </label>
+                  <select
+                    name="productColorId"
+                    value={formData.productColorId}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select color (optional)</option>
+                    {availableColors.map(color => (
+                      <option key={color.id} value={color.id}>
+                        {color.colorName} ({color.colorCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Variation Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Product Variation
+                  </label>
+                  <select
+                    name="productVariationId"
+                    value={formData.productVariationId}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select variation (optional)</option>
+                    {Object.keys(availableVariations).map(type => (
+                      <optgroup key={type} label={type}>
+                        {(availableVariations[type] || []).map(variation => (
+                          <option key={variation.id} value={variation.id}>
+                            {variation.variationValue}
+                            {variation.priceAdjustment && ` (+Rp ${Number(variation.priceAdjustment).toLocaleString()})`}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
@@ -606,7 +680,7 @@ export default function EditProductPage() {
                           }`}
                       >
                         <img
-                          src={photo.isNew ? photo.preview : `http://localhost:8080${photo.thumbnailUrl || photo.photoUrl}`}
+                          src={photo.isNew ? photo.preview : `http://localhost:8080${photo.thumbnailPath || photo.photoPath}`}
                           alt={`Photo ${index + 1}`}
                           className="w-full h-full object-cover"
                         />
