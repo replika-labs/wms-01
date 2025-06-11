@@ -271,6 +271,7 @@ const getOrderDetails = asyncHandler(async (req, res) => {
 
 /**
  * Optimized status update with proper enum validation
+ * Auto-updates product stock when order is completed
  */
 const updateOrderStatus = asyncHandler(async (req, res) => {
   try {
@@ -287,6 +288,13 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
       where: {
         id: parseInt(id),
         isActive: true
+      },
+      include: {
+        orderProducts: {
+          include: {
+            product: true
+          }
+        }
       }
     });
 
@@ -294,20 +302,81 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
+    const previousStatus = order.status;
+    const newStatus = status.toUpperCase();
+
     // Update status - using schema enum values
     const updatedOrder = await prisma.order.update({
       where: { id: parseInt(id) },
-      data: { status: status.toUpperCase() }
+      data: { status: newStatus }
     });
 
-    // Return minimal response for optimistic UI
+    // Auto-update product stock when order is completed
+    const stockUpdates = [];
+    if (newStatus === 'COMPLETED' && previousStatus !== 'COMPLETED') {
+      try {
+        // Use transaction to ensure data consistency
+        await prisma.$transaction(async (tx) => {
+          for (const orderProduct of order.orderProducts) {
+            const completedQty = orderProduct.completedQty || 0;
+
+            if (completedQty > 0) {
+              // Get current product stock
+              const currentProduct = await tx.product.findUnique({
+                where: { id: orderProduct.productId }
+              });
+
+              const newQtyOnHand = currentProduct.qtyOnHand + completedQty;
+
+              // Update product stock
+              await tx.product.update({
+                where: { id: orderProduct.productId },
+                data: { qtyOnHand: newQtyOnHand }
+              });
+
+              // Create stock movement record
+              await tx.materialMovement.create({
+                data: {
+                  materialId: currentProduct.materialId || 1, // Fallback to first material if none linked
+                  orderId: order.id,
+                  userId: req.user?.id || 1, // Use authenticated user ID or fallback
+                  movementType: 'IN',
+                  quantity: completedQty,
+                  unit: currentProduct.unit || 'pcs',
+                  notes: `Auto stock increase from completed order ${order.orderNumber} - Product: ${currentProduct.name}`,
+                  qtyAfter: newQtyOnHand,
+                  movementDate: new Date()
+                }
+              });
+
+              stockUpdates.push({
+                productId: orderProduct.productId,
+                productName: currentProduct.name,
+                previousStock: currentProduct.qtyOnHand,
+                addedQuantity: completedQty,
+                newStock: newQtyOnHand
+              });
+            }
+          }
+        });
+
+        console.log(`Auto stock update completed for order ${order.orderNumber}: ${stockUpdates.length} products updated`);
+      } catch (stockError) {
+        console.error('Error updating product stock automatically:', stockError);
+        // Don't fail the status update if stock update fails
+      }
+    }
+
+    // Return response including stock updates if any
     res.json({
       success: true,
       order: {
         id: updatedOrder.id,
         status: updatedOrder.status,
         updatedAt: updatedOrder.updatedAt
-      }
+      },
+      stockUpdated: stockUpdates.length > 0,
+      stockUpdates: stockUpdates
     });
   } catch (error) {
     console.error('Error updating order status:', error);

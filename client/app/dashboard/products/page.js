@@ -63,7 +63,7 @@ export default function ProductsPage() {
     }
   }, [router]);
 
-  // Manual refresh function with cache busting
+  // Manual refresh function with cache busting to get latest stock
   const refreshProducts = async () => {
     const timestamp = Date.now();
     try {
@@ -626,6 +626,14 @@ export default function ProductsPage() {
                               >
                                 Edit
                               </Link>
+                              {user?.role === 'admin' && (
+                                <Link
+                                  href={`/dashboard/products/${product.id}/stock`}
+                                  className="text-green-600 hover:text-green-900"
+                                >
+                                  Stock
+                                </Link>
+                              )}
                               <button
                                 onClick={() => setDeleteConfirm({
                                   show: true,

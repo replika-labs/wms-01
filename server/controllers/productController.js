@@ -523,7 +523,7 @@ const updateProduct = asyncHandler(async (req, res) => {
                 description: description !== undefined ? description : product.description,
                 defaultTarget: defaultTarget !== undefined ? parseInt(defaultTarget) || 0 : product.defaultTarget,
                 qtyOnHand: qtyOnHand !== undefined ? (parseInt(qtyOnHand) || 0) : product.qtyOnHand,
-                isActive: isActive !== undefined ? isActive : product.isActive
+                isActive: isActive !== undefined ? isActive === 'true' || isActive === true : product.isActive
             },
             include: {
                 baseMaterial: true,

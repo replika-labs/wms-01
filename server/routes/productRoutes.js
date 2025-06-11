@@ -17,6 +17,14 @@ const {
 } = require('../controllers/productController');
 
 const {
+  completeOrderStock,
+  adjustProductStock,
+  setProductStock,
+  getProductStockMovements,
+  bulkCompleteOrdersStock
+} = require('../controllers/productStockController');
+
+const {
   getProductColours,
   getProductColourById,
   createProductColour,
@@ -66,6 +74,22 @@ router.post('/bulk/activate', protect, adminOnly, bulkActivateProducts);
 
 // POST /api/products/bulk/deactivate - Bulk deactivate products
 router.post('/bulk/deactivate', protect, adminOnly, bulkDeactivateProducts);
+
+// Product Stock Management Routes
+// POST /api/products/stock/complete-order - Update product stock when order is completed
+router.post('/stock/complete-order', protect, adminOnly, completeOrderStock);
+
+// POST /api/products/stock/bulk-complete - Bulk update product stock from completed orders
+router.post('/stock/bulk-complete', protect, adminOnly, bulkCompleteOrdersStock);
+
+// POST /api/products/:id/stock/adjust - Manually adjust product stock (IN/OUT/ADJUST)
+router.post('/:id/stock/adjust', protect, adminOnly, adjustProductStock);
+
+// PUT /api/products/:id/stock/set - Set product stock to specific level
+router.put('/:id/stock/set', protect, adminOnly, setProductStock);
+
+// GET /api/products/:id/stock/movements - Get product stock movement history
+router.get('/:id/stock/movements', protect, getProductStockMovements);
 
 // PUT /api/products/:id/toggle-main-photo/:photoId - Toggle main photo (protected by middleware protect and adminOnly)
 router.put('/:id/toggle-main-photo/:photoId', protect, adminOnly, asyncHandler(async (req, res) => {

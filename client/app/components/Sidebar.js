@@ -70,42 +70,42 @@ export default function Sidebar({ user }) {
       icon: '🎯',
       adminOnly: false 
     },
-    { 
-      label: 'Progress Reports', 
-      href: '/dashboard/progress',
-      icon: '📝',
-      adminOnly: false 
-    },
-    { 
-      label: 'Recurring Plans', 
-      href: '/dashboard/recurring-plans',
-      icon: '🔄',
-      adminOnly: true 
-    },
+    // { 
+    //   label: 'Progress Reports', 
+    //   href: '/dashboard/progress',
+    //   icon: '📝',
+    //   adminOnly: false 
+    // },
+    // { 
+    //   label: 'Recurring Plans', 
+    //   href: '/dashboard/recurring-plans',
+    //   icon: '🔄',
+    //   adminOnly: true 
+    // },
     { 
       label: 'Material Movement', 
       href: '/dashboard/material-movement',
       icon: '📤',
       adminOnly: true 
     },
-    { 
-      label: 'Shipments', 
-      href: '/dashboard/shipments',
-      icon: '🚚',
-      adminOnly: true 
-    },
-    { 
-      label: 'Timeline', 
-      href: '/dashboard/timeline',
-      icon: '⏱️',
-      adminOnly: false 
-    },
-    { 
-      label: 'Reports', 
-      href: '/dashboard/reports',
-      icon: '📊',
-      adminOnly: true 
-    }
+    // { 
+    //   label: 'Shipments', 
+    //   href: '/dashboard/shipments',
+    //   icon: '🚚',
+    //   adminOnly: true 
+    // },
+    // { 
+    //   label: 'Timeline', 
+    //   href: '/dashboard/timeline',
+    //   icon: '⏱️',
+    //   adminOnly: false 
+    // },
+    // { 
+    //   label: 'Reports', 
+    //   href: '/dashboard/reports',
+    //   icon: '📊',
+    //   adminOnly: true 
+    // }
   ];
 
   // Filter menu items based on user role

@@ -477,6 +477,7 @@ const submitProgress = asyncHandler(async (req, res) => {
 
                 // Update overall order progress
                 const newCompletedPcs = order.completedPcs + totalPcsFinished;
+                const previousStatus = order.status;
                 const newStatus = newCompletedPcs >= order.targetPcs ? 'COMPLETED' : order.status;
 
                 const updatedOrder = await tx.order.update({
@@ -487,34 +488,67 @@ const submitProgress = asyncHandler(async (req, res) => {
                     }
                 });
 
-                console.log('🔍 Order updated:', {
-                    previousCompletedPcs: order.completedPcs,
-                    newCompletedPcs,
-                    totalTargetPcs: order.targetPcs,
-                    newStatus,
-                    materialMovementsCreated: materialMovements.length,
-                    totalMaterialUsed
-                });
+                // Auto-update product stock when order becomes completed through tailor progress
+                const productStockUpdates = [];
+                if (newStatus === 'COMPLETED' && previousStatus !== 'COMPLETED') {
+                    console.log('🔍 Order completed through tailor progress - updating product stock...');
+
+                    for (const orderProduct of order.orderProducts) {
+                        const completedQty = orderProduct.completedQty || 0;
+
+                        // Add the pieces that were just completed in this submission
+                        const productProgressInThisSubmission = productProgressData.find(p => p.orderProductId === orderProduct.id);
+                        const additionalCompletedQty = productProgressInThisSubmission ? productProgressInThisSubmission.pcsFinished : 0;
+                        const totalCompletedQty = completedQty + additionalCompletedQty;
+
+                        if (totalCompletedQty > 0) {
+                            // Get current product stock
+                            const currentProduct = await tx.product.findUnique({
+                                where: { id: orderProduct.productId }
+                            });
+
+                            const newQtyOnHand = currentProduct.qtyOnHand + totalCompletedQty;
+
+                            // Update product stock
+                            await tx.product.update({
+                                where: { id: orderProduct.productId },
+                                data: { qtyOnHand: newQtyOnHand }
+                            });
+
+                            productStockUpdates.push({
+                                productId: orderProduct.productId,
+                                productName: currentProduct.name,
+                                previousStock: currentProduct.qtyOnHand,
+                                addedQuantity: totalCompletedQty,
+                                newStock: newQtyOnHand
+                            });
+
+                            console.log(`🔍 Updated product stock: ${currentProduct.name} +${totalCompletedQty} (now ${newQtyOnHand})`);
+                        }
+                    }
+                }
 
                 return {
                     progressReports: createdReports,
                     updatedOrder,
                     materialMovements,
-                    totalMaterialUsed
+                    totalMaterialUsed,
+                    productStockUpdates
                 };
             });
 
-            console.log('🔍 Transaction completed successfully');
-            console.log('🔍 Final result:', {
-                progressReportsCreated: result.progressReports.length,
-                materialMovementsCreated: result.materialMovements.length,
-                totalMaterialUsed: result.totalMaterialUsed,
-                orderStatus: result.updatedOrder.status
-            });
+            // Enhanced success message including stock updates
+            let successMessage = `Per-product progress submitted successfully! ${totalPcsFinished} pieces completed across ${productProgressData.length} products.`;
+            if (result.productStockUpdates && result.productStockUpdates.length > 0) {
+                const stockMessage = result.productStockUpdates.map(update =>
+                    `${update.productName}: +${update.addedQuantity} (now ${update.newStock})`
+                ).join(', ');
+                successMessage += ` Product stock updated: ${stockMessage}`;
+            }
 
             res.status(201).json({
                 success: true,
-                message: `Per-product progress submitted successfully! ${totalPcsFinished} pieces completed across ${productProgressData.length} products.`,
+                message: successMessage,
                 data: {
                     progressReports: result.progressReports,
                     totalPcsFinished,
@@ -522,7 +556,8 @@ const submitProgress = asyncHandler(async (req, res) => {
                 },
                 order: result.updatedOrder,
                 materialMovements: result.materialMovements,
-                totalMaterialUsed: result.totalMaterialUsed
+                totalMaterialUsed: result.totalMaterialUsed,
+                productStockUpdates: result.productStockUpdates || []
             });
 
         } else {
@@ -559,22 +594,86 @@ const submitProgress = asyncHandler(async (req, res) => {
                 });
 
                 // Update order completed pieces
+                const previousStatus = order.status;
+                const newCompletedPcs = order.completedPcs + pcsFinished;
+                const newStatus = (newCompletedPcs >= order.targetPcs) ? 'COMPLETED' : order.status;
+
                 const updatedOrder = await tx.order.update({
                     where: { id: order.id },
                     data: {
-                        completedPcs: order.completedPcs + pcsFinished,
-                        status: (order.completedPcs + pcsFinished >= order.targetPcs) ? 'COMPLETED' : order.status
+                        completedPcs: newCompletedPcs,
+                        status: newStatus
                     }
                 });
 
-                return { progressReport, updatedOrder };
+                // Auto-update product stock when order becomes completed through legacy progress
+                const productStockUpdates = [];
+                if (newStatus === 'COMPLETED' && previousStatus !== 'COMPLETED') {
+                    console.log('🔍 Order completed through legacy progress - updating product stock...');
+
+                    for (const orderProduct of order.orderProducts) {
+                        const completedQty = orderProduct.completedQty || 0;
+
+                        // For legacy submissions, if no completedQty is set, use the ordered quantity
+                        let totalCompletedQty = completedQty;
+                        if (completedQty === 0 && orderProduct.quantity > 0) {
+                            totalCompletedQty = orderProduct.quantity;
+
+                            // Update the orderProduct.completedQty for consistency
+                            await tx.orderProduct.update({
+                                where: { id: orderProduct.id },
+                                data: {
+                                    completedQty: totalCompletedQty,
+                                    status: 'COMPLETED'
+                                }
+                            });
+                        }
+
+                        if (totalCompletedQty > 0) {
+                            // Get current product stock
+                            const currentProduct = await tx.product.findUnique({
+                                where: { id: orderProduct.productId }
+                            });
+
+                            const newQtyOnHand = currentProduct.qtyOnHand + totalCompletedQty;
+
+                            // Update product stock
+                            await tx.product.update({
+                                where: { id: orderProduct.productId },
+                                data: { qtyOnHand: newQtyOnHand }
+                            });
+
+                            productStockUpdates.push({
+                                productId: orderProduct.productId,
+                                productName: currentProduct.name,
+                                previousStock: currentProduct.qtyOnHand,
+                                addedQuantity: totalCompletedQty,
+                                newStock: newQtyOnHand
+                            });
+
+                            console.log(`🔍 Updated product stock (legacy): ${currentProduct.name} +${totalCompletedQty} (now ${newQtyOnHand})`);
+                        }
+                    }
+                }
+
+                return { progressReport, updatedOrder, productStockUpdates };
             });
+
+            // Enhanced success message for legacy submissions
+            let successMessage = 'Progress report submitted successfully';
+            if (result.productStockUpdates && result.productStockUpdates.length > 0) {
+                const stockMessage = result.productStockUpdates.map(update =>
+                    `${update.productName}: +${update.addedQuantity} (now ${update.newStock})`
+                ).join(', ');
+                successMessage += `. Product stock updated: ${stockMessage}`;
+            }
 
             res.status(201).json({
                 success: true,
-                message: 'Progress report submitted successfully',
+                message: successMessage,
                 data: result.progressReport,
-                order: result.updatedOrder
+                order: result.updatedOrder,
+                productStockUpdates: result.productStockUpdates || []
             });
         }
 
