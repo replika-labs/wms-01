@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import AuthWrapper from '../components/AuthWrapper';
 import DashboardLayout from '../components/DashboardLayout';
 import Link from 'next/link';
-import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, Legend 
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 
 export default function DashboardPage() {
@@ -21,7 +21,7 @@ export default function DashboardPage() {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
-        
+
         // Fetch summary data
         const fetchSummary = async () => {
           try {
@@ -98,12 +98,12 @@ export default function DashboardPage() {
           <YAxis />
           <Tooltip />
           <Legend />
-          <Line 
-            type="monotone" 
-            dataKey="count" 
-            name="Orders" 
-            stroke="#3b82f6" 
-            activeDot={{ r: 8 }} 
+          <Line
+            type="monotone"
+            dataKey="count"
+            name="Orders"
+            stroke="#3b82f6"
+            activeDot={{ r: 8 }}
             strokeWidth={2}
           />
         </LineChart>
@@ -124,14 +124,14 @@ export default function DashboardPage() {
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="week" />
+          <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />
           <Legend />
-          <Bar 
-            dataKey="count" 
-            name="Pieces Completed" 
-            fill="#10b981" 
+          <Bar
+            dataKey="completionRate"
+            name="Completion Rate %"
+            fill="#10b981"
             radius={[4, 4, 0, 0]}
           />
         </BarChart>
@@ -147,13 +147,8 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Welcome, {user.name}!</h1>
-            <div className="flex space-x-2">
-              <Link href="/dashboard/orders/create" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                Buat Pesanan Baru
-              </Link>
-            </div>
           </div>
-          
+
           {error && (
             <div className="p-4 bg-red-50 text-red-700 rounded-lg">
               <div className="flex items-center justify-between">
@@ -162,7 +157,7 @@ export default function DashboardPage() {
                   <p className="mt-1">{error}</p>
                 </div>
                 <div className="flex space-x-2">
-                  <button 
+                  <button
                     onClick={async () => {
                       try {
                         setError('');
@@ -185,7 +180,7 @@ export default function DashboardPage() {
                   >
                     Check Database
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       setError('');
                       setLoading(true);
@@ -250,36 +245,36 @@ export default function DashboardPage() {
                     <div className="ml-3">
                       <h3 className="text-lg font-medium text-red-800">Critical Material Stock Alert</h3>
                       <p className="text-sm text-red-700 mt-1">
-                        {summaryData.materialStats.criticalCount} materials are below safety stock levels
+                        {summaryData.materialStats.criticalCount} materials are below minimum stock levels
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="mt-4 overflow-x-auto">
                     <table className="min-w-full divide-y divide-red-200">
                       <thead className="bg-red-100">
                         <tr>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-red-800 uppercase tracking-wider">Material</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-red-800 uppercase tracking-wider">Current Stock</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-red-800 uppercase tracking-wider">Safety Stock</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-red-800 uppercase tracking-wider">Min Stock</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-red-800 uppercase tracking-wider">Shortage</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-red-200">
                         {summaryData.criticalMaterials.map((material) => {
-                          const shortage = material.safetyStock - material.qtyOnHand;
-                          const percent = Math.round((material.qtyOnHand / material.safetyStock) * 100);
-                          
+                          const shortage = Number(material.minStock) - Number(material.qtyOnHand);
+                          const percent = Math.round((Number(material.qtyOnHand) / Number(material.minStock)) * 100);
+
                           return (
                             <tr key={material.id}>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 {material.name} ({material.code})
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                {material.qtyOnHand} {material.unit}
+                                {Number(material.qtyOnHand)} {material.unit}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                {material.safetyStock} {material.unit}
+                                {Number(material.minStock)} {material.unit}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
@@ -287,12 +282,11 @@ export default function DashboardPage() {
                                     {shortage} {material.unit}
                                   </span>
                                   <div className="ml-4 w-24 bg-gray-200 rounded-full h-2.5">
-                                    <div 
-                                      className={`h-2.5 rounded-full ${
-                                        percent < 30 ? 'bg-red-600' : 
-                                        percent < 70 ? 'bg-yellow-400' : 
-                                        'bg-green-500'
-                                      }`}
+                                    <div
+                                      className={`h-2.5 rounded-full ${percent < 30 ? 'bg-red-600' :
+                                          percent < 70 ? 'bg-yellow-400' :
+                                            'bg-green-500'
+                                        }`}
                                       style={{ width: `${Math.min(percent, 100)}%` }}
                                     ></div>
                                   </div>
@@ -303,10 +297,10 @@ export default function DashboardPage() {
                         })}
                       </tbody>
                     </table>
-                    
+
                     <div className="mt-3 flex justify-end">
-                      <Link 
-                        href="/dashboard/inventory?tab=materials&filter=critical" 
+                      <Link
+                        href="/dashboard/inventory?tab=materials&filter=critical"
                         className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
                       >
                         Manage Critical Materials
@@ -332,7 +326,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="mt-4 overflow-x-auto">
                     <table className="min-w-full divide-y divide-amber-200">
                       <thead className="bg-amber-100">
@@ -346,24 +340,23 @@ export default function DashboardPage() {
                       <tbody className="bg-white divide-y divide-amber-200">
                         {summaryData.upcomingDeadlines.map((order) => {
                           const percent = order.targetPcs > 0 ? Math.round((order.completedPcs / order.targetPcs) * 100) : 0;
-                          
+
                           return (
                             <tr key={order.id}>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 <Link href={`/dashboard/orders/${order.id}`} className="text-blue-600 hover:text-blue-900">
-                                  {order.code}
+                                  {order.orderNumber}
                                 </Link>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                 {formatDate(order.dueDate)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                  order.status === 'created' ? 'bg-blue-100 text-blue-800' :
-                                  order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {order.status}
+                                <span className={`px-2 py-1 text-xs rounded-full ${order.status === 'CREATED' ? 'bg-blue-100 text-blue-800' :
+                                    order.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-gray-100 text-gray-800'
+                                  }`}>
+                                  {order.status.toLowerCase()}
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -372,12 +365,11 @@ export default function DashboardPage() {
                                     {percent}%
                                   </span>
                                   <div className="w-24 bg-gray-200 rounded-full h-2.5">
-                                    <div 
-                                      className={`h-2.5 rounded-full ${
-                                        percent < 30 ? 'bg-red-600' : 
-                                        percent < 70 ? 'bg-yellow-400' : 
-                                        'bg-green-500'
-                                      }`}
+                                    <div
+                                      className={`h-2.5 rounded-full ${percent < 30 ? 'bg-red-600' :
+                                          percent < 70 ? 'bg-yellow-400' :
+                                            'bg-green-500'
+                                        }`}
                                       style={{ width: `${percent}%` }}
                                     ></div>
                                   </div>
@@ -388,10 +380,10 @@ export default function DashboardPage() {
                         })}
                       </tbody>
                     </table>
-                    
+
                     <div className="mt-3 flex justify-end">
-                      <Link 
-                        href="/dashboard/orders?filter=urgent" 
+                      <Link
+                        href="/dashboard/orders?filter=urgent"
                         className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700"
                       >
                         View All Urgent Orders
@@ -436,12 +428,12 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <div className="mt-4">
-                    <Link href="/dashboard/orders" className="text-sm text-blue-600 hover:text-blue-800">
+                    <Link href="/dashboard/orders-management" className="text-sm text-blue-600 hover:text-blue-800">
                       View all orders →
                     </Link>
                   </div>
                 </div>
-                
+
                 {/* Materials & Products Stats */}
                 <div className="p-4 bg-green-50 rounded-lg shadow">
                   <h3 className="text-lg font-medium text-green-900">Inventory Summary</h3>
@@ -465,7 +457,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Products Section */}
                     <div className="border-t border-green-200 pt-3">
                       <h4 className="text-md font-medium text-green-800">Products</h4>
@@ -491,11 +483,11 @@ export default function DashboardPage() {
                     </Link>
                   </div>
                 </div>
-                
+
                 {/* Users & Progress Stats */}
                 <div className="p-4 bg-purple-50 rounded-lg shadow">
                   <h3 className="text-lg font-medium text-purple-900">Users & Progress</h3>
-                  
+
                   {/* Users Section */}
                   <div className="mt-3">
                     <h4 className="text-md font-medium text-purple-800">Users</h4>
@@ -510,18 +502,18 @@ export default function DashboardPage() {
                         <span className="text-sm font-medium">{summaryData?.userStats?.admin || 0}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Tailors:</span>
-                        <span className="text-sm font-medium">{summaryData?.userStats?.tailor || 0}</span>
+                        <span className="text-sm text-gray-600">Operators:</span>
+                        <span className="text-sm font-medium">{summaryData?.userStats?.operator || 0}</span>
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Progress Reports Section */}
                   <div className="border-t border-purple-200 pt-3 mt-3">
                     <h4 className="text-md font-medium text-purple-800">Progress Reports</h4>
                     <p className="text-2xl font-bold text-purple-700">{summaryData?.progressStats?.totalReports || 0} <span className="text-sm font-normal">reports</span></p>
                   </div>
-                  
+
                   <div className="mt-4 flex space-x-4">
                     <Link href="/dashboard/users" className="text-sm text-purple-600 hover:text-purple-800">
                       Manage users →
@@ -534,7 +526,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Quick Actions */}
-              <div className="mt-8">
+              {/* <div className="mt-8">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   <Link href="/dashboard/orders/create" className="p-4 bg-white border rounded-lg hover:bg-gray-50 flex flex-col items-center text-center">
@@ -542,51 +534,51 @@ export default function DashboardPage() {
                     <h3 className="font-medium text-gray-900">Create Order</h3>
                     <p className="text-sm text-gray-500">Add new production order</p>
                   </Link>
-                  
+
                   <Link href="/dashboard/inventory?tab=materials" className="p-4 bg-white border rounded-lg hover:bg-gray-50 flex flex-col items-center text-center">
                     <div className="text-2xl mb-2">🧵</div>
                     <h3 className="font-medium text-gray-900">Add Material</h3>
                     <p className="text-sm text-gray-500">Add new material to stock</p>
                   </Link>
-                  
+
                   <Link href="/dashboard/inventory?tab=products" className="p-4 bg-white border rounded-lg hover:bg-gray-50 flex flex-col items-center text-center">
                     <div className="text-2xl mb-2">👕</div>
                     <h3 className="font-medium text-gray-900">Add Product</h3>
                     <p className="text-sm text-gray-500">Create new product</p>
                   </Link>
-                  
+
                   <Link href="/dashboard/orders?filter=urgent" className="p-4 bg-white border rounded-lg hover:bg-gray-50 flex flex-col items-center text-center">
                     <div className="text-2xl mb-2">⚠️</div>
                     <h3 className="font-medium text-gray-900">Urgent Orders</h3>
                     <p className="text-sm text-gray-500">View urgent/deadline orders</p>
                   </Link>
-                  
+
                   <Link href="/dashboard/inventory?tab=materials&filter=critical" className="p-4 bg-white border rounded-lg hover:bg-gray-50 flex flex-col items-center text-center">
                     <div className="text-2xl mb-2">📉</div>
                     <h3 className="font-medium text-gray-900">Critical Stock</h3>
                     <p className="text-sm text-gray-500">Manage critical stock</p>
                   </Link>
-                  
+
                   <Link href="/dashboard/material-movement" className="p-4 bg-white border rounded-lg hover:bg-gray-50 flex flex-col items-center text-center">
                     <div className="text-2xl mb-2">🔄</div>
                     <h3 className="font-medium text-gray-900">Material Movement</h3>
                     <p className="text-sm text-gray-500">Add/remove material stock</p>
                   </Link>
-                  
+
                   <Link href="/dashboard/progress" className="p-4 bg-white border rounded-lg hover:bg-gray-50 flex flex-col items-center text-center">
                     <div className="text-2xl mb-2">📊</div>
                     <h3 className="font-medium text-gray-900">Update Progress</h3>
                     <p className="text-sm text-gray-500">Report production progress</p>
                   </Link>
-                  
+
                   <Link href="/dashboard/reports" className="p-4 bg-white border rounded-lg hover:bg-gray-50 flex flex-col items-center text-center">
                     <div className="text-2xl mb-2">📑</div>
                     <h3 className="font-medium text-gray-900">Generate Report</h3>
                     <p className="text-sm text-gray-500">Create & export reports</p>
                   </Link>
                 </div>
-              </div>
-              
+              </div> */}
+
               {/* Charts Section */}
               <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Order Trend Chart */}
@@ -596,16 +588,16 @@ export default function DashboardPage() {
                     {renderOrderTrendChart()}
                   </div>
                 </div>
-                
+
                 {/* Production Trend Chart */}
                 <div className="bg-white p-4 rounded-lg shadow">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Production Trend (Last 4 Weeks)</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Production Trend (Last 7 Days)</h3>
                   <div className="h-80">
                     {renderProductionTrendChart()}
                   </div>
                 </div>
               </div>
-              
+
               {/* Recent Activities Section */}
               <div className="mt-8">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Activities</h2>
@@ -615,7 +607,7 @@ export default function DashboardPage() {
                       <li key={`${activity.type}-${activity.id}`} className="p-4 hover:bg-gray-50">
                         <div className="flex items-start">
                           <div className="flex-shrink-0">
-                            {activity.type === 'order_created' && (
+                            {activity.type === 'order' && (
                               <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-500">
                                 📦
                               </span>
@@ -627,18 +619,18 @@ export default function DashboardPage() {
                             )}
                             {activity.type === 'material_movement' && (
                               <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-100 text-green-500">
-                                {activity.movementType === 'MASUK' ? '📥' : '📤'}
+                                {activity.movementType === 'IN' ? '📥' : '📤'}
                               </span>
                             )}
                           </div>
                           <div className="ml-4 flex-1">
                             <div className="flex items-center justify-between">
                               <p className="text-sm font-medium text-gray-900">
-                                {activity.message}
+                                {activity.description}
                               </p>
                               <p className="text-sm text-gray-500">
-                                {new Date(activity.timestamp).toLocaleTimeString('id-ID', { 
-                                  hour: '2-digit', 
+                                {new Date(activity.timestamp).toLocaleTimeString('id-ID', {
+                                  hour: '2-digit',
                                   minute: '2-digit',
                                   day: 'numeric',
                                   month: 'short'
@@ -646,13 +638,13 @@ export default function DashboardPage() {
                               </p>
                             </div>
                             <div className="mt-1">
-                              {activity.type === 'order_created' && (
-                                <Link href={`/dashboard/orders/${activity.id}`} className="text-sm text-blue-600 hover:text-blue-800">
+                              {activity.type === 'order' && (
+                                <Link href={`/dashboard/orders-management/${activity.id}`} className="text-sm text-blue-600 hover:text-blue-800">
                                   View order details
                                 </Link>
                               )}
                               {activity.type === 'status_changed' && (
-                                <Link href={`/dashboard/orders/${activity.orderId}`} className="text-sm text-blue-600 hover:text-blue-800">
+                                <Link href={`/dashboard/orders-management/${activity.orderId}`} className="text-sm text-blue-600 hover:text-blue-800">
                                   View order details
                                 </Link>
                               )}
@@ -661,7 +653,7 @@ export default function DashboardPage() {
                         </div>
                       </li>
                     ))}
-                    
+
                     {(!summaryData?.recentActivities || summaryData.recentActivities.length === 0) && (
                       <li className="p-4 text-center text-gray-500">
                         No recent activities found

@@ -37,7 +37,7 @@ const getAdminSummary = asyncHandler(async (req, res) => {
                 total: 0,
                 active: 0,
                 admin: 0,
-                worker: 0
+                operator: 0
             },
             progressStats: {
                 totalReports: 0,
@@ -63,11 +63,11 @@ const getAdminSummary = asyncHandler(async (req, res) => {
                 deliveredOrders
             ] = await Promise.all([
                 prisma.order.count(),
-                prisma.order.count({ where: { status: 'created' } }),
-                prisma.order.count({ where: { status: 'processing' } }),
-                prisma.order.count({ where: { status: 'completed' } }),
-                prisma.order.count({ where: { status: 'cancelled' } }),
-                prisma.order.count({ where: { status: 'delivered' } })
+                prisma.order.count({ where: { status: 'CREATED' } }),
+                prisma.order.count({ where: { status: 'PROCESSING' } }),
+                prisma.order.count({ where: { status: 'COMPLETED' } }),
+                prisma.order.count({ where: { status: 'CANCELLED' } }),
+                prisma.order.count({ where: { status: 'DELIVERED' } })
             ]);
 
             orderStats = {
@@ -98,12 +98,12 @@ const getAdminSummary = asyncHandler(async (req, res) => {
                         gte: new Date()
                     },
                     status: {
-                        notIn: ['completed', 'cancelled', 'delivered']
+                        notIn: ['COMPLETED', 'CANCELLED', 'DELIVERED']
                     }
                 },
                 select: {
                     id: true,
-                    code: true,
+                    orderNumber: true,
                     status: true,
                     dueDate: true,
                     targetPcs: true,
@@ -121,7 +121,7 @@ const getAdminSummary = asyncHandler(async (req, res) => {
         try {
             console.log('Calculating average completion percentage...');
             const activeOrders = await prisma.order.findMany({
-                where: { status: 'processing' },
+                where: { status: 'PROCESSING' },
                 select: {
                     id: true,
                     targetPcs: true,
@@ -151,13 +151,13 @@ const getAdminSummary = asyncHandler(async (req, res) => {
             const totalMaterials = await prisma.material.count();
             materialStats.total = totalMaterials;
 
-            // Get materials with stock below safety stock using raw query for complex comparison
+            // Get materials with stock below minimum stock (using minStock instead of safetyStock)
             try {
                 criticalMaterials = await prisma.$queryRaw`
-                    SELECT id, name, code, "qtyOnHand", "safetyStock", unit
-                    FROM "Material" 
-                    WHERE "qtyOnHand" < "safetyStock" 
-                    ORDER BY ("qtyOnHand" / NULLIF("safetyStock", 0)) ASC
+                    SELECT id, name, code, "qtyOnHand", "minStock", unit
+                    FROM "materials" 
+                    WHERE "qtyOnHand" < "minStock" 
+                    ORDER BY ("qtyOnHand" / NULLIF("minStock", 0)) ASC
                     LIMIT 10
                 `;
             } catch (rawQueryError) {
@@ -169,13 +169,13 @@ const getAdminSummary = asyncHandler(async (req, res) => {
                         name: true,
                         code: true,
                         qtyOnHand: true,
-                        safetyStock: true,
+                        minStock: true,
                         unit: true
                     }
                 });
                 criticalMaterials = allMaterials
-                    .filter(m => m.qtyOnHand < m.safetyStock)
-                    .sort((a, b) => (a.qtyOnHand / (a.safetyStock || 1)) - (b.qtyOnHand / (b.safetyStock || 1)))
+                    .filter(m => Number(m.qtyOnHand) < Number(m.minStock))
+                    .sort((a, b) => (Number(a.qtyOnHand) / (Number(a.minStock) || 1)) - (Number(b.qtyOnHand) / (Number(b.minStock) || 1)))
                     .slice(0, 10);
             }
 
@@ -196,19 +196,19 @@ const getAdminSummary = asyncHandler(async (req, res) => {
             try {
                 const criticalCountResult = await prisma.$queryRaw`
                     SELECT COUNT(*) as count 
-                    FROM "Material" 
-                    WHERE "qtyOnHand" < "safetyStock"
+                    FROM "materials" 
+                    WHERE "qtyOnHand" < "minStock"
                 `;
                 criticalCount = parseInt(criticalCountResult[0]?.count || 0);
             } catch (error) {
                 console.warn('Critical count query failed, calculating manually');
                 const allMaterials = await prisma.material.findMany({
-                    select: { qtyOnHand: true, safetyStock: true }
+                    select: { qtyOnHand: true, minStock: true }
                 });
-                criticalCount = allMaterials.filter(m => m.qtyOnHand < m.safetyStock).length;
+                criticalCount = allMaterials.filter(m => Number(m.qtyOnHand) < Number(m.minStock)).length;
             }
 
-            materialStats.totalQty = stockAggregates._sum.qtyOnHand || 0;
+            materialStats.totalQty = Number(stockAggregates._sum.qtyOnHand || 0);
             materialStats.criticalCount = criticalCount;
             console.log('Material statistics fetched successfully');
         } catch (error) {
@@ -222,7 +222,7 @@ const getAdminSummary = asyncHandler(async (req, res) => {
             const totalProducts = await prisma.product.count();
             productStats.total = totalProducts;
 
-            // Try to get product stock summary if qtyOnHand field exists
+            // Get product stock summary
             try {
                 const productStockSummary = await prisma.product.aggregate({
                     _sum: { qtyOnHand: true },
@@ -238,8 +238,8 @@ const getAdminSummary = asyncHandler(async (req, res) => {
                 productStats.totalQty = productStockSummary._sum.qtyOnHand || 0;
                 productStats.outOfStockCount = outOfStockCount;
             } catch (error) {
-                console.log('Product qtyOnHand field not available, skipping stock calculations');
-                // Field doesn't exist, leave as defaults
+                console.log('Product qtyOnHand field error:', error);
+                // Field doesn't exist or error occurred, leave as defaults
             }
             console.log('Product statistics fetched successfully');
         } catch (error) {
@@ -250,10 +250,10 @@ const getAdminSummary = asyncHandler(async (req, res) => {
         let userStats = { ...defaultResponse.userStats };
         try {
             console.log('Fetching user statistics...');
-            const [totalUsers, activeUsers, adminUsers, tailorUsers] = await Promise.all([
+            const [totalUsers, activeUsers, adminUsers, operatorUsers] = await Promise.all([
                 prisma.user.count(),
                 prisma.user.count({ where: { loginEnabled: true } }),
-                prisma.user.count({ where: { role: 'admin' } }),
+                prisma.user.count({ where: { role: 'ADMIN' } }),
                 prisma.user.count({ where: { role: 'OPERATOR' } })
             ]);
 
@@ -261,7 +261,7 @@ const getAdminSummary = asyncHandler(async (req, res) => {
                 total: totalUsers,
                 active: activeUsers,
                 admin: adminUsers,
-                tailor: tailorUsers
+                operator: operatorUsers
             };
             console.log('User statistics fetched successfully');
         } catch (error) {
@@ -277,7 +277,7 @@ const getAdminSummary = asyncHandler(async (req, res) => {
                 orderBy: { createdAt: 'desc' },
                 select: {
                     id: true,
-                    code: true,
+                    orderNumber: true,
                     status: true,
                     createdAt: true
                 }
@@ -286,7 +286,7 @@ const getAdminSummary = asyncHandler(async (req, res) => {
             recentActivities = recentOrders.map(order => ({
                 id: order.id,
                 type: 'order',
-                description: `Order ${order.code} dibuat`,
+                description: `Order ${order.orderNumber} dibuat`,
                 timestamp: order.createdAt,
                 status: order.status
             }));
@@ -360,11 +360,33 @@ const getAdminSummary = asyncHandler(async (req, res) => {
             console.error('Error calculating production trend:', error);
         }
 
-        // Progress stats - placeholder for now
-        const progressStats = {
-            totalReports: 0,
-            latestReports: []
-        };
+        // Progress stats
+        let progressStats = { ...defaultResponse.progressStats };
+        try {
+            console.log('Fetching progress statistics...');
+            const totalReports = await prisma.progressReport.count();
+            const latestReports = await prisma.progressReport.findMany({
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    id: true,
+                    reportText: true,
+                    percentage: true,
+                    createdAt: true,
+                    order: {
+                        select: { orderNumber: true }
+                    }
+                }
+            });
+
+            progressStats = {
+                totalReports,
+                latestReports
+            };
+            console.log('Progress statistics fetched successfully');
+        } catch (error) {
+            console.error('Error fetching progress statistics:', error);
+        }
 
         const dashboardData = {
             orderStats,
@@ -424,7 +446,7 @@ const getMonthlyStats = asyncHandler(async (req, res) => {
             }),
             prisma.order.count({
                 where: {
-                    status: 'completed',
+                    status: 'COMPLETED',
                     updatedAt: {
                         gte: startDate,
                         lte: endDate
