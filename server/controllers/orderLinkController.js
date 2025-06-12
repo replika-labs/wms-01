@@ -381,7 +381,7 @@ const submitProgress = asyncHandler(async (req, res) => {
                         throw new Error(`OrderProduct with ID ${orderProductId} not found`);
                     }
 
-                    // Create progress report for this product
+                    // Create main progress report (don't store photos in photoPath for new per-product system)
                     const progressReport = await tx.progressReport.create({
                         data: {
                             orderId: order.id,
@@ -389,7 +389,7 @@ const submitProgress = asyncHandler(async (req, res) => {
                             productId: parseInt(productId),
                             userId: user.id,
                             reportText: `Completed ${productPcsFinished} pieces of ${orderProduct.product.name}${qualityNotes ? ` - Quality: ${qualityNotes}` : ''}${challenges ? ` - Challenges: ${challenges}` : ''}`,
-                            photoPath: photos && photos.length > 0 ? JSON.stringify(photos) : null,
+                            photoPath: null, // Photos will be stored in ProductProgressPhoto table instead
                             percentage: Math.round((productPcsFinished / (orderProduct.quantity || 1)) * 100),
                             createdAt: new Date()
                         },
@@ -403,7 +403,45 @@ const submitProgress = asyncHandler(async (req, res) => {
                         }
                     });
 
-                    createdReports.push(progressReport);
+                    // Create ProductProgressReport entry for enhanced tracking
+                    const productProgressReport = await tx.productProgressReport.create({
+                        data: {
+                            progressReportId: progressReport.id,
+                            productId: parseInt(productId),
+                            orderProductId: orderProductId,
+                            itemsCompleted: productPcsFinished,
+                            itemsTarget: orderProduct.quantity || 0,
+                            status: productPcsFinished >= (orderProduct.quantity || 0) ? 'completed' : 'in_progress',
+                            notes: [qualityNotes, challenges, estimatedCompletion].filter(Boolean).join(' | ') || null,
+                            completionDate: productPcsFinished >= (orderProduct.quantity || 0) ? new Date() : null
+                        }
+                    });
+
+                    // Save photos to ProductProgressPhoto table if any
+                    if (photos && photos.length > 0) {
+                        for (const photo of photos) {
+                            await tx.productProgressPhoto.create({
+                                data: {
+                                    productProgressReportId: productProgressReport.id,
+                                    photoPath: photo.url || photo.photoPath || photo.path || '',
+                                    thumbnailPath: photo.thumbnailUrl || photo.thumbnail || null,
+                                    description: photo.caption || photo.description || `Progress photo for ${orderProduct.product.name}`,
+                                    fileSize: photo.fileSize || null,
+                                    mimeType: photo.mimeType || photo.type || null,
+                                    uploadDate: new Date(),
+                                    isActive: true
+                                }
+                            });
+                        }
+
+                        console.log(`🔍 Saved ${photos.length} photos to ProductProgressPhoto for product ${orderProduct.product.name}`);
+                    }
+
+                    createdReports.push({
+                        ...progressReport,
+                        productProgressReport,
+                        photosCount: photos?.length || 0
+                    });
 
                     // Update OrderProduct completed quantity
                     await tx.orderProduct.update({
@@ -581,7 +619,7 @@ const submitProgress = asyncHandler(async (req, res) => {
 
             // Start transaction for legacy processing
             const result = await prisma.$transaction(async (tx) => {
-                // Create progress report
+                // Create main progress report
                 const progressReport = await tx.progressReport.create({
                     data: {
                         orderId: order.id,
@@ -592,6 +630,40 @@ const submitProgress = asyncHandler(async (req, res) => {
                         createdAt: new Date()
                     }
                 });
+
+                // For legacy submissions, create ProductProgressReport entries for each order product
+                if (order.orderProducts && order.orderProducts.length > 0) {
+                    // Distribute the pieces across products proportionally or just the first product
+                    const primaryOrderProduct = order.orderProducts[0];
+
+                    const productProgressReport = await tx.productProgressReport.create({
+                        data: {
+                            progressReportId: progressReport.id,
+                            productId: primaryOrderProduct.productId,
+                            orderProductId: primaryOrderProduct.id,
+                            itemsCompleted: pcsFinished,
+                            itemsTarget: primaryOrderProduct.quantity || 0,
+                            status: 'in_progress',
+                            notes: `Legacy progress update: ${note || 'General progress'}`,
+                            completionDate: null
+                        }
+                    });
+
+                    // Save photo if provided
+                    if (photoUrl) {
+                        await tx.productProgressPhoto.create({
+                            data: {
+                                productProgressReportId: productProgressReport.id,
+                                photoPath: photoUrl,
+                                description: `Legacy progress photo: ${note || 'General progress photo'}`,
+                                uploadDate: new Date(),
+                                isActive: true
+                            }
+                        });
+
+                        console.log(`🔍 Saved legacy photo to ProductProgressPhoto for order ${order.orderNumber}`);
+                    }
+                }
 
                 // Update order completed pieces
                 const previousStatus = order.status;

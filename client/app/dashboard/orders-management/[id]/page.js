@@ -37,16 +37,18 @@ export default function OrderManagementDetail({ params }) {
       const orderData = await ordersManagementAPI.getOrderDetails(id);
       setOrder(orderData);
 
-      // Fetch progress reports
+      // Fetch progress reports with enhanced data
       const token = localStorage.getItem('token');
       const progressResponse = await fetch(`/api/progress-reports?orderId=${id}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
         }
       });
 
       if (progressResponse.ok) {
         const progressData = await progressResponse.json();
+        console.log('Enhanced progress reports loaded:', progressData);
         setProgressReports(progressData);
       } else {
         console.warn('Failed to fetch progress reports');
@@ -502,7 +504,7 @@ export default function OrderManagementDetail({ params }) {
               </div>
             </div>
 
-            {/* Progress Reports History Card */}
+            {/* Enhanced Progress Reports History Card */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-200">
                 <h2 className="text-lg font-medium text-gray-900">
@@ -515,178 +517,160 @@ export default function OrderManagementDetail({ params }) {
                 ) : (
                   <div className="flow-root">
                     <ul className="-mb-8">
-                      {progressReports.map((report, index) => (
-                        <li key={report.id}>
-                          <div className="relative pb-8">
-                            {index !== progressReports.length - 1 && (
-                              <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
-                            )}
-                            <div className="relative flex space-x-3">
-                              <div className="flex-shrink-0">
-                                <span className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
-                                  <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </span>
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-sm">
-                                  <span className="font-medium text-gray-900">
-                                    {report.pcsFinished} pieces completed
-                                  </span>
-                                  <span className="text-gray-500 ml-2">
-                                    by {report.User?.name || report.tailorName || 'Unknown'}
+                      {progressReports.map((report, index) => {
+                        // Extract pieces completed from reportText for backward compatibility
+                        const pcsMatch = report.reportText?.match(/Completed (\d+) pieces/);
+                        const pcsCompleted = pcsMatch ? pcsMatch[1] : report.percentage || 'Unknown';
+
+                        return (
+                          <li key={report.id}>
+                            <div className="relative pb-8">
+                              {index !== progressReports.length - 1 && (
+                                <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
+                              )}
+                              <div className="relative flex space-x-3">
+                                <div className="flex-shrink-0">
+                                  <span className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                                    <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
                                   </span>
                                 </div>
-                                {report.note && (
-                                  <p className="mt-1 text-sm text-gray-600">{report.note}</p>
-                                )}
-                                {report.photoUrl && (
-                                  <div className="mt-2">
-                                    <span className="text-xs text-blue-600">📷 Photo: {report.photoUrl}</span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-sm">
+                                    <span className="font-medium text-gray-900">
+                                      {pcsCompleted} pieces completed
+                                    </span>
+                                    <span className="text-gray-500 ml-2">
+                                      by {report.tailorName || report.user?.name || 'Unknown'}
+                                    </span>
+                                    {report.totalProductsUpdated > 0 && (
+                                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                                        {report.totalProductsUpdated} products
+                                      </span>
+                                    )}
                                   </div>
-                                )}
-                                {report.resiPengiriman && (
-                                  <p className="mt-1 text-xs text-blue-600">
-                                    📦 Tracking: {report.resiPengiriman}
-                                  </p>
-                                )}
-                                <p className="mt-1 text-xs text-gray-500">
-                                  {formatDate(report.reportedAt)}
-                                </p>
+
+                                  {report.reportText && (
+                                    <p className="mt-1 text-sm text-gray-600">{report.reportText}</p>
+                                  )}
+
+                                  {/* Enhanced Product Summary with Cumulative Progress */}
+                                  {report.productSummary && report.productSummary.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      {report.productSummary.map((product, idx) => (
+                                        <div key={idx} className="text-xs bg-gray-50 rounded p-2 border">
+                                          <div className="flex justify-between items-center">
+                                            <span className="font-medium text-gray-800">{product.productName}</span>
+                                            <div className="flex items-center space-x-2">
+                                              <span className="text-gray-600">
+                                                {product.itemsCompleted}/{product.itemsTarget} pieces
+                                              </span>
+                                              {product.percentage !== undefined && (
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${product.percentage === 100
+                                                  ? 'bg-green-100 text-green-700'
+                                                  : product.percentage >= 50
+                                                    ? 'bg-yellow-100 text-yellow-700'
+                                                    : 'bg-blue-100 text-blue-700'
+                                                  }`}>
+                                                  {product.percentage}%
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* Show progress in this specific report */}
+                                          {product.itemsCompletedThisReport && product.itemsCompletedThisReport > 0 && (
+                                            <p className="text-blue-600 mt-1">
+                                              +{product.itemsCompletedThisReport} pieces completed in this update
+                                            </p>
+                                          )}
+
+                                          {product.notes && (
+                                            <p className="text-gray-600 mt-1">{product.notes}</p>
+                                          )}
+
+                                          {product.status === 'completed' && product.completionDate && (
+                                            <p className="text-green-600 mt-1 font-medium">
+                                              ✅ Product completed at this point: {formatDate(product.completionDate)}
+                                            </p>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Enhanced Photo Display */}
+                                  {report.photos && report.photos.length > 0 && (
+                                    <div className="mt-3">
+                                      <div className="text-xs text-blue-600 mb-2">
+                                        📷 {report.photos.length} photo{report.photos.length > 1 ? 's' : ''} attached
+                                      </div>
+                                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                        {report.photos.slice(0, 6).map((photo, photoIdx) => (
+                                          <div key={photoIdx} className="relative group">
+                                            <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border">
+                                              {photo.url ? (
+                                                <img
+                                                  src={photo.thumbnailUrl || photo.url}
+                                                  alt={photo.description || `Progress photo ${photoIdx + 1}`}
+                                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                                  onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                    e.target.nextSibling.style.display = 'flex';
+                                                  }}
+                                                />
+                                              ) : null}
+                                              <div className="w-full h-full flex items-center justify-center text-gray-400 hidden">
+                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                              </div>
+                                            </div>
+                                            {photo.description && (
+                                              <p className="text-xs text-gray-500 mt-1 truncate" title={photo.description}>
+                                                {photo.description}
+                                              </p>
+                                            )}
+                                            {photo.source === 'product_progress' && (
+                                              <span className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 rounded">
+                                                Product
+                                              </span>
+                                            )}
+                                          </div>
+                                        ))}
+                                        {report.photos.length > 6 && (
+                                          <div className="aspect-square bg-gray-100 rounded-lg border flex items-center justify-center">
+                                            <span className="text-sm text-gray-500">
+                                              +{report.photos.length - 6} more
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="mt-2 flex items-center justify-between">
+                                    <p className="text-xs text-gray-500">
+                                      {formatDate(report.reportedAt || report.createdAt)}
+                                    </p>
+                                    {report.percentage && (
+                                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                                        {report.percentage}% progress
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Progress Form Card */}
-            {order?.status !== 'COMPLETED' && order?.status !== 'CANCELLED' && (
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-200">
-                  <h2 className="text-lg font-medium text-gray-900">Submit Progress Update</h2>
-                </div>
-                <div className="px-6 py-5">
-                  {progressForm.error && (
-                    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
-                      <p className="text-red-700">{progressForm.error}</p>
-                    </div>
-                  )}
-
-                  {progressForm.success && (
-                    <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
-                      <p className="text-green-700">{progressForm.success}</p>
-                    </div>
-                  )}
-
-                  <form onSubmit={handleProgressSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label htmlFor="pcsFinished" className="block text-sm font-medium text-gray-700">
-                          Pieces Finished *
-                        </label>
-                        <input
-                          type="number"
-                          id="pcsFinished"
-                          name="pcsFinished"
-                          min="1"
-                          max={getRemainingPcs()}
-                          value={progressForm.pcsFinished}
-                          onChange={handleProgressInputChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          required
-                        />
-                        <p className="mt-1 text-xs text-gray-500">
-                          Remaining: {getRemainingPcs()} pieces
-                        </p>
-                      </div>
-
-                      <div>
-                        <label htmlFor="tailorName" className="block text-sm font-medium text-gray-700">
-                          Tailor Name *
-                        </label>
-                        <input
-                          type="text"
-                          id="tailorName"
-                          name="tailorName"
-                          value={progressForm.tailorName}
-                          onChange={handleProgressInputChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          required
-                          readOnly={!!order?.Tailor?.name}
-                        />
-                        {order?.Tailor?.name && (
-                          <p className="mt-1 text-xs text-blue-600">
-                            Auto-filled from assigned tailor
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="note" className="block text-sm font-medium text-gray-700">
-                        Progress Notes
-                      </label>
-                      <textarea
-                        id="note"
-                        name="note"
-                        rows={3}
-                        value={progressForm.note}
-                        onChange={handleProgressInputChange}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="Enter any notes about the progress..."
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label htmlFor="photoUrl" className="block text-sm font-medium text-gray-700">
-                          Progress Photo
-                        </label>
-                        <input
-                          type="file"
-                          id="photoUrl"
-                          name="photoUrl"
-                          accept="image/*"
-                          onChange={handlePhotoChange}
-                          className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="resiPengiriman" className="block text-sm font-medium text-gray-700">
-                          Tracking Number
-                        </label>
-                        <input
-                          type="text"
-                          id="resiPengiriman"
-                          name="resiPengiriman"
-                          value={progressForm.resiPengiriman}
-                          onChange={handleProgressInputChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          placeholder="Enter tracking number if applicable"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={progressForm.isSubmitting}
-                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                      >
-                        {progressForm.isSubmitting ? 'Submitting...' : 'Submit Progress'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </DashboardLayout>

@@ -1,45 +1,20 @@
 const express = require('express');
-const asyncHandler = require('express-async-handler');
-// const { ProgressReport, Order, User } = require('../models'); // DISABLED: Using Prisma now
 const { protect, adminOnly } = require('../middleware/authMiddleware');
+const {
+  getProgressReports,
+  createProgressReport,
+  getProgressPhotos
+} = require('../controllers/progressReportController');
 
 const router = express.Router();
 
-// TEMPORARY: All routes disabled during Sequelize to Prisma migration
+// Get progress reports for an order
+router.get('/', protect, getProgressReports);
 
-router.get('/', protect, asyncHandler(async (req, res) => {
-  res.status(501).json({
-    message: 'This endpoint is temporarily disabled during Sequelize to Prisma migration',
-    error: 'Not Implemented'
-  });
-}));
+// Create new progress report (legacy endpoint)
+router.post('/', protect, createProgressReport);
 
-router.get('/:id', protect, asyncHandler(async (req, res) => {
-  res.status(501).json({
-    message: 'This endpoint is temporarily disabled during Sequelize to Prisma migration',
-    error: 'Not Implemented'
-  });
-}));
-
-router.post('/', protect, asyncHandler(async (req, res) => {
-  res.status(501).json({
-    message: 'This endpoint is temporarily disabled during Sequelize to Prisma migration',
-    error: 'Not Implemented'
-  });
-}));
-
-router.put('/:id', protect, asyncHandler(async (req, res) => {
-  res.status(501).json({
-    message: 'This endpoint is temporarily disabled during Sequelize to Prisma migration',
-    error: 'Not Implemented'
-  });
-}));
-
-router.delete('/:id', protect, adminOnly, asyncHandler(async (req, res) => {
-  res.status(501).json({
-    message: 'This endpoint is temporarily disabled during Sequelize to Prisma migration',
-    error: 'Not Implemented'
-  });
-}));
+// Get progress photos for an order
+router.get('/:orderId/photos', protect, getProgressPhotos);
 
 module.exports = router; 
