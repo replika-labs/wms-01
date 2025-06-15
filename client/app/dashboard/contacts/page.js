@@ -387,12 +387,12 @@ function ContactManagement() {
 
         {/* Success/Error Messages */}
         {success && (
-          <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+          <div className="mb-4 bg-green-600 border border-green-700 text-white px-4 py-3 rounded">
             {success}
           </div>
         )}
         {error && (
-          <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <div className="mb-4 bg-red-600 border border-red-700 text-white px-4 py-3 rounded">
             {error}
           </div>
         )}
@@ -401,8 +401,8 @@ function ContactManagement() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <span className="text-2xl text-blue-600">🏭</span>
+              <div className="p-2 bg-blue-600 rounded-lg">
+                <span className="text-2xl text-white">🏭</span>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Suppliers</p>
@@ -416,8 +416,8 @@ function ContactManagement() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <span className="text-2xl text-green-600">✂️</span>
+              <div className="p-2 bg-green-600 rounded-lg">
+                <span className="text-2xl text-white">✂️</span>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Tailors</p>
@@ -431,8 +431,8 @@ function ContactManagement() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <span className="text-2xl text-purple-600">👥</span>
+              <div className="p-2 bg-purple-600 rounded-lg">
+                <span className="text-2xl text-white">👥</span>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Customers</p>
@@ -535,10 +535,10 @@ function ContactManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${contact.contactType === 'SUPPLIER'
-                          ? 'bg-blue-100 text-blue-800'
+                          ? 'bg-blue-600 text-white'
                           : contact.contactType === 'WORKER'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-purple-100 text-purple-800'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-purple-600 text-white'
                           }`}>
                           {contact.contactType === 'WORKER' ? 'TAILOR' : contact.contactType}
                         </span>
@@ -570,8 +570,8 @@ function ContactManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${contact.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
+                          ? 'bg-green-600 text-white'
+                          : 'bg-red-600 text-white'
                           }`}>
                           {contact.isActive ? 'Active' : 'Inactive'}
                         </span>
@@ -646,7 +646,7 @@ function ContactManagement() {
                           key={page}
                           onClick={() => setCurrentPage(page)}
                           className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === page
-                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                            ? 'z-10 bg-blue-600 border-blue-700 text-white'
                             : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                             }`}
                         >
@@ -968,10 +968,10 @@ function ContactManagement() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Type</label>
                     <span className={`mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${selectedContact.contactType === 'SUPPLIER'
-                      ? 'bg-blue-100 text-blue-800'
+                      ? 'bg-blue-600 text-white'
                       : selectedContact.contactType === 'WORKER'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-purple-100 text-purple-800'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-purple-600 text-white'
                       }`}>
                       {selectedContact.contactType === 'WORKER' ? 'TAILOR' : selectedContact.contactType}
                     </span>
@@ -1168,18 +1168,18 @@ function ContactManagement() {
                     <div key={note.id} className="bg-white border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${note.noteType === 'general' ? 'bg-gray-100 text-gray-800' :
-                            note.noteType === 'order' ? 'bg-blue-100 text-blue-800' :
-                              note.noteType === 'purchase' ? 'bg-green-100 text-green-800' :
-                                note.noteType === 'performance' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-purple-100 text-purple-800'
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${note.noteType === 'general' ? 'bg-gray-600 text-white' :
+                            note.noteType === 'order' ? 'bg-blue-600 text-white' :
+                              note.noteType === 'purchase' ? 'bg-green-600 text-white' :
+                                note.noteType === 'performance' ? 'bg-yellow-600 text-white' :
+                                  'bg-purple-600 text-white'
                             }`}>
                             {note.noteType}
                           </span>
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${note.priority === 'low' ? 'bg-gray-100 text-gray-800' :
-                            note.priority === 'medium' ? 'bg-blue-100 text-blue-800' :
-                              note.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                                'bg-red-100 text-red-800'
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${note.priority === 'low' ? 'bg-gray-600 text-white' :
+                            note.priority === 'medium' ? 'bg-blue-600 text-white' :
+                              note.priority === 'high' ? 'bg-orange-600 text-white' :
+                                'bg-red-600 text-white'
                             }`}>
                             {note.priority}
                           </span>

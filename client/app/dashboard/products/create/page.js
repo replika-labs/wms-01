@@ -322,13 +322,13 @@ export default function CreateProductPage() {
 
           {/* Success/Error Messages */}
           {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+            <div className="bg-green-600 border border-green-700 text-white px-4 py-3 rounded-lg">
               {success}
             </div>
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div className="bg-red-600 border border-red-700 text-white px-4 py-3 rounded-lg">
               {error}
             </div>
           )}
@@ -396,7 +396,7 @@ export default function CreateProductPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Product Code
                   </label>
-                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-600 text-white">
                     Auto-generated after creation
                   </div>
                 </div>

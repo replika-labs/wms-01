@@ -468,27 +468,27 @@ export default function OrdersManagement() {
   // Get status badge color
   const getStatusColor = (status) => {
     const colors = {
-      'CREATED': 'bg-blue-100 text-blue-800',
-      'CONFIRMED': 'bg-green-100 text-green-800',
-      'PROCESSING': 'bg-yellow-100 text-yellow-800',
-      'COMPLETED': 'bg-purple-100 text-purple-800',
-      'SHIPPED': 'bg-indigo-100 text-indigo-800',
-      'DELIVERED': 'bg-emerald-100 text-emerald-800',
-      'CANCELLED': 'bg-red-100 text-red-800',
-      'NEED_MATERIAL': 'bg-orange-100 text-orange-800'
+      'CREATED': 'bg-blue-600 text-white',
+      'CONFIRMED': 'bg-green-600 text-white',
+      'PROCESSING': 'bg-yellow-600 text-white',
+      'COMPLETED': 'bg-purple-600 text-white',
+      'SHIPPED': 'bg-indigo-600 text-white',
+      'DELIVERED': 'bg-emerald-600 text-white',
+      'CANCELLED': 'bg-red-600 text-white',
+      'NEED_MATERIAL': 'bg-orange-600 text-white'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-gray-600 text-white';
   };
 
   // Get priority color
   const getPriorityColor = (priority) => {
     const colors = {
-      'LOW': 'bg-gray-100 text-gray-800',
-      'MEDIUM': 'bg-blue-100 text-blue-800',
-      'HIGH': 'bg-orange-100 text-orange-800',
-      'URGENT': 'bg-red-100 text-red-800'
+      'LOW': 'bg-gray-600 text-white',
+      'MEDIUM': 'bg-blue-600 text-white',
+      'HIGH': 'bg-orange-600 text-white',
+      'URGENT': 'bg-red-600 text-white'
     };
-    return colors[priority] || 'bg-gray-100 text-gray-800';
+    return colors[priority] || 'bg-gray-600 text-white';
   };
 
   // Format products list with quantities
@@ -552,23 +552,23 @@ export default function OrdersManagement() {
 
           {/* Alerts */}
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="mb-6 bg-red-600 border border-red-700 rounded-lg p-4">
               <div className="flex">
-                <svg className="w-5 h-5 text-red-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-white mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-red-700">{error}</p>
+                <p className="text-white">{error}</p>
               </div>
             </div>
           )}
 
           {success && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="mb-6 bg-green-600 border border-green-700 rounded-lg p-4">
               <div className="flex">
-                <svg className="w-5 h-5 text-green-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-white mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-green-700">{success}</p>
+                <p className="text-white">{success}</p>
               </div>
             </div>
           )}
@@ -584,7 +584,7 @@ export default function OrdersManagement() {
                   placeholder="Order number, customer note..."
                   value={filters.search}
                   onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -592,7 +592,7 @@ export default function OrdersManagement() {
                 <select
                   value={filters.status}
                   onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option value="">All Status</option>
                   <option value="CREATED">Created</option>
@@ -610,7 +610,7 @@ export default function OrdersManagement() {
                 <select
                   value={filters.priority}
                   onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option value="">All Priority</option>
                   <option value="LOW">Low</option>
@@ -625,7 +625,7 @@ export default function OrdersManagement() {
                   type="date"
                   value={filters.dateFrom}
                   onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -634,7 +634,7 @@ export default function OrdersManagement() {
                   type="date"
                   value={filters.dateTo}
                   onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -789,26 +789,26 @@ export default function OrdersManagement() {
                           <div className="flex justify-end space-x-2">
                             <button
                               onClick={() => router.push(`/dashboard/orders-management/${order.id}`)}
-                              className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                              className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
                               View
                             </button>
                             <button
                               onClick={() => router.push(`/dashboard/orders-management/${order.id}/edit`)}
-                              className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                              className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                             >
                               Edit
                             </button>
                             <button
                               onClick={() => handleOrderLink(order.id)}
-                              className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                              className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                               title="Generate OrderLink for tailor"
                             >
                               OrderLink
                             </button>
                             <button
                               onClick={() => handleDelete(order.id)}
-                              className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                              className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                             >
                               Delete
                             </button>
@@ -868,7 +868,7 @@ export default function OrdersManagement() {
                           key={page}
                           onClick={() => setPagination(prev => ({ ...prev, current: page }))}
                           className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${page === pagination.current
-                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                            ? 'z-10 bg-blue-600 border-blue-700 text-white'
                             : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                             }`}
                         >

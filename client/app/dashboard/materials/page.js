@@ -490,11 +490,11 @@ function MaterialsManagementPage() {
     const minStock = material.minStock || 0;
 
     if (currentStock === 0) {
-      return <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Out of Stock</span>;
+      return <span className="px-2 py-1 text-xs font-medium bg-red-600 text-white rounded-full">Out of Stock</span>;
     } else if (currentStock <= minStock) {
-      return <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">Low Stock</span>;
+      return <span className="px-2 py-1 text-xs font-medium bg-amber-600 text-white rounded-full">Low Stock</span>;
     } else {
-      return <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Adequate</span>;
+      return <span className="px-2 py-1 text-xs font-medium bg-green-600 text-white rounded-full">Adequate</span>;
     }
   };
 
@@ -678,13 +678,13 @@ function MaterialsManagementPage() {
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-600 border border-red-700 text-white px-4 py-3 rounded mb-4">
           {error}
         </div>
       )}
 
       {/* Info Note */}
-      <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-4">
+      <div className="bg-blue-600 border border-blue-700 text-white px-4 py-3 rounded mb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <FiPackage className="mr-2" />
@@ -693,7 +693,7 @@ function MaterialsManagementPage() {
               Page auto-refreshes every 10 seconds. Use the &quot;Refresh&quot; button for immediate updates.
             </span>
           </div>
-          <div className="text-xs text-blue-600">
+          <div className="text-xs text-blue-100">
             Last updated: {lastUpdated.toLocaleTimeString()}
           </div>
         </div>
@@ -1270,19 +1270,19 @@ function MaterialsManagementPage() {
                 <div className="mt-6">
                   <h3 className="text-lg font-semibold border-b pb-2 mb-4">Purchase History</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <p className="text-sm text-blue-600">Total Purchases</p>
-                      <p className="text-xl font-bold text-blue-800">{selectedMaterial.purchaseHistory.summary.totalPurchases}</p>
+                    <div className="bg-blue-600 p-3 rounded-lg">
+                      <p className="text-sm text-blue-100">Total Purchases</p>
+                      <p className="text-xl font-bold text-white">{selectedMaterial.purchaseHistory.summary.totalPurchases}</p>
                     </div>
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <p className="text-sm text-green-600">Total Quantity</p>
-                      <p className="text-xl font-bold text-green-800">
+                    <div className="bg-green-600 p-3 rounded-lg">
+                      <p className="text-sm text-green-100">Total Quantity</p>
+                      <p className="text-xl font-bold text-white">
                         {selectedMaterial.purchaseHistory.summary.totalQuantity} {selectedMaterial.material?.unit || selectedMaterial.unit}
                       </p>
                     </div>
-                    <div className="bg-purple-50 p-3 rounded-lg">
-                      <p className="text-sm text-purple-600">Total Value</p>
-                      <p className="text-xl font-bold text-purple-800">
+                    <div className="bg-purple-600 p-3 rounded-lg">
+                      <p className="text-sm text-purple-100">Total Value</p>
+                      <p className="text-xl font-bold text-white">
                         {formatCurrencyShort(selectedMaterial.purchaseHistory.summary.totalValue)}
                       </p>
                     </div>
@@ -1312,10 +1312,10 @@ function MaterialsManagementPage() {
                                 {purchase.supplier || 'N/A'}
                               </td>
                               <td className="px-4 py-2 text-sm">
-                                <span className={`px-2 py-1 text-xs rounded-full ${purchase.status === 'RECEIVED' ? 'bg-green-100 text-green-800' :
-                                  purchase.status === 'ORDERED' ? 'bg-blue-100 text-blue-800' :
-                                    purchase.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                                      'bg-gray-100 text-gray-800'
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${purchase.status === 'RECEIVED' ? 'bg-green-600 text-white' :
+                                  purchase.status === 'ORDERED' ? 'bg-blue-600 text-white' :
+                                    purchase.status === 'PENDING' ? 'bg-amber-600 text-white' :
+                                      'bg-gray-600 text-white'
                                   }`}>
                                   {purchase.status}
                                 </span>
@@ -1333,29 +1333,33 @@ function MaterialsManagementPage() {
               {selectedMaterial.restockRecommendation && (
                 <div className="mt-6">
                   <h3 className="text-lg font-semibold border-b pb-2 mb-4">Restock Recommendation</h3>
-                  <div className={`p-4 rounded-lg ${selectedMaterial.restockRecommendation.priority === 'critical' ? 'bg-red-50 border border-red-200' :
-                    selectedMaterial.restockRecommendation.priority === 'high' ? 'bg-orange-50 border border-orange-200' :
-                      selectedMaterial.restockRecommendation.priority === 'medium' ? 'bg-yellow-50 border border-yellow-200' :
-                        'bg-green-50 border border-green-200'
+                  <div className={`p-4 rounded-lg border ${selectedMaterial.restockRecommendation.priority === 'critical' ? 'bg-red-600 border-red-700 text-white' :
+                    selectedMaterial.restockRecommendation.priority === 'high' ? 'bg-orange-600 border-orange-700 text-white' :
+                      selectedMaterial.restockRecommendation.priority === 'medium' ? 'bg-amber-600 border-amber-700 text-white' :
+                        'bg-green-600 border-green-700 text-white'
                     }`}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">
+                        <p className="font-medium text-white">
                           Action: {selectedMaterial.restockRecommendation.action.replace('_', ' ').toUpperCase()}
                         </p>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className={`text-sm mt-1 ${selectedMaterial.restockRecommendation.priority === 'critical' ? 'text-red-100' :
+                          selectedMaterial.restockRecommendation.priority === 'high' ? 'text-orange-100' :
+                            selectedMaterial.restockRecommendation.priority === 'medium' ? 'text-amber-100' :
+                              'text-green-100'
+                          }`}>
                           {selectedMaterial.restockRecommendation.reason}
                         </p>
                         {selectedMaterial.restockRecommendation.recommendedQuantity > 0 && (
-                          <p className="text-sm font-medium mt-2">
+                          <p className="text-sm font-medium mt-2 text-white">
                             Recommended Quantity: {selectedMaterial.restockRecommendation.recommendedQuantity} {selectedMaterial.material?.unit || selectedMaterial.unit}
                           </p>
                         )}
                       </div>
-                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${selectedMaterial.restockRecommendation.priority === 'critical' ? 'bg-red-100 text-red-800' :
-                        selectedMaterial.restockRecommendation.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                          selectedMaterial.restockRecommendation.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
+                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${selectedMaterial.restockRecommendation.priority === 'critical' ? 'bg-red-600 text-white' :
+                        selectedMaterial.restockRecommendation.priority === 'high' ? 'bg-orange-600 text-white' :
+                          selectedMaterial.restockRecommendation.priority === 'medium' ? 'bg-amber-600 text-white' :
+                            'bg-green-600 text-white'
                         }`}>
                         {selectedMaterial.restockRecommendation.priority.toUpperCase()}
                       </span>

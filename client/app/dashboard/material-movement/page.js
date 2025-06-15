@@ -362,12 +362,12 @@ export default function MaterialMovementPage() {
   // Get movement type badge
   const getMovementTypeBadge = (movementType) => {
     const badges = {
-      IN: 'bg-green-100 text-green-800',
-      OUT: 'bg-red-100 text-red-800',
-      // ADJUST: 'bg-yellow-100 text-yellow-800'
+      IN: 'bg-green-600 text-white',
+      OUT: 'bg-red-600 text-white',
+      // ADJUST: 'bg-yellow-600 text-white'
     };
 
-    return badges[movementType] || 'bg-gray-100 text-gray-800';
+    return badges[movementType] || 'bg-gray-600 text-white';
   };
 
   return (
@@ -402,11 +402,11 @@ export default function MaterialMovementPage() {
 
           {/* Error and Success Messages */}
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+            <div className="bg-red-600 border border-red-700 text-white px-4 py-3 rounded relative mb-4">
               <span className="block sm:inline">{error}</span>
               <button
                 onClick={() => setError(null)}
-                className="absolute top-0 bottom-0 right-0 px-4 py-3"
+                className="absolute top-0 bottom-0 right-0 px-4 py-3 text-white hover:text-red-100"
               >
                 <span className="sr-only">Dismiss</span>
                 ×
@@ -415,11 +415,11 @@ export default function MaterialMovementPage() {
           )}
 
           {success && (
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
+            <div className="bg-green-600 border border-green-700 text-white px-4 py-3 rounded relative mb-4">
               <span className="block sm:inline">{success}</span>
               <button
                 onClick={() => setSuccess(null)}
-                className="absolute top-0 bottom-0 right-0 px-4 py-3"
+                className="absolute top-0 bottom-0 right-0 px-4 py-3 text-white hover:text-green-100"
               >
                 <span className="sr-only">Dismiss</span>
                 ×
@@ -435,20 +435,20 @@ export default function MaterialMovementPage() {
                   Movement Analytics
                 </h3>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="bg-blue-50 overflow-hidden shadow rounded-lg">
+                  <div className="bg-white border border-gray-200 overflow-hidden shadow rounded-lg">
                     <div className="p-5">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                          <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
                             <span className="text-white text-sm font-medium">📊</span>
                           </div>
                         </div>
                         <div className="ml-5 w-0 flex-1">
                           <dl>
-                            <dt className="text-sm font-medium text-gray-500 truncate">
+                            <dt className="text-sm font-medium text-gray-600 truncate">
                               Total Movements
                             </dt>
-                            <dd className="text-lg font-medium text-gray-900">
+                            <dd className="text-lg font-bold text-gray-900">
                               {analytics.totalMovements || 0}
                             </dd>
                           </dl>
@@ -458,11 +458,13 @@ export default function MaterialMovementPage() {
                   </div>
 
                   {analytics.movementsByType && analytics.movementsByType.map((typeData, index) => (
-                    <div key={index} className="bg-gray-50 overflow-hidden shadow rounded-lg">
+                    <div key={index} className="bg-white border border-gray-200 overflow-hidden shadow rounded-lg">
                       <div className="p-5">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-gray-500 rounded-md flex items-center justify-center">
+                            <div className={`w-8 h-8 rounded-md flex items-center justify-center ${typeData.movementType === 'IN' ? 'bg-green-600' :
+                              typeData.movementType === 'OUT' ? 'bg-red-600' : 'bg-gray-600'
+                              }`}>
                               <span className="text-white text-sm font-medium">
                                 {typeData.movementType === 'IN' ? '⬇️' : typeData.movementType === 'OUT' ? '⬆️' : '🔄'}
                               </span>
@@ -470,10 +472,10 @@ export default function MaterialMovementPage() {
                           </div>
                           <div className="ml-5 w-0 flex-1">
                             <dl>
-                              <dt className="text-sm font-medium text-gray-500 truncate">
+                              <dt className="text-sm font-medium text-gray-600 truncate">
                                 {typeData.movementType} Movements
                               </dt>
-                              <dd className="text-lg font-medium text-gray-900">
+                              <dd className="text-lg font-bold text-gray-900">
                                 {typeData._count.id || 0}
                               </dd>
                             </dl>
@@ -505,7 +507,7 @@ export default function MaterialMovementPage() {
                     name="movementType"
                     value={filter.movementType}
                     onChange={handleFilterChange}
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                    className="mt-1 block w-full px-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                   >
                     <option value="">All Types</option>
                     <option value="IN">IN</option>
@@ -524,7 +526,7 @@ export default function MaterialMovementPage() {
                     name="materialId"
                     value={filter.materialId}
                     onChange={handleFilterChange}
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                    className="mt-1 block w-full px-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                   >
                     <option value="">All Materials</option>
                     {Array.isArray(materials) && materials.map((material) => (
@@ -546,7 +548,7 @@ export default function MaterialMovementPage() {
                     id="startDate"
                     value={filter.startDate}
                     onChange={handleFilterChange}
-                    className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    className="mt-1 px-3 py-2 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                   />
                 </div>
 
@@ -561,7 +563,7 @@ export default function MaterialMovementPage() {
                     id="endDate"
                     value={filter.endDate}
                     onChange={handleFilterChange}
-                    className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    className="mt-1 px-3 py-2 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                   />
                 </div>
 
@@ -587,7 +589,7 @@ export default function MaterialMovementPage() {
                     id="search"
                     value={filter.search}
                     onChange={handleFilterChange}
-                    className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    className="mt-1 px-3 py-2 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                     placeholder="Search by notes, material name, or code"
                   />
                 </div>
@@ -596,7 +598,12 @@ export default function MaterialMovementPage() {
           </div>
 
           {/* Material Movements Table */}
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <div className="bg-white shadow-sm border border-gray-200 overflow-hidden sm:rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">
+                Material Movements ({pagination.total || 0} total)
+              </h3>
+            </div>
             <div className="overflow-x-auto">
               {loading ? (
                 <div className="py-12 flex justify-center">
@@ -636,14 +643,20 @@ export default function MaterialMovementPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {movements.length === 0 ? (
                         <tr>
-                          <td colSpan="9" className="px-6 py-4 text-center text-sm text-gray-500">
-                            No material movements found
+                          <td colSpan="7" className="px-6 py-12 text-center">
+                            <div className="text-gray-400">
+                              <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8V4a1 1 0 00-1-1H7a1 1 0 00-1 1v1m8 0V4.5" />
+                              </svg>
+                              <p className="text-sm font-medium text-gray-900">No material movements found</p>
+                              <p className="text-sm text-gray-500">Material movements will appear here when they are created.</p>
+                            </div>
                           </td>
                         </tr>
                       ) : (
                         movements.map((movement) => (
-                          <tr key={movement.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <tr key={movement.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {formatDate(movement.movementDate)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -651,36 +664,38 @@ export default function MaterialMovementPage() {
                                 {movement.movementType}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <td className="px-6 py-4 whitespace-nowrap">
                               {movement.material ? (
-                                <>
-                                  {movement.material.name}
-                                  <span className="text-xs text-gray-500 ml-1">
-                                    ({movement.material.code})
-                                  </span>
-                                </>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{movement.material.name}</div>
+                                  <div className="text-xs text-gray-500">
+                                    Code: {movement.material.code}
+                                  </div>
+                                </div>
                               ) : (
-                                'Unknown Material'
+                                <span className="text-sm text-gray-400 italic">Unknown Material</span>
                               )}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {movement.quantity} {movement.unit}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{movement.quantity}</div>
+                              <div className="text-xs text-gray-500">{movement.unit}</div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {movement.qtyAfter} {movement.unit}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{movement.qtyAfter}</div>
+                              <div className="text-xs text-gray-500">{movement.unit}</div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               {formatCurrency(movement.totalCost)}
                             </td>
-                            {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {movement.user ? movement.user.name : 'System'}
-                            </td> */}
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {movement.purchaseLog ? (
                                 <div>
-                                  <div className="font-medium">Buy from: {movement.purchaseLog.supplier}</div>
+                                  <div className="font-medium text-blue-600">Purchase</div>
+                                  <div className="text-xs text-gray-500">from {movement.purchaseLog.supplier}</div>
                                 </div>
-                              ) : '-'}
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -737,7 +752,7 @@ export default function MaterialMovementPage() {
                                 key={page}
                                 onClick={() => handlePageChange(page)}
                                 className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${page === pagination.current
-                                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                  ? 'z-10 bg-blue-600 border-blue-700 text-white'
                                   : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                                   }`}
                               >

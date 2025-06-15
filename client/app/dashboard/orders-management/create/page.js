@@ -227,23 +227,23 @@ export default function CreateOrderManagement() {
 
           {/* Alerts */}
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="mb-6 bg-red-600 border border-red-700 rounded-lg p-4">
               <div className="flex">
-                <svg className="w-5 h-5 text-red-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-white mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-red-700">{error}</p>
+                <p className="text-white">{error}</p>
               </div>
             </div>
           )}
 
           {success && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="mb-6 bg-green-600 border border-green-700 rounded-lg p-4">
               <div className="flex">
-                <svg className="w-5 h-5 text-green-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-white mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-green-700">{success}</p>
+                <p className="text-white">{success}</p>
               </div>
             </div>
           )}
@@ -268,7 +268,7 @@ export default function CreateOrderManagement() {
                       name="dueDate"
                       value={formData.dueDate}
                       onChange={handleInputChange}
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       required
                     />
                   </div>
@@ -283,7 +283,7 @@ export default function CreateOrderManagement() {
                       name="priority"
                       value={formData.priority}
                       onChange={handleInputChange}
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     >
                       <option value="LOW">Low</option>
                       <option value="MEDIUM">Medium</option>
@@ -303,7 +303,7 @@ export default function CreateOrderManagement() {
                         name="workerContactId"
                         value={formData.workerContactId}
                         onChange={handleInputChange}
-                        className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       >
                         <option value="">Select Tailor (Optional)</option>
                         {tailors.map(tailor => (
@@ -316,7 +316,7 @@ export default function CreateOrderManagement() {
                         type="button"
                         onClick={handleRefreshTailors}
                         disabled={refreshingTailors}
-                        className="px-2 py-2 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-2 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Refresh tailors list"
                       >
                         {refreshingTailors ? (
@@ -362,7 +362,7 @@ export default function CreateOrderManagement() {
                     rows={3}
                     value={formData.description}
                     onChange={handleInputChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     placeholder="Enter order description..."
                   />
                 </div>
@@ -378,7 +378,7 @@ export default function CreateOrderManagement() {
                     rows={3}
                     value={formData.customerNote}
                     onChange={handleInputChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     placeholder="Enter customer notes..."
                   />
                 </div>
@@ -405,9 +405,9 @@ export default function CreateOrderManagement() {
           </div>
 
           {/* Help Section */}
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-blue-900 mb-2">Enhanced Features</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
+          <div className="mt-8 bg-blue-600 border border-blue-700 rounded-lg p-6">
+            <h3 className="text-lg font-medium text-white mb-2">Enhanced Features</h3>
+            <ul className="text-sm text-blue-100 space-y-1">
               <li>• <strong>Tailor Assignment:</strong> Assign orders directly to tailors for better tracking</li>
               <li>• <strong>Material Stock Checking:</strong> Automatic material availability verification</li>
               <li>• <strong>Purchase Alerts:</strong> Automatic alerts when materials are low</li>

@@ -294,23 +294,23 @@ export default function EditOrderManagement({ params }) {
 
           {/* Alerts */}
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="mb-6 bg-red-600 border border-red-700 rounded-lg p-4">
               <div className="flex">
-                <svg className="w-5 h-5 text-red-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-white mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-red-700">{error}</p>
+                <p className="text-white">{error}</p>
               </div>
             </div>
           )}
 
           {success && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="mb-6 bg-green-600 border border-green-700 rounded-lg p-4">
               <div className="flex">
-                <svg className="w-5 h-5 text-green-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-white mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-green-700">{success}</p>
+                <p className="text-white">{success}</p>
               </div>
             </div>
           )}
@@ -334,7 +334,7 @@ export default function EditOrderManagement({ params }) {
                       name="status"
                       value={formData.status}
                       onChange={handleInputChange}
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       required
                     >
                       <option value="CREATED">Created</option>
@@ -359,7 +359,7 @@ export default function EditOrderManagement({ params }) {
                       name="dueDate"
                       value={formData.dueDate}
                       onChange={handleInputChange}
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       required
                     />
                   </div>
@@ -374,7 +374,7 @@ export default function EditOrderManagement({ params }) {
                       name="priority"
                       value={formData.priority}
                       onChange={handleInputChange}
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     >
                       <option value="LOW">Low</option>
                       <option value="MEDIUM">Medium</option>
@@ -394,7 +394,7 @@ export default function EditOrderManagement({ params }) {
                         name="workerContactId"
                         value={formData.workerContactId}
                         onChange={handleInputChange}
-                        className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       >
                         <option value="">Select Tailor (Optional)</option>
                         {tailors.map(tailor => (
@@ -407,7 +407,7 @@ export default function EditOrderManagement({ params }) {
                         type="button"
                         onClick={handleRefreshTailors}
                         disabled={refreshingTailors}
-                        className="px-2 py-2 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-2 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Refresh tailors list"
                       >
                         {refreshingTailors ? (
@@ -450,7 +450,7 @@ export default function EditOrderManagement({ params }) {
                     rows={3}
                     value={formData.description}
                     onChange={handleInputChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     placeholder="Enter order description..."
                   />
                 </div>
@@ -466,7 +466,7 @@ export default function EditOrderManagement({ params }) {
                     rows={3}
                     value={formData.customerNote}
                     onChange={handleInputChange}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     placeholder="Enter customer notes..."
                   />
                 </div>

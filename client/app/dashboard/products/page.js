@@ -494,84 +494,16 @@ export default function ProductsPage() {
                 </select>
               </div>
 
-              {/* Clear Filters */}
-              <div className="flex items-end">
-                <button
-                  onClick={clearFilters}
-                  className="w-full px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-                >
-                  Clear All
-                </button>
-              </div>
+              <div className=" flex items-end">
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="w-full py-2 px-4 border mb-1 border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                   Clear All
+                  </button>
+                </div>
             </div>
-          </div>
-
-          {/* Controls Bar */}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              {/* View Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`px-3 py-1 rounded-md text-sm ${viewMode === 'table'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600'
-                    }`}
-                >
-                  📋 Table
-                </button>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`px-3 py-1 rounded-md text-sm ${viewMode === 'grid'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600'
-                    }`}
-                >
-                  🔲 Grid
-                </button>
-              </div>
-
-              {/* Page Size */}
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">Show:</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  className="px-2 py-1 border border-gray-300 rounded text-sm"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Bulk Actions */}
-            {selectedProducts.length > 0 && (
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">
-                  {selectedProducts.length} selected
-                </span>
-                <select
-                  value={bulkAction}
-                  onChange={(e) => setBulkAction(e.target.value)}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm"
-                >
-                  <option value="">Bulk Actions</option>
-                  <option value="delete">Delete</option>
-                  <option value="activate">Activate</option>
-                  <option value="deactivate">Deactivate</option>
-                </select>
-                <button
-                  onClick={handleBulkAction}
-                  disabled={!bulkAction}
-                  className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:opacity-50"
-                >
-                  Apply
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Loading State */}
@@ -583,7 +515,7 @@ export default function ProductsPage() {
 
           {/* Error State */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div className="bg-red-600 border border-red-700 text-white px-4 py-3 rounded-lg">
               {error}
             </div>
           )}
@@ -675,18 +607,18 @@ export default function ProductsPage() {
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">
                               <span className={`inline-flex px-2 py-1 text-xs rounded-full ${product.qtyOnHand === 0
-                                ? 'bg-red-100 text-red-800'
+                                ? 'bg-red-600 text-white'
                                 : product.qtyOnHand < 10
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-green-100 text-green-800'
+                                  ? 'bg-yellow-600 text-white'
+                                  : 'bg-green-600 text-white'
                                 }`}>
                                 {product.qtyOnHand} {product.unit}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">
                               <span className={`inline-flex px-2 py-1 text-xs rounded-full ${product.isActive
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-gray-100 text-gray-800'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-600 text-white'
                                 }`}>
                                 {product.isActive ? 'Active' : 'Inactive'}
                               </span>
@@ -761,10 +693,10 @@ export default function ProductsPage() {
                             {product.price ? `Rp ${Number(product.price).toLocaleString('id-ID')}` : '-'}
                           </span>
                           <span className={`px-2 py-1 text-xs rounded-full ${product.qtyOnHand === 0
-                            ? 'bg-red-100 text-red-800'
+                            ? 'bg-red-600 text-white'
                             : product.qtyOnHand < 10
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-green-100 text-green-800'
+                              ? 'bg-yellow-600 text-white'
+                              : 'bg-green-600 text-white'
                             }`}>
                             {product.qtyOnHand} {product.unit}
                           </span>

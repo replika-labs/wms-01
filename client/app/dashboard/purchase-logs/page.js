@@ -523,12 +523,12 @@ function PurchaseLogsPage() {
   // Get status badge
   const getStatusBadge = (status) => {
     const statusConfig = {
-      'PENDING': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
-      'RECEIVED': { bg: 'bg-green-100', text: 'text-green-800', label: 'Received' },
-      'CANCELLED': { bg: 'bg-red-100', text: 'text-red-800', label: 'Cancelled' }
+      'PENDING': { bg: 'bg-yellow-600', text: 'text-white', label: 'Pending' },
+      'RECEIVED': { bg: 'bg-green-600', text: 'text-white', label: 'Received' },
+      'CANCELLED': { bg: 'bg-red-600', text: 'text-white', label: 'Cancelled' }
     };
 
-    const config = statusConfig[status] || { bg: 'bg-gray-100', text: 'text-gray-800', label: status };
+    const config = statusConfig[status] || { bg: 'bg-gray-600', text: 'text-white', label: status };
 
     return (
       <span className={`px-3 py-2 text-xs font-medium ${config.bg} ${config.text} rounded-full`}>
@@ -710,7 +710,7 @@ function PurchaseLogsPage() {
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-600 border border-red-700 text-white px-4 py-3 rounded mb-4">
           {error}
         </div>
       )}
@@ -798,14 +798,14 @@ function PurchaseLogsPage() {
                         <select
                           value={purchaseLog.status}
                           onChange={(e) => handleUpdateStatus(purchaseLog.id, e.target.value)}
-                          className="appearance-none bg-yellow-100 text-yellow-800 px-3 py-2 text-xs font-medium rounded-full border-0 cursor-pointer hover:bg-yellow-200 focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+                          className="appearance-none bg-yellow-600 text-white px-3 py-2 text-xs font-medium rounded-full border-0 cursor-pointer hover:bg-yellow-700 focus:ring-2 focus:ring-yellow-500 focus:outline-none"
                         >
                           <option value="PENDING">Pending</option>
                           <option value="RECEIVED">Received</option>
                           <option value="CANCELLED">Cancelled</option>
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center mr-3 pointer-events-none">
-                          <svg className="w-3 h-3 text-yellow-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </div>
@@ -995,8 +995,8 @@ function PurchaseLogsPage() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-sm text-blue-700">
+                    <div className="bg-blue-600 border border-blue-700 rounded-lg p-3">
+                      <p className="text-sm text-white">
                         <strong>Note:</strong> Invoice number will be automatically generated when the purchase is created.
                       </p>
                     </div>
@@ -1168,8 +1168,8 @@ function PurchaseLogsPage() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-sm text-blue-700">
+                    <div className="bg-blue-600 border border-blue-700 rounded-lg p-3">
+                      <p className="text-sm text-white">
                         <strong>Note:</strong> Invoice number was auto-generated when this purchase was created. You can update it if needed.
                       </p>
                     </div>

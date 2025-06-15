@@ -142,7 +142,7 @@ export default function ProductDetailPage() {
       <AuthWrapper>
         <DashboardLayout user={user}>
           <div className="max-w-4xl mx-auto space-y-6">
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div className="bg-red-600 border border-red-700 text-white px-4 py-3 rounded-lg">
               {error || 'Product not found'}
             </div>
             <Link
@@ -177,8 +177,8 @@ export default function ProductDetailPage() {
               <button
                 onClick={handleStatusToggle}
                 className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${product.isActive
-                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                  : 'bg-green-100 text-green-800 hover:bg-green-200'
+                  ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                  : 'bg-green-600 text-white hover:bg-green-700'
                   }`}
               >
                 {product.isActive ? 'Deactivate' : 'Activate'}
@@ -208,7 +208,7 @@ export default function ProductDetailPage() {
 
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div className="bg-red-600 border border-red-700 text-white px-4 py-3 rounded-lg">
               {error}
             </div>
           )}
@@ -285,8 +285,8 @@ export default function ProductDetailPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-500">Status</label>
                       <span className={`inline-flex px-2 py-1 text-xs rounded-full ${product.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-600 text-white'
                         }`}>
                         {product.isActive ? 'Active' : 'Inactive'}
                       </span>
@@ -346,10 +346,10 @@ export default function ProductDetailPage() {
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-500 mb-2">Stock Level</label>
                   <div className={`px-3 py-2 rounded-lg text-sm ${product.qtyOnHand === 0
-                    ? 'bg-red-100 text-red-800'
+                    ? 'bg-red-600 text-white'
                     : product.qtyOnHand < 10
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-green-100 text-green-800'
+                      ? 'bg-yellow-600 text-white'
+                      : 'bg-green-600 text-white'
                     }`}>
                     {product.qtyOnHand === 0
                       ? 'Out of Stock'

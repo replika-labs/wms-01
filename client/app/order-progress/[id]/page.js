@@ -585,10 +585,10 @@ export default function TailorProgressForm({ params }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading order details...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-300">Loading order details...</p>
         </div>
       </div>
     );
@@ -596,12 +596,12 @@ export default function TailorProgressForm({ params }) {
 
   if (error && !orderLink) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center p-6">
-          <div className="text-red-600 text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Link Invalid</h1>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <p className="text-sm text-gray-500">Please check the link and try again</p>
+          <div className="text-red-400 text-6xl mb-4">⚠️</div>
+          <h1 className="text-2xl font-bold text-white mb-2">Order Link Invalid</h1>
+          <p className="text-gray-300 mb-4">{error}</p>
+          <p className="text-sm text-gray-400">Please check the link and try again</p>
         </div>
       </div>
     );
@@ -610,11 +610,11 @@ export default function TailorProgressForm({ params }) {
   const order = orderLink?.order;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-gray-900">
+      <div className="bg-gray-800 shadow-sm border-b border-gray-700">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <h1 className="text-xl font-bold text-gray-900 text-center">Per-Product Progress Update</h1>
-          <p className="text-sm text-gray-600 text-center mt-2">
+          <h1 className="text-xl font-bold text-white text-center">Per-Product Progress Update</h1>
+          <p className="text-sm text-gray-300 text-center mt-2">
             Submit progress for each product in Order #{order?.orderNumber}
           </p>
         </div>
@@ -622,29 +622,29 @@ export default function TailorProgressForm({ params }) {
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
         {/* Order Summary Card */}
-        <div className="bg-white rounded-lg shadow-sm border p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Details</h2>
+        <div className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4">
+          <h2 className="text-lg font-semibold text-white mb-4">Order Details</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex">
-              <span className="text-sm text-gray-600 mr-2">Order Number:</span>
-              <span className="text-sm font-medium text-gray-900">{order?.orderNumber}</span>
+              <span className="text-sm text-gray-400 mr-2">Order Number:</span>
+              <span className="text-sm font-medium text-white">{order?.orderNumber}</span>
             </div>
 
             <div className="flex">
-              <span className="text-sm text-gray-600 mr-2">Status:</span>
-              <span className={`text-sm font-medium px-2 py-1 rounded-full ${order?.status === 'completed' ? 'bg-green-100 text-green-800' :
-                order?.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                  order?.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
-                    'bg-gray-100 text-gray-800'
+              <span className="text-sm text-gray-400 mr-2">Status:</span>
+              <span className={`text-sm font-medium px-2 py-1 rounded-full ${order?.status === 'completed' ? 'bg-green-600 text-white' :
+                order?.status === 'processing' ? 'bg-yellow-600 text-white' :
+                  order?.status === 'confirmed' ? 'bg-blue-600 text-white' :
+                    'bg-gray-600 text-white'
                 }`}>
                 {order?.status}
               </span>
             </div>
 
             <div className="flex">
-              <span className="text-sm text-gray-600 mr-2">Due Date:</span>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm text-gray-400 mr-2">Due Date:</span>
+              <span className="text-sm font-medium text-white">
                 {order?.dueDate ? new Date(order.dueDate).toLocaleDateString() : 'Not set'}
               </span>
             </div>
@@ -652,23 +652,23 @@ export default function TailorProgressForm({ params }) {
 
           {order?.description && (
             <div className="mt-4">
-              <span className="text-sm text-gray-600">Description:</span>
-              <p className="text-sm text-gray-900 mt-1">{order.description}</p>
+              <span className="text-sm text-gray-400">Description:</span>
+              <p className="text-sm text-white mt-1">{order.description}</p>
             </div>
           )}
         </div>
 
         {/* Overall Progress Overview */}
-        <div className="bg-white rounded-lg shadow-sm border p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Overall Progress</h3>
+        <div className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4">
+          <h3 className="text-lg font-semibold text-white mb-4">Overall Progress</h3>
 
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Completed:</span>
-              <span className="text-lg font-bold text-gray-900">{getTotalCompleted()} / {order?.targetPcs} pcs</span>
+              <span className="text-sm text-gray-400">Completed:</span>
+              <span className="text-lg font-bold text-white">{getTotalCompleted()} / {order?.targetPcs} pcs</span>
             </div>
 
-            <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="w-full bg-gray-700 rounded-full h-3">
               <div
                 className={`h-3 rounded-full transition-all duration-500 ${getProgressColor(calculateProgress(order))}`}
                 style={{ width: `${calculateProgress(order)}%` }}
@@ -677,8 +677,8 @@ export default function TailorProgressForm({ params }) {
 
             <div className="text-center">
               <span className={`text-sm font-medium ${calculateProgress(order) === 100
-                ? 'text-green-700 font-bold'
-                : 'text-gray-700'
+                ? 'text-green-400 font-bold'
+                : 'text-gray-300'
                 }`}>
                 {calculateProgress(order)}% Complete
                 {calculateProgress(order) === 100 && (
@@ -688,7 +688,7 @@ export default function TailorProgressForm({ params }) {
             </div>
 
             <div className="text-center">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-400">
                 Remaining: {Math.max(0, order?.targetPcs - getTotalCompleted())} pieces
               </span>
             </div>
@@ -697,8 +697,8 @@ export default function TailorProgressForm({ params }) {
 
         {/* Previous Progress Reports */}
         {orderLink?.order?.progressReports && orderLink.order.progressReports.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Previous Progress Reports</h3>
+          <div className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4">
+            <h3 className="text-lg font-semibold text-white mb-4">Previous Progress Reports</h3>
 
             <div className="space-y-3">
               {orderLink.order.progressReports.slice(-3).reverse().map((report, index) => {
@@ -707,19 +707,19 @@ export default function TailorProgressForm({ params }) {
                 const pcsCompleted = pcsMatch ? pcsMatch[1] : 'Unknown';
 
                 return (
-                  <div key={report.id} className="border border-gray-200 rounded-lg p-3">
+                  <div key={report.id} className="border border-gray-600 rounded-lg p-3">
                     <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium text-white">
                         {pcsCompleted} pieces completed
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-400">
                         {new Date(report.createdAt).toLocaleDateString()}
                       </span>
                     </div>
                     {report.reportText && (
-                      <p className="text-sm text-gray-600 mb-1">{report.reportText}</p>
+                      <p className="text-sm text-gray-300 mb-1">{report.reportText}</p>
                     )}
-                    <p className="text-xs text-blue-600">
+                    <p className="text-xs text-blue-400">
                       By: {report.order?.workerContact?.name || report.user?.name || 'Anonymous'}
                     </p>
                   </div>
@@ -730,11 +730,11 @@ export default function TailorProgressForm({ params }) {
         )}
 
         {/* Per-Product Progress Forms */}
-        <div className="bg-white rounded-lg shadow-sm border p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-4">
+          <h3 className="text-lg font-semibold text-white mb-4">
             Per-Product Progress Update
             {order?.orderProducts && (
-              <span className="text-sm font-normal text-gray-500 ml-2">
+              <span className="text-sm font-normal text-gray-400 ml-2">
                 ({order.orderProducts.length} products)
               </span>
             )}
@@ -742,12 +742,12 @@ export default function TailorProgressForm({ params }) {
 
           {/* Global Error Messages */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <div className="mb-4 p-3 bg-red-900/50 border border-red-600 rounded-md">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <p className="text-sm text-red-600">{error}</p>
+                  <p className="text-sm text-red-300">{error}</p>
                   {error.includes('JSON') && (
-                    <p className="text-xs text-red-500 mt-1">
+                    <p className="text-xs text-red-400 mt-1">
                       💡 Tip: This might be a caching issue. Try the reset button.
                     </p>
                   )}
@@ -757,7 +757,7 @@ export default function TailorProgressForm({ params }) {
                     type="button"
                     onClick={resetFormCompletely}
                     disabled={loading}
-                    className="ml-3 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded border border-red-300 disabled:opacity-50"
+                    className="ml-3 text-xs bg-red-800 hover:bg-red-700 text-red-200 px-2 py-1 rounded border border-red-600 disabled:opacity-50"
                   >
                     🔧 Reset Form
                   </button>
@@ -767,26 +767,26 @@ export default function TailorProgressForm({ params }) {
           )}
 
           {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-              <p className="text-sm text-green-600 whitespace-pre-line">{success}</p>
+            <div className="mb-4 p-3 bg-green-900/50 border border-green-600 rounded-md">
+              <p className="text-sm text-green-300 whitespace-pre-line">{success}</p>
             </div>
           )}
 
           {validationErrors.general && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-sm text-yellow-600">{validationErrors.general}</p>
+            <div className="mb-4 p-3 bg-yellow-900/50 border border-yellow-600 rounded-md">
+              <p className="text-sm text-yellow-300">{validationErrors.general}</p>
             </div>
           )}
 
           {/* Material Movement Tickets Display */}
           {showMovementTickets && materialMovementTickets.length > 0 && (
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mb-6 p-4 bg-blue-900/50 border border-blue-600 rounded-lg">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-medium text-blue-900">Material Movement Tickets Created</h4>
+                <h4 className="text-sm font-medium text-blue-200">Material Movement Tickets Created</h4>
                 <button
                   type="button"
                   onClick={() => setShowMovementTickets(false)}
-                  className="text-xs text-blue-600 hover:text-blue-800"
+                  className="text-xs text-blue-300 hover:text-blue-100"
                 >
                   Hide
                 </button>
@@ -794,14 +794,14 @@ export default function TailorProgressForm({ params }) {
 
               <div className="space-y-2">
                 {materialMovementTickets.map((movement, index) => (
-                  <div key={movement.id || index} className="bg-white border border-blue-200 rounded p-3">
+                  <div key={movement.id || index} className="bg-gray-800 border border-blue-600 rounded p-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium text-white">
                         {movement.materialName || 'Material'} - {movement.qty} units
                       </span>
-                      <span className="text-xs text-blue-600">KELUAR</span>
+                      <span className="text-xs text-blue-400">KELUAR</span>
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">{movement.description}</p>
+                    <p className="text-xs text-gray-400 mt-1">{movement.description}</p>
                   </div>
                 ))}
               </div>
@@ -811,16 +811,16 @@ export default function TailorProgressForm({ params }) {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Tailor Name Field */}
             <div>
-              <label htmlFor="workerName" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="workerName" className="block text-sm font-medium text-gray-300 mb-1">
                 Tailor Name *
                 {workerAssignmentSource === 'order' && (
-                  <span className="ml-2 text-xs text-blue-600 font-normal">(Assigned to Order)</span>
+                  <span className="ml-2 text-xs text-blue-400 font-normal">(Assigned to Order)</span>
                 )}
                 {workerAssignmentSource === 'orderlink' && (
-                  <span className="ml-2 text-xs text-green-600 font-normal">(OrderLink Assigned)</span>
+                  <span className="ml-2 text-xs text-green-400 font-normal">(OrderLink Assigned)</span>
                 )}
                 {workerAssignmentSource === 'manual' && (
-                  <span className="ml-2 text-xs text-gray-600 font-normal">(Manual Entry)</span>
+                  <span className="ml-2 text-xs text-gray-400 font-normal">(Manual Entry)</span>
                 )}
               </label>
               <input
@@ -831,17 +831,17 @@ export default function TailorProgressForm({ params }) {
                 onChange={(e) => setWorkerName(e.target.value)}
                 disabled={!isWorkerFieldEditable}
                 className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none ${isWorkerFieldEditable
-                  ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white'
-                  : 'border-gray-200 bg-gray-50 text-gray-600 cursor-not-allowed'
-                  } ${validationErrors.workerName ? 'border-red-300' : ''}`}
+                  ? 'border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white'
+                  : 'border-gray-600 bg-gray-700 text-gray-400 cursor-not-allowed'
+                  } ${validationErrors.workerName ? 'border-red-500' : ''}`}
                 placeholder={isWorkerFieldEditable ? "Enter your name" : ""}
                 required
               />
               {validationErrors.workerName && (
-                <p className="text-xs text-red-600 mt-1">{validationErrors.workerName}</p>
+                <p className="text-xs text-red-400 mt-1">{validationErrors.workerName}</p>
               )}
               {workerAssignmentSource === 'order' && (
-                <p className="text-xs text-blue-600 mt-1">
+                <p className="text-xs text-blue-400 mt-1">
                   ✓ This order is assigned to {orderLink?.order?.workerContact?.name || orderLink?.order?.worker?.name}. Name cannot be changed.
                 </p>
               )}
@@ -849,19 +849,19 @@ export default function TailorProgressForm({ params }) {
 
             {/* Per-Product Progress Cards */}
             <div className="space-y-6">
-              <h4 className="text-md font-medium text-gray-900">Product Progress</h4>
+              <h4 className="text-md font-medium text-white">Product Progress</h4>
 
               {/* NEW: Completed Products Summary */}
               {getCompletedProducts().length > 0 && (
-                <div className="bg-green-50 rounded-lg p-4 mb-6">
+                <div className="bg-green-900/50 rounded-lg p-4 mb-6">
                   <div className="flex items-center justify-between mb-3">
-                    <h5 className="text-green-800 font-medium">
+                    <h5 className="text-green-300 font-medium">
                       ✅ Completed Products ({getCompletedProducts().length})
                     </h5>
                     <button
                       type="button"
                       onClick={() => setShowCompletedProducts(!showCompletedProducts)}
-                      className="text-sm text-green-600 hover:text-green-800"
+                      className="text-sm text-green-400 hover:text-green-200"
                     >
                       {showCompletedProducts ? 'Hide' : 'Show'} Details
                     </button>
@@ -873,17 +873,17 @@ export default function TailorProgressForm({ params }) {
                         const product = orderProduct.product;
                         const completion = getProductCompletion(orderProduct);
                         return (
-                          <div key={orderProduct.id} className="bg-white border border-green-200 rounded p-3">
+                          <div key={orderProduct.id} className="bg-gray-800 border border-green-600 rounded p-3">
                             <div className="flex justify-between items-center">
-                              <span className="text-sm font-medium text-gray-900">
+                              <span className="text-sm font-medium text-white">
                                 {product.name}
                               </span>
-                              <span className="text-xs text-green-600 font-medium">
+                              <span className="text-xs text-green-400 font-medium">
                                 {completion.completed}/{completion.target} pieces (100%)
                               </span>
                             </div>
                             {completion.completionDate && (
-                              <p className="text-xs text-gray-600 mt-1">
+                              <p className="text-xs text-gray-400 mt-1">
                                 Completed: {new Date(completion.completionDate).toLocaleDateString()}
                               </p>
                             )}
@@ -897,24 +897,24 @@ export default function TailorProgressForm({ params }) {
 
               {/* NEW: Completion Summary */}
               {completionSummary && (
-                <div className="bg-blue-50 rounded-lg p-4 mb-6">
-                  <h5 className="text-blue-800 font-medium mb-2">Order Progress Summary</h5>
+                <div className="bg-blue-900/50 rounded-lg p-4 mb-6">
+                  <h5 className="text-blue-300 font-medium mb-2">Order Progress Summary</h5>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <span className="text-blue-600">Total Products:</span>
-                      <div className="font-medium">{completionSummary.totalProducts}</div>
+                      <span className="text-blue-400">Total Products:</span>
+                      <div className="font-medium text-white">{completionSummary.totalProducts}</div>
                     </div>
                     <div>
-                      <span className="text-blue-600">Completed:</span>
-                      <div className="font-medium text-green-600">{completionSummary.completedProducts}</div>
+                      <span className="text-blue-400">Completed:</span>
+                      <div className="font-medium text-green-400">{completionSummary.completedProducts}</div>
                     </div>
                     <div>
-                      <span className="text-blue-600">Total Pieces:</span>
-                      <div className="font-medium">{completionSummary.completedPieces}/{completionSummary.totalPieces}</div>
+                      <span className="text-blue-400">Total Pieces:</span>
+                      <div className="font-medium text-white">{completionSummary.completedPieces}/{completionSummary.totalPieces}</div>
                     </div>
                     <div>
-                      <span className="text-blue-600">Progress:</span>
-                      <div className="font-medium">{completionSummary.orderCompletionPercentage}%</div>
+                      <span className="text-blue-400">Progress:</span>
+                      <div className="font-medium text-white">{completionSummary.orderCompletionPercentage}%</div>
                     </div>
                   </div>
                 </div>
@@ -933,10 +933,10 @@ export default function TailorProgressForm({ params }) {
                       <div key={product.id} className="relative">
                         {/* NEW: Product completion indicator */}
                         {completion && completion.completed > 0 && (
-                          <div className="mb-2 text-sm text-blue-600">
+                          <div className="mb-2 text-sm text-blue-400">
                             Progress: {completion.completed}/{completion.target} pieces ({completion.percentage}%)
                             {completion.remaining > 0 && (
-                              <span className="text-gray-600"> - {completion.remaining} remaining</span>
+                              <span className="text-gray-400"> - {completion.remaining} remaining</span>
                             )}
                           </div>
                         )}
@@ -956,12 +956,12 @@ export default function TailorProgressForm({ params }) {
                     );
                   })
                 ) : (
-                  <div className="text-center py-8 text-green-600 bg-green-50 rounded-lg">
+                  <div className="text-center py-8 text-green-400 bg-green-900/50 rounded-lg">
                     🎉 All products in this order have been completed!
                   </div>
                 )
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-400">
                   No products found in this order.
                 </div>
               )}
@@ -969,7 +969,7 @@ export default function TailorProgressForm({ params }) {
 
             {/* Overall Notes */}
             <div>
-              <label htmlFor="overallNote" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="overallNote" className="block text-sm font-medium text-gray-300 mb-1">
                 Overall Notes (Optional)
               </label>
               <textarea
@@ -978,7 +978,7 @@ export default function TailorProgressForm({ params }) {
                 rows="3"
                 value={overallNote}
                 onChange={(e) => setOverallNote(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                 placeholder="Any overall notes about this progress update..."
                 disabled={submitting}
               />
@@ -989,7 +989,7 @@ export default function TailorProgressForm({ params }) {
               type="submit"
               disabled={submitting || order?.status === 'completed' || getCurrentTotalPieces() === 0 || getIncompleteProducts().length === 0}
               className={`w-full py-3 px-4 text-white font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${submitting || order?.status === 'completed' || getCurrentTotalPieces() === 0 || getIncompleteProducts().length === 0
-                ? 'bg-gray-400 cursor-not-allowed'
+                ? 'bg-gray-600 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
                 }`}
             >
@@ -1001,7 +1001,7 @@ export default function TailorProgressForm({ params }) {
             </button>
 
             {getCurrentTotalPieces() > 0 && getIncompleteProducts().length > 0 && (
-              <p className="text-center text-sm text-gray-600">
+              <p className="text-center text-sm text-gray-400">
                 Submitting progress for {Object.values(productProgressData).filter(p => p.pcsFinished > 0).length} products,
                 {getCurrentTotalPieces()} total pieces
               </p>
@@ -1010,9 +1010,9 @@ export default function TailorProgressForm({ params }) {
             {/* NEW: All products completed message */}
             {getIncompleteProducts().length === 0 && order?.orderProducts?.length > 0 && (
               <div className="text-center py-4">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <p className="text-green-800 font-medium">🎉 Congratulations!</p>
-                  <p className="text-green-700 text-sm mt-1">
+                <div className="bg-green-900/50 border border-green-600 rounded-lg p-4">
+                  <p className="text-green-300 font-medium">🎉 Congratulations!</p>
+                  <p className="text-green-400 text-sm mt-1">
                     All products in this order have been completed. No further progress updates needed.
                   </p>
                 </div>
@@ -1023,7 +1023,7 @@ export default function TailorProgressForm({ params }) {
 
         {/* Footer */}
         <div className="text-center py-4">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-400">
             Secure per-product progress update form for Order #{order?.orderNumber}
           </p>
         </div>
