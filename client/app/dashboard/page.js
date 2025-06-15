@@ -303,7 +303,7 @@ export default function DashboardPage() {
 
                     <div className="mt-3 flex justify-end">
                       <Link
-                        href="/dashboard/inventory?tab=materials&filter=critical"
+                        href="/dashboard/purchase-logs"
                         className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
                       >
                         Manage Critical Materials

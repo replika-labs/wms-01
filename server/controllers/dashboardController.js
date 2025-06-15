@@ -346,18 +346,118 @@ const getAdminSummary = asyncHandler(async (req, res) => {
         let productionTrend = [];
         try {
             console.log('Calculating production trend...');
-            // For now, create placeholder data - can be enhanced later
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+            // Get progress reports from last 7 days
+            const progressReports = await prisma.progressReport.findMany({
+                where: {
+                    createdAt: { gte: sevenDaysAgo }
+                },
+                select: {
+                    percentage: true,
+                    createdAt: true
+                }
+            });
+
+            // Get product progress reports from last 7 days for more accurate completion data
+            const productProgressReports = await prisma.productProgressReport.findMany({
+                where: {
+                    createdAt: { gte: sevenDaysAgo }
+                },
+                select: {
+                    itemsCompleted: true,
+                    itemsTarget: true,
+                    createdAt: true
+                }
+            });
+
+            // Get order products completion data from last 7 days
+            const orderProducts = await prisma.orderProduct.findMany({
+                where: {
+                    updatedAt: { gte: sevenDaysAgo },
+                    completedQty: { gt: 0 }
+                },
+                select: {
+                    quantity: true,
+                    completedQty: true,
+                    updatedAt: true
+                }
+            });
+
+            // Group data by date and calculate daily completion rates
+            const dailyData = {};
+
+            // Process progress reports
+            progressReports.forEach(report => {
+                const date = new Date(report.createdAt).toISOString().split('T')[0];
+                if (!dailyData[date]) {
+                    dailyData[date] = { percentages: [], completionRates: [] };
+                }
+                dailyData[date].percentages.push(report.percentage);
+            });
+
+            // Process product progress reports
+            productProgressReports.forEach(report => {
+                const date = new Date(report.createdAt).toISOString().split('T')[0];
+                if (!dailyData[date]) {
+                    dailyData[date] = { percentages: [], completionRates: [] };
+                }
+                if (report.itemsTarget > 0) {
+                    const completionRate = Math.round((report.itemsCompleted / report.itemsTarget) * 100);
+                    dailyData[date].completionRates.push(completionRate);
+                }
+            });
+
+            // Process order products
+            orderProducts.forEach(orderProduct => {
+                const date = new Date(orderProduct.updatedAt).toISOString().split('T')[0];
+                if (!dailyData[date]) {
+                    dailyData[date] = { percentages: [], completionRates: [] };
+                }
+                const completionRate = Math.round((orderProduct.completedQty / orderProduct.quantity) * 100);
+                dailyData[date].completionRates.push(completionRate);
+            });
+
+            // Calculate average completion rate for each day and fill missing days
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+
+                let averageCompletionRate = 0;
+
+                if (dailyData[dateStr]) {
+                    const allRates = [
+                        ...dailyData[dateStr].percentages,
+                        ...dailyData[dateStr].completionRates
+                    ];
+
+                    if (allRates.length > 0) {
+                        averageCompletionRate = Math.round(
+                            allRates.reduce((sum, rate) => sum + rate, 0) / allRates.length
+                        );
+                    }
+                }
+
+                productionTrend.push({
+                    date: dateStr,
+                    completionRate: Math.min(averageCompletionRate, 100) // Cap at 100%
+                });
+            }
+
+            console.log('Production trend calculated successfully with real data');
+        } catch (error) {
+            console.error('Error calculating production trend:', error);
+            // Fallback: create empty trend
             for (let i = 6; i >= 0; i--) {
                 const date = new Date();
                 date.setDate(date.getDate() - i);
                 productionTrend.push({
                     date: date.toISOString().split('T')[0],
-                    completionRate: Math.floor(Math.random() * 30) + 70 // Placeholder
+                    completionRate: 0
                 });
             }
-            console.log('Production trend calculated successfully');
-        } catch (error) {
-            console.error('Error calculating production trend:', error);
         }
 
         // Progress stats
