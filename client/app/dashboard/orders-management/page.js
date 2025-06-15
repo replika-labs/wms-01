@@ -394,7 +394,8 @@ export default function OrdersManagement() {
       resetForm();
       fetchOrders();
     } catch (err) {
-      setError(err.message);
+      setError('Failed to update order');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -797,7 +798,7 @@ export default function OrdersManagement() {
                               className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                             >
                               Edit
-                            </button> 
+                            </button>
                             <button
                               onClick={() => handleOrderLink(order.id)}
                               className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"

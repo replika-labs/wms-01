@@ -283,7 +283,8 @@ export default function CreateProductPage() {
       }
 
       const result = await response.json();
-      setSuccess('Product created successfully!');
+      setSuccess('Product created successfully');
+      setTimeout(() => setSuccess(''), 3000);
 
       // Redirect to products list after a short delay
       setTimeout(() => {
@@ -292,7 +293,8 @@ export default function CreateProductPage() {
 
     } catch (error) {
       console.error('Error creating product:', error);
-      setError(error.message || 'Failed to create product');
+      setError('Failed to create product');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setLoading(false);
     }

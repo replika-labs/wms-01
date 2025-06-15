@@ -1,20 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// Import cache clearing function from materials management controller
-const NodeCache = require('node-cache');
-const cache = new NodeCache({ stdTTL: 300 });
-
-// Cache clearing function (copied from materialsManagementController)
-const clearMaterialCaches = () => {
-    const keys = cache.keys();
-    keys.forEach(key => {
-        if (key.startsWith('materials_') || key.startsWith('inventory_') || key === 'all_materials' || key === 'critical_stock_materials') {
-            cache.del(key);
-        }
-    });
-};
-
 // Get all purchase logs with filtering and pagination
 const getAllPurchaseLogs = async (req, res) => {
     try {
@@ -291,9 +277,6 @@ const createPurchaseLog = async (req, res) => {
             }
         });
 
-        // Clear material caches
-        clearMaterialCaches();
-
         res.status(201).json({
             success: true,
             message: 'Purchase log created successfully',
@@ -520,9 +503,6 @@ const updatePurchaseLog = async (req, res) => {
             return updatedPurchaseLog;
         });
 
-        // Clear material caches
-        clearMaterialCaches();
-
         res.json({
             success: true,
             message: `Purchase log updated successfully${newStatus === 'RECEIVED' && oldStatus !== 'RECEIVED' ? ' and stock updated' : ''}`,
@@ -660,9 +640,6 @@ const updatePurchaseLogStatus = async (req, res) => {
             return updatedPurchaseLog;
         });
 
-        // Clear material caches
-        clearMaterialCaches();
-
         res.json({
             success: true,
             message: `Status updated to ${newStatus}${newStatus === 'RECEIVED' ? ' and stock updated' : ''}`,
@@ -716,9 +693,6 @@ const deletePurchaseLog = async (req, res) => {
             where: { id: parseInt(id) },
             data: { isActive: false }
         });
-
-        // Clear material caches
-        clearMaterialCaches();
 
         res.json({
             success: true,

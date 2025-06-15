@@ -472,17 +472,6 @@ function ContactManagement() {
                 <option value="CUSTOMER">Customers</option>
                 <option value="OTHER">Others</option>
               </select>
-
-              {/* Status Filter */}
-              <select
-                value={filters.isActive}
-                onChange={(e) => handleFilterChange('isActive', e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="true">Active Only</option>
-                <option value="false">Inactive Only</option>
-                <option value="all">All Status</option>
-              </select>
             </div>
 
             {/* Create Button */}
@@ -600,12 +589,6 @@ function ContactManagement() {
                             className="text-indigo-600 hover:text-indigo-900"
                           >
                             Edit
-                          </button>
-                          <button
-                            onClick={() => openNotesModal(contact)}
-                            className="text-purple-600 hover:text-purple-900"
-                          >
-                            Notes
                           </button>
                           <button
                             onClick={() => handleDeleteContact(contact.id)}

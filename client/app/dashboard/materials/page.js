@@ -11,6 +11,7 @@ function MaterialsManagementPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [filters, setFilters] = useState({
@@ -50,6 +51,7 @@ function MaterialsManagementPage() {
         page: currentPage,
         limit: 20,
         _timestamp: Date.now(), // Cache busting parameter
+        _bust: Math.random(), // Additional cache busting
         ...filters
       });
 
@@ -72,9 +74,16 @@ function MaterialsManagementPage() {
             const apiMaterials = data.data.materials || [];
 
             console.log('API materials loaded:', apiMaterials.length);
+            // Add debugging for material IDs
+            apiMaterials.forEach((material, index) => {
+              if (!material.id) {
+                console.warn(`Material at index ${index} has no ID:`, material);
+              }
+            });
             setMaterials(apiMaterials);
             setTotalPages(data.data.pagination?.totalPages || 1);
             setError(''); // Clear any previous errors
+            setLastUpdated(new Date()); // Update timestamp
             return;
           } else {
             throw new Error(data.message || 'Failed to load materials');
@@ -103,9 +112,51 @@ function MaterialsManagementPage() {
     }
   };
 
+  // Test API call function for debugging
+  const testMaterialDetailsAPI = async (materialId) => {
+    console.log('=== Testing Material Details API ===');
+    console.log('Material ID:', materialId);
+    console.log('API URL:', `http://localhost:8080/api/materials-management/${materialId}`);
+
+    const token = localStorage.getItem('token');
+    console.log('Token exists:', !!token);
+    console.log('Token value (first 20 chars):', token?.substring(0, 20) + '...');
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/materials-management/${materialId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response OK:', response.ok);
+      console.log('Response headers:', [...response.headers.entries()]);
+
+      const responseText = await response.text();
+      console.log('Raw response text:', responseText);
+
+      try {
+        const data = JSON.parse(responseText);
+        console.log('Parsed response data:', data);
+        return data;
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        return { error: 'Invalid JSON response', rawResponse: responseText };
+      }
+    } catch (fetchError) {
+      console.error('Fetch error:', fetchError);
+      return { error: 'Network/fetch error', details: fetchError.message };
+    }
+  };
+
   // Load material details for view/edit
   const loadMaterialDetails = async (materialId) => {
+    console.log('Loading material details for ID:', materialId);
+
     if (!materialId) {
+      console.error('Material ID is missing or invalid:', materialId);
       alert('Material ID not found');
       return null;
     }
@@ -114,9 +165,12 @@ function MaterialsManagementPage() {
       const token = localStorage.getItem('token');
 
       if (!token) {
+        console.error('No authentication token found');
         alert('Authentication required. Please login again.');
         return null;
       }
+
+      console.log('Making API request to:', `http://localhost:8080/api/materials-management/${materialId}`);
 
       const response = await fetch(`http://localhost:8080/api/materials-management/${materialId}`, {
         headers: {
@@ -125,27 +179,47 @@ function MaterialsManagementPage() {
         }
       });
 
+      console.log('API response status:', response.status);
+      console.log('API response headers:', response.headers);
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+
         if (response.status === 401) {
           throw new Error('Authentication required. Please login again.');
         } else if (response.status === 404) {
           throw new Error('Material not found');
         } else {
-          throw new Error(`Server error: ${response.status} ${response.statusText}`);
+          throw new Error(`Server error: ${response.status} ${response.statusText}. Response: ${errorText}`);
         }
       }
 
       const data = await response.json();
+      console.log('API response data:', data);
 
       if (data.success) {
+        console.log('Material details loaded successfully:', data.data);
         return data.data;
       } else {
+        console.error('API returned success: false with message:', data.message);
         throw new Error(data.message || 'Failed to load material details');
       }
     } catch (error) {
       console.error('Error loading material details:', error);
-      setError(error.message);
-      alert(`Error loading material details: ${error.message}`);
+
+      // More specific error handling
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        setError('Network error: Unable to connect to server. Please check if the backend is running.');
+        alert('Network error: Unable to connect to server. Please check if the backend is running.');
+      } else if (error.message.includes('SyntaxError') || error.message.includes('JSON')) {
+        setError('Server response error: Invalid JSON response from server.');
+        alert('Server response error: Invalid JSON response from server.');
+      } else {
+        setError(error.message);
+        alert(`Error loading material details: ${error.message}`);
+      }
+
       return null;
     }
   };
@@ -333,6 +407,17 @@ function MaterialsManagementPage() {
     if (details) {
       setSelectedMaterial(details);
       setShowViewModal(true);
+    } else {
+      // Fallback: use data from the materials list
+      const fallbackMaterial = materials.find(m => m.id === materialId);
+      if (fallbackMaterial) {
+        console.log('Using fallback material data:', fallbackMaterial);
+        setSelectedMaterial(fallbackMaterial);
+        setShowViewModal(true);
+      } else {
+        console.error('Material not found in local data either');
+        alert('Material not found. Please refresh the page and try again.');
+      }
     }
   };
 
@@ -347,7 +432,7 @@ function MaterialsManagementPage() {
         unit: details.unit || 'pcs',
         qtyOnHand: details.qtyOnHand || 0,
         minStock: details.minStock || 0,
-        maxStock: details.maxStock || 0,
+        maxStock: 10000,
         reorderPoint: details.reorderPoint || 0,
         reorderQty: details.reorderQty || 0,
         location: details.location || '',
@@ -355,6 +440,30 @@ function MaterialsManagementPage() {
         attributeValue: details.attributeValue || ''
       });
       setShowEditModal(true);
+    } else {
+      // Fallback: use data from the materials list
+      const fallbackMaterial = materials.find(m => m.id === materialId);
+      if (fallbackMaterial) {
+        console.log('Using fallback material data for edit:', fallbackMaterial);
+        setSelectedMaterial(fallbackMaterial);
+        setFormData({
+          name: fallbackMaterial.name || '',
+          description: fallbackMaterial.description || '',
+          unit: fallbackMaterial.unit || 'pcs',
+          qtyOnHand: fallbackMaterial.qtyOnHand || 0,
+          minStock: fallbackMaterial.minStock || 0,
+          maxStock: fallbackMaterial.maxStock || 0,
+          reorderPoint: fallbackMaterial.reorderPoint || 0,
+          reorderQty: fallbackMaterial.reorderQty || 0,
+          location: fallbackMaterial.location || '',
+          attributeType: fallbackMaterial.attributeType || '',
+          attributeValue: fallbackMaterial.attributeValue || ''
+        });
+        setShowEditModal(true);
+      } else {
+        console.error('Material not found in local data either');
+        alert('Material not found. Please refresh the page and try again.');
+      }
     }
   };
 
@@ -406,6 +515,18 @@ function MaterialsManagementPage() {
     await loadMaterials();
     setRefreshing(false);
   };
+
+  // Auto-refresh every 10 seconds when page is active
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        console.log('🔄 Auto-refreshing materials...');
+        loadMaterials();
+      }
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(interval);
+  }, [currentPage, filters]);
 
   useEffect(() => {
     loadMaterials();
@@ -564,12 +685,17 @@ function MaterialsManagementPage() {
 
       {/* Info Note */}
       <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-4">
-        <div className="flex items-center">
-          <FiPackage className="mr-2" />
-          <span className="text-sm">
-            <strong>Note:</strong> Stock levels are automatically updated when purchases are marked as &quot;RECEIVED&quot;.
-            Latest purchase data may take a moment to refresh. Use the &quot;Refresh&quot; button above to get the most recent data.
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <FiPackage className="mr-2" />
+            <span className="text-sm">
+              <strong>Note:</strong> Stock levels are automatically updated when purchases are marked as &quot;RECEIVED&quot;.
+              Page auto-refreshes every 10 seconds. Use the &quot;Refresh&quot; button for immediate updates.
+            </span>
+          </div>
+          <div className="text-xs text-blue-600">
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </div>
         </div>
       </div>
 
@@ -667,14 +793,20 @@ function MaterialsManagementPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex space-x-2">
                       <button
-                        onClick={() => handleViewMaterial(material.id)}
+                        onClick={() => {
+                          console.log('View material clicked for ID:', material.id, 'Material object:', material);
+                          handleViewMaterial(material.id);
+                        }}
                         className="text-blue-600 hover:text-blue-900"
                         title="View Details"
                       >
                         <FiEye size={16} />
                       </button>
                       <button
-                        onClick={() => handleEditMaterial(material.id)}
+                        onClick={() => {
+                          console.log('Edit material clicked for ID:', material.id, 'Material object:', material);
+                          handleEditMaterial(material.id);
+                        }}
                         className="text-green-600 hover:text-green-900"
                         title="Edit Material"
                       >
@@ -779,13 +911,17 @@ function MaterialsManagementPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Attribute Type
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={formData.attributeType}
                       onChange={(e) => setFormData({ ...formData, attributeType: e.target.value })}
-                      placeholder="e.g., Raw Materials, Components"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
+                    >
+                      <option value="">Select Attribute Type</option>
+                      <option value="Fabric">Fabric</option>
+                      <option value="Accessories">Accessories</option>
+                      <option value="Inner Wear">Inner Wear</option>
+                      <option value="Trim">Trim</option>
+                    </select>
                   </div>
 
                   <div>
@@ -796,7 +932,7 @@ function MaterialsManagementPage() {
                       type="text"
                       value={formData.attributeValue}
                       onChange={(e) => setFormData({ ...formData, attributeValue: e.target.value })}
-                      placeholder="e.g., Steel, Plastic, Electronic"
+                      placeholder="e.g., Chiffon, Voile, Pins, Clips"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -823,45 +959,6 @@ function MaterialsManagementPage() {
                       step="0.01"
                       value={formData.minStock}
                       onChange={(e) => setFormData({ ...formData, minStock: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Max Stock
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.maxStock}
-                      onChange={(e) => setFormData({ ...formData, maxStock: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Reorder Point
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.reorderPoint}
-                      onChange={(e) => setFormData({ ...formData, reorderPoint: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Reorder Quantity
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.reorderQty}
-                      onChange={(e) => setFormData({ ...formData, reorderQty: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -968,13 +1065,17 @@ function MaterialsManagementPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Attribute Type
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={formData.attributeType}
                       onChange={(e) => setFormData({ ...formData, attributeType: e.target.value })}
-                      placeholder="e.g., Raw Materials, Components"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
+                    >
+                      <option value="">Select Attribute Type</option>
+                      <option value="Fabric">Fabric</option>
+                      <option value="Accessories">Accessories</option>
+                      <option value="Inner Wear">Inner Wear</option>
+                      <option value="Trim">Trim</option>
+                    </select>
                   </div>
 
                   <div>
@@ -985,7 +1086,7 @@ function MaterialsManagementPage() {
                       type="text"
                       value={formData.attributeValue}
                       onChange={(e) => setFormData({ ...formData, attributeValue: e.target.value })}
-                      placeholder="e.g., Steel, Plastic, Electronic"
+                      placeholder="e.g., Chiffon, Voile, Pins, Clips"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -1012,45 +1113,6 @@ function MaterialsManagementPage() {
                       step="0.01"
                       value={formData.minStock}
                       onChange={(e) => setFormData({ ...formData, minStock: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Max Stock
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.maxStock}
-                      onChange={(e) => setFormData({ ...formData, maxStock: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Reorder Point
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.reorderPoint}
-                      onChange={(e) => setFormData({ ...formData, reorderPoint: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Reorder Quantity
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.reorderQty}
-                      onChange={(e) => setFormData({ ...formData, reorderQty: parseFloat(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -1175,9 +1237,7 @@ function MaterialsManagementPage() {
                   <div className="space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Stock Status</label>
-                      {getStockStatusBadge({
-                        stockStatus: selectedMaterial.qtyOnHand <= selectedMaterial.minStock ? 'low' : 'adequate'
-                      })}
+                      {getStockStatusBadge(selectedMaterial)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Current Stock</label>
@@ -1243,18 +1303,19 @@ function MaterialsManagementPage() {
                           {selectedMaterial.purchaseHistory.purchases.slice(0, 5).map((purchase, index) => (
                             <tr key={purchase.id || `purchase-${index}`}>
                               <td className="px-4 py-2 text-sm text-gray-900">
-                                {new Date(purchase.purchasedDate).toLocaleDateString()}
+                                {purchase.purchaseDate ? new Date(purchase.purchaseDate).toLocaleDateString() : 'N/A'}
                               </td>
                               <td className="px-4 py-2 text-sm text-gray-900">
-                                {purchase.stock} {purchase.unit}
+                                {purchase.quantity} {purchase.unit}
                               </td>
                               <td className="px-4 py-2 text-sm text-gray-900">
                                 {purchase.supplier || 'N/A'}
                               </td>
                               <td className="px-4 py-2 text-sm">
-                                <span className={`px-2 py-1 text-xs rounded-full ${purchase.status === 'diterima' ? 'bg-green-100 text-green-800' :
-                                  purchase.status === 'dikirim' ? 'bg-blue-100 text-blue-800' :
-                                    'bg-yellow-100 text-yellow-800'
+                                <span className={`px-2 py-1 text-xs rounded-full ${purchase.status === 'RECEIVED' ? 'bg-green-100 text-green-800' :
+                                  purchase.status === 'ORDERED' ? 'bg-blue-100 text-blue-800' :
+                                    purchase.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-gray-100 text-gray-800'
                                   }`}>
                                   {purchase.status}
                                 </span>

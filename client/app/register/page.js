@@ -20,8 +20,9 @@ export default function RegisterPage() {
 
     try {
       const res = await axios.post('/api/auth/register', { name, email, password, role });
-      
+
       setSuccess('Registration successful! Redirecting to login...');
+      setTimeout(() => setSuccess(''), 3000);
       // Optionally auto-login or redirect to login page
       setTimeout(() => {
         router.push('/login');
@@ -30,6 +31,7 @@ export default function RegisterPage() {
     } catch (err) {
       console.error('Registration Error:', err.response ? err.response.data : err.message);
       setError(err.response?.data?.message || 'Registration failed');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -78,7 +80,7 @@ export default function RegisterPage() {
                 required
               />
             </div>
-             <div className="mb-6">
+            <div className="mb-6">
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="role">
                 Role:
               </label>
@@ -90,12 +92,12 @@ export default function RegisterPage() {
                 required
               >
                 <option value="penjahit">Penjahit</option>
-                 {/* Admin role should ideally only be creatable via backend or admin panel */}
+                {/* Admin role should ideally only be creatable via backend or admin panel */}
                 {/* <option value="admin">Admin</option> */}
               </select>
             </div>
-             {error && <p className="text-red-500 text-xs italic mb-4">{error}</p>}
-             {success && <p className="text-green-500 text-xs italic mb-4">{success}</p>}
+            {error && <p className="text-red-500 text-xs italic mb-4">{error}</p>}
+            {success && <p className="text-green-500 text-xs italic mb-4">{success}</p>}
             <div className="flex items-center justify-between">
               <button
                 type="submit"

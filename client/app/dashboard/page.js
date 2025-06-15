@@ -50,6 +50,7 @@ export default function DashboardPage() {
           } catch (err) {
             console.error('Failed to fetch summary:', err);
             setError(`Failed to load summary data: ${err.message}`);
+            setTimeout(() => setError(''), 3000);
           } finally {
             setLoading(false);
           }
@@ -58,6 +59,7 @@ export default function DashboardPage() {
       } catch (e) {
         console.error("Failed to parse user from localStorage", e);
         setError('Failed to parse user information');
+        setTimeout(() => setError(''), 3000);
       }
     }
   }, []);
@@ -172,6 +174,7 @@ export default function DashboardPage() {
                       } catch (err) {
                         console.error('Error checking database:', err);
                         setError(`Database check failed: ${err.message}`);
+                        setTimeout(() => setError(''), 3000);
                       } finally {
                         setLoading(false);
                       }
@@ -203,16 +206,16 @@ export default function DashboardPage() {
                             .catch(err => {
                               console.error('Error refreshing data:', err);
                               setError(`Failed to refresh data: ${err.message}`);
-                              setLoading(false);
+                              setTimeout(() => setError(''), 3000);
                             });
                         } catch (e) {
                           console.error("Failed to parse user from localStorage", e);
                           setError('Failed to parse user information');
-                          setLoading(false);
+                          setTimeout(() => setError(''), 3000);
                         }
                       } else {
                         setError('No user data found');
-                        setLoading(false);
+                        setTimeout(() => setError(''), 3000);
                       }
                     }}
                     className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
@@ -284,8 +287,8 @@ export default function DashboardPage() {
                                   <div className="ml-4 w-24 bg-gray-200 rounded-full h-2.5">
                                     <div
                                       className={`h-2.5 rounded-full ${percent < 30 ? 'bg-red-600' :
-                                          percent < 70 ? 'bg-yellow-400' :
-                                            'bg-green-500'
+                                        percent < 70 ? 'bg-yellow-400' :
+                                          'bg-green-500'
                                         }`}
                                       style={{ width: `${Math.min(percent, 100)}%` }}
                                     ></div>
@@ -353,8 +356,8 @@ export default function DashboardPage() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <span className={`px-2 py-1 text-xs rounded-full ${order.status === 'CREATED' ? 'bg-blue-100 text-blue-800' :
-                                    order.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-800' :
-                                      'bg-gray-100 text-gray-800'
+                                  order.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-800'
                                   }`}>
                                   {order.status.toLowerCase()}
                                 </span>
@@ -367,8 +370,8 @@ export default function DashboardPage() {
                                   <div className="w-24 bg-gray-200 rounded-full h-2.5">
                                     <div
                                       className={`h-2.5 rounded-full ${percent < 30 ? 'bg-red-600' :
-                                          percent < 70 ? 'bg-yellow-400' :
-                                            'bg-green-500'
+                                        percent < 70 ? 'bg-yellow-400' :
+                                          'bg-green-500'
                                         }`}
                                       style={{ width: `${percent}%` }}
                                     ></div>
@@ -475,10 +478,10 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="mt-4 flex space-x-4">
-                    <Link href="/dashboard/inventory?tab=materials" className="text-sm text-green-600 hover:text-green-800">
+                    <Link href="/dashboard/materials" className="text-sm text-green-600 hover:text-green-800">
                       Manage materials →
                     </Link>
-                    <Link href="/dashboard/inventory?tab=products" className="text-sm text-green-600 hover:text-green-800">
+                    <Link href="/dashboard/products" className="text-sm text-green-600 hover:text-green-800">
                       Manage products →
                     </Link>
                   </div>
@@ -512,15 +515,6 @@ export default function DashboardPage() {
                   <div className="border-t border-purple-200 pt-3 mt-3">
                     <h4 className="text-md font-medium text-purple-800">Progress Reports</h4>
                     <p className="text-2xl font-bold text-purple-700">{summaryData?.progressStats?.totalReports || 0} <span className="text-sm font-normal">reports</span></p>
-                  </div>
-
-                  <div className="mt-4 flex space-x-4">
-                    <Link href="/dashboard/users" className="text-sm text-purple-600 hover:text-purple-800">
-                      Manage users →
-                    </Link>
-                    <Link href="/dashboard/progress" className="text-sm text-purple-600 hover:text-purple-800">
-                      View progress →
-                    </Link>
                   </div>
                 </div>
               </div>

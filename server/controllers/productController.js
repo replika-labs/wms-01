@@ -931,6 +931,127 @@ const bulkDeactivateProducts = asyncHandler(async (req, res) => {
     }
 });
 
+/**
+ * @desc    Check if a single product can be deleted
+ * @route   GET /api/products/:id/check-delete
+ * @access  Private (Admin only)
+ */
+const checkProductDeletable = asyncHandler(async (req, res) => {
+    try {
+        const productId = parseInt(req.params.id);
+
+        if (isNaN(productId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid product ID'
+            });
+        }
+
+        // Check if product exists
+        const product = await prisma.product.findFirst({
+            where: { id: productId }
+        });
+
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found'
+            });
+        }
+
+        // Check if product is used in any active orders
+        const orderProducts = await prisma.orderProduct.findMany({
+            where: {
+                productId: productId,
+                order: {
+                    isActive: true
+                }
+            }
+        });
+
+        res.json({
+            success: true,
+            canDelete: orderProducts.length === 0,
+            message: orderProducts.length > 0
+                ? 'Cannot delete product as it is used in existing orders'
+                : 'Product can be deleted'
+        });
+    } catch (error) {
+        console.error('Error checking product deletable:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error checking if product can be deleted',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Check if multiple products can be deleted
+ * @route   POST /api/products/check-bulk-delete
+ * @access  Private (Admin only)
+ */
+const checkBulkDeleteProducts = asyncHandler(async (req, res) => {
+    try {
+        const { productIds } = req.body;
+
+        if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Product IDs array is required'
+            });
+        }
+
+        const productIdsInt = productIds.map(id => parseInt(id));
+
+        // Check if all products exist
+        const products = await prisma.product.findMany({
+            where: {
+                id: { in: productIdsInt }
+            }
+        });
+
+        if (products.length !== productIdsInt.length) {
+            return res.status(404).json({
+                success: false,
+                message: 'One or more products not found'
+            });
+        }
+
+        // Check if any products are used in active orders
+        const orderProducts = await prisma.orderProduct.findMany({
+            where: {
+                productId: { in: productIdsInt },
+                order: {
+                    isActive: true
+                }
+            },
+            select: {
+                productId: true
+            },
+            distinct: ['productId']
+        });
+
+        const usedProductIds = orderProducts.map(op => op.productId);
+
+        res.json({
+            success: true,
+            canDelete: usedProductIds.length === 0,
+            usedProductIds,
+            message: usedProductIds.length > 0
+                ? 'Some products cannot be deleted as they are used in existing orders'
+                : 'All products can be deleted'
+        });
+    } catch (error) {
+        console.error('Error checking bulk delete:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error checking if products can be deleted',
+            error: error.message
+        });
+    }
+});
+
 module.exports = {
     getProducts,
     getProductById,
@@ -944,5 +1065,7 @@ module.exports = {
     clearAllCaches,
     bulkDeleteProducts,
     bulkActivateProducts,
-    bulkDeactivateProducts
+    bulkDeactivateProducts,
+    checkProductDeletable,
+    checkBulkDeleteProducts
 }; 

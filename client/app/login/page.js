@@ -17,15 +17,16 @@ export default function LoginPage() {
     try {
       const res = await axios.post('/api/auth/login', { email, password });
       // Assuming the backend returns a token and user info on success
-      localStorage.setItem('token', res.data.token); 
+      localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
-      
+
       // Redirect based on user role (example)
       router.push('/dashboard');
 
     } catch (err) {
       console.error('Login Error:', err.response ? err.response.data : err.message);
       setError(err.response?.data?.message || 'Login failed');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -61,7 +62,7 @@ export default function LoginPage() {
                 required
               />
             </div>
-             {error && <p className="text-red-500 text-xs italic mb-4">{error}</p>}
+            {error && <p className="text-red-500 text-xs italic mb-4">{error}</p>}
             <div className="flex items-center justify-between">
               <button
                 type="submit"
@@ -69,12 +70,12 @@ export default function LoginPage() {
               >
                 Login
               </button>
-              <a
+              {/* <a
                 className="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800"
                 href="/register"
               >
                 Don&apos;t have an account? Register
-              </a>
+              </a> */}
             </div>
           </form>
         </div>

@@ -1,9 +1,5 @@
 const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
-const NodeCache = require('node-cache')
-
-// Initialize cache with 5 minute TTL
-const cache = new NodeCache({ stdTTL: 300 })
 
 // Helper function to generate material code
 const generateMaterialCode = (totalUnits, supplier) => {
@@ -25,37 +21,12 @@ const generateMaterialCode = (totalUnits, supplier) => {
     return `${randomAlphabets}-${totalUnits}-${cleanSupplier}-${currentDate}`
 }
 
-// Cache keys
-const CACHE_KEYS = {
-    ALL_MATERIALS: 'all_materials',
-    MATERIALS_BY_ATTRIBUTE: 'materials_by_attribute_',
-    CRITICAL_STOCK: 'critical_stock_materials',
-    INVENTORY_ANALYTICS: 'inventory_analytics'
-}
-
-// Helper function to clear related caches
-const clearMaterialCaches = () => {
-    const keys = cache.keys()
-    keys.forEach(key => {
-        if (key.startsWith('materials_') || key.startsWith('inventory_') || key === CACHE_KEYS.ALL_MATERIALS || key === CACHE_KEYS.CRITICAL_STOCK) {
-            cache.del(key)
-        }
-    })
-}
-
 // @desc    Get all materials
 // @route   GET /api/materials-management
 // @access  Private
 const getAllMaterials = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search, category, sortBy = 'name', sortOrder = 'asc' } = req.query
-        const cacheKey = `materials_page_${page}_limit_${limit}_search_${search || 'none'}_category_${category || 'all'}_sort_${sortBy}_${sortOrder}`
-
-        // Check cache first
-        const cachedData = cache.get(cacheKey)
-        if (cachedData) {
-            return res.json(cachedData)
-        }
+        const { page = 1, limit = 10, search, category, lowStock, sortBy = 'name', sortOrder = 'asc' } = req.query
 
         const skip = (parseInt(page) - 1) * parseInt(limit)
         const take = parseInt(limit)
@@ -74,6 +45,9 @@ const getAllMaterials = async (req, res) => {
         if (category) {
             where.attributeType = { contains: category, mode: 'insensitive' }
         }
+
+        // Handle low stock filter - we'll filter after fetching since we need to compare qtyOnHand with minStock
+        const isLowStockFilter = lowStock === 'true' || lowStock === true
 
         // Build orderBy - convert sortOrder to lowercase for Prisma
         const orderBy = {}
@@ -110,7 +84,7 @@ const getAllMaterials = async (req, res) => {
         const total = await prisma.material.count({ where })
 
         // Calculate enhanced material data with purchase information
-        const transformedMaterials = await Promise.all(materials.map(async (material) => {
+        let transformedMaterials = await Promise.all(materials.map(async (material) => {
             // Get average price from recent purchases
             const recentPurchases = await prisma.purchaseLog.findMany({
                 where: {
@@ -176,27 +150,35 @@ const getAllMaterials = async (req, res) => {
             }
         }))
 
+        // Apply low stock filter if requested
+        if (isLowStockFilter) {
+            transformedMaterials = transformedMaterials.filter(material => {
+                return material.qtyOnHand <= material.minStock
+            })
+        }
+
+        // Recalculate pagination for filtered results
+        const filteredTotal = isLowStockFilter ? transformedMaterials.length : total
+        const paginatedMaterials = isLowStockFilter
+            ? transformedMaterials.slice(skip, skip + take)
+            : transformedMaterials
+
         const result = {
             success: true,
             data: {
-                materials: transformedMaterials,
+                materials: paginatedMaterials,
                 pagination: {
                     page: parseInt(page),
                     limit: parseInt(limit),
-                    total,
-                    totalPages: Math.ceil(total / parseInt(limit))
+                    total: filteredTotal,
+                    totalPages: Math.ceil(filteredTotal / parseInt(limit))
                 }
             }
         }
 
-        // Cache the result
-        cache.set(cacheKey, result)
-
         res.json(result)
     } catch (error) {
         console.error('Error fetching materials:', error)
-        // Clear cache on error to prevent serving stale data
-        clearMaterialCaches()
         res.status(500).json({
             success: false,
             message: 'Error fetching materials',
@@ -211,13 +193,6 @@ const getAllMaterials = async (req, res) => {
 const getMaterialById = async (req, res) => {
     try {
         const { id } = req.params
-        const cacheKey = `material_${id}`
-
-        // Check cache first
-        const cachedData = cache.get(cacheKey)
-        if (cachedData) {
-            return res.json(cachedData)
-        }
 
         const material = await prisma.material.findUnique({
             where: { id: parseInt(id) },
@@ -310,9 +285,6 @@ const getMaterialById = async (req, res) => {
             restockRecommendation
         }
 
-        // Cache the result
-        cache.set(cacheKey, enhancedMaterial)
-
         res.json({
             success: true,
             data: enhancedMaterial
@@ -396,9 +368,6 @@ const createMaterial = async (req, res) => {
             }
         })
 
-        // Clear caches
-        clearMaterialCaches()
-
         res.status(201).json({
             success: true,
             message: 'Material created successfully',
@@ -442,10 +411,6 @@ const updateMaterial = async (req, res) => {
             where: { id: parseInt(id) },
             data: updateData
         })
-
-        // Clear caches
-        clearMaterialCaches()
-        cache.del(`material_${id}`)
 
         res.json({
             success: true,
@@ -497,10 +462,6 @@ const deleteMaterial = async (req, res) => {
             where: { id: parseInt(id) }
         })
 
-        // Clear caches
-        clearMaterialCaches()
-        cache.del(`material_${id}`)
-
         res.json({ message: 'Material deleted successfully' })
     } catch (error) {
         console.error('Error deleting material:', error)
@@ -517,23 +478,12 @@ const deleteMaterial = async (req, res) => {
 const getMaterialsByCategory = async (req, res) => {
     try {
         const { category } = req.params
-        const cacheKey = `${CACHE_KEYS.MATERIALS_BY_ATTRIBUTE}${category}`
-
-        // Check cache first
-        const cachedData = cache.get(cacheKey)
-        if (cachedData) {
-            return res.json(cachedData)
-        }
-
         const materials = await prisma.material.findMany({
             where: {
                 attributeType: { contains: category, mode: 'insensitive' }
             },
             orderBy: { name: 'asc' }
         })
-
-        // Cache the result
-        cache.set(cacheKey, materials)
 
         res.json({
             success: true,
@@ -554,20 +504,11 @@ const getMaterialsByCategory = async (req, res) => {
 // @access  Private
 const getMaterialsWithCriticalStock = async (req, res) => {
     try {
-        // Check cache first
-        const cachedData = cache.get(CACHE_KEYS.CRITICAL_STOCK)
-        if (cachedData) {
-            return res.json(cachedData)
-        }
-
         const materials = await prisma.$queryRaw`
             SELECT * FROM "materials" m
             WHERE m."qtyOnHand" <= m."minStock"
             ORDER BY (m."qtyOnHand" - m."minStock") ASC
         `
-
-        // Cache the result
-        cache.set(CACHE_KEYS.CRITICAL_STOCK, materials)
 
         res.json({
             success: true,
@@ -625,9 +566,6 @@ const bulkUpdateMaterials = async (req, res) => {
                 errors.push({ material: materialData, error: error.message })
             }
         }
-
-        // Clear caches
-        clearMaterialCaches()
 
         res.json({
             message: `Bulk update completed. ${results.length} successful, ${errors.length} failed.`,
@@ -771,9 +709,6 @@ const importMaterials = async (req, res) => {
             }
         }
 
-        // Clear caches
-        clearMaterialCaches()
-
         res.json({
             message: `Import completed. ${results.length} successful, ${errors.length} failed.`,
             results,
@@ -793,12 +728,6 @@ const importMaterials = async (req, res) => {
 // @access  Private
 const getInventoryAnalytics = async (req, res) => {
     try {
-        // Check cache first
-        const cachedData = cache.get(CACHE_KEYS.INVENTORY_ANALYTICS)
-        if (cachedData) {
-            return res.json(cachedData)
-        }
-
         const [
             totalMaterials,
             totalValue,
@@ -888,9 +817,6 @@ const getInventoryAnalytics = async (req, res) => {
             topValueMaterials,
             recentMovements
         }
-
-        // Cache the result
-        cache.set(CACHE_KEYS.INVENTORY_ANALYTICS, analytics)
 
         res.json(analytics)
     } catch (error) {
@@ -992,10 +918,6 @@ const updateStockLevel = async (req, res) => {
             }
         })
 
-        // Clear caches
-        clearMaterialCaches()
-        cache.del(`material_${id}`)
-
         res.json({
             message: 'Stock level updated successfully',
             material: updatedMaterial,
@@ -1074,10 +996,6 @@ const adjustStock = async (req, res) => {
             }
         })
 
-        // Clear caches
-        clearMaterialCaches()
-        cache.del(`material_${id}`)
-
         res.json({
             message: 'Stock adjusted successfully',
             material: updatedMaterial,
@@ -1113,6 +1031,5 @@ module.exports = {
     getInventoryAnalytics,
     getStockMovements,
     updateStockLevel,
-    adjustStock,
-    clearMaterialCaches // Export cache clearing function for use by other controllers
+    adjustStock
 } 

@@ -11,7 +11,7 @@ export default function MaterialMovementAnalyticsPage() {
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Filter state
   const [filter, setFilter] = useState({
     materialId: '',
@@ -19,7 +19,7 @@ export default function MaterialMovementAnalyticsPage() {
     endDate: '',
     movementSource: ''
   });
-  
+
   // Chart data state
   const [chartData, setChartData] = useState({
     movementTrends: [],
@@ -74,6 +74,7 @@ export default function MaterialMovementAnalyticsPage() {
 
       } catch (err) {
         setError(err.message);
+        setTimeout(() => setError(null), 3000);
         console.error('Error fetching analytics:', err);
       } finally {
         setLoading(false);
@@ -299,9 +300,8 @@ export default function MaterialMovementAnalyticsPage() {
                     <div className="p-5">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <div className={`w-8 h-8 rounded-md flex items-center justify-center ${
-                            item.movementType === 'MASUK' ? 'bg-green-500' : 'bg-red-500'
-                          }`}>
+                          <div className={`w-8 h-8 rounded-md flex items-center justify-center ${item.movementType === 'MASUK' ? 'bg-green-500' : 'bg-red-500'
+                            }`}>
                             <span className="text-white text-sm font-medium">
                               {item.movementType === 'MASUK' ? '📈' : '📉'}
                             </span>
@@ -338,16 +338,15 @@ export default function MaterialMovementAnalyticsPage() {
                         {chartData.sourceDistribution.map((source, index) => {
                           const total = chartData.sourceDistribution.reduce((sum, s) => sum + s.value, 0);
                           const percentage = getPercentage(source.value, total);
-                          
+
                           return (
                             <div key={index} className="flex items-center justify-between">
                               <div className="flex items-center">
-                                <div className={`w-4 h-4 rounded-full mr-3 ${
-                                  source.name === 'purchase' ? 'bg-blue-500' :
-                                  source.name === 'manual' ? 'bg-gray-500' :
-                                  source.name === 'production' ? 'bg-purple-500' :
-                                  'bg-yellow-500'
-                                }`}></div>
+                                <div className={`w-4 h-4 rounded-full mr-3 ${source.name === 'purchase' ? 'bg-blue-500' :
+                                    source.name === 'manual' ? 'bg-gray-500' :
+                                      source.name === 'production' ? 'bg-purple-500' :
+                                        'bg-yellow-500'
+                                  }`}></div>
                                 <span className="text-sm font-medium text-gray-900 capitalize">
                                   {source.name}
                                 </span>
@@ -357,13 +356,12 @@ export default function MaterialMovementAnalyticsPage() {
                                   {formatNumber(source.value)} ({percentage}%)
                                 </span>
                                 <div className="w-20 bg-gray-200 rounded-full h-2">
-                                  <div 
-                                    className={`h-2 rounded-full ${
-                                      source.name === 'purchase' ? 'bg-blue-500' :
-                                      source.name === 'manual' ? 'bg-gray-500' :
-                                      source.name === 'production' ? 'bg-purple-500' :
-                                      'bg-yellow-500'
-                                    }`}
+                                  <div
+                                    className={`h-2 rounded-full ${source.name === 'purchase' ? 'bg-blue-500' :
+                                        source.name === 'manual' ? 'bg-gray-500' :
+                                          source.name === 'production' ? 'bg-purple-500' :
+                                            'bg-yellow-500'
+                                      }`}
                                     style={{ width: `${percentage}%` }}
                                   ></div>
                                 </div>
@@ -400,20 +398,19 @@ export default function MaterialMovementAnalyticsPage() {
                               </p>
                             </div>
                             <div className="text-right">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                source.movementSource === 'purchase' ? 'bg-blue-100 text-blue-800' :
-                                source.movementSource === 'manual' ? 'bg-gray-100 text-gray-800' :
-                                source.movementSource === 'production' ? 'bg-purple-100 text-purple-800' :
-                                'bg-yellow-100 text-yellow-800'
-                              }`}>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${source.movementSource === 'purchase' ? 'bg-blue-100 text-blue-800' :
+                                  source.movementSource === 'manual' ? 'bg-gray-100 text-gray-800' :
+                                    source.movementSource === 'production' ? 'bg-purple-100 text-purple-800' :
+                                      'bg-yellow-100 text-yellow-800'
+                                }`}>
                                 {source.movementSource}
                               </span>
                             </div>
                           </div>
                         </div>
                       )) || (
-                        <p className="text-gray-500 text-center py-8">No source data available</p>
-                      )}
+                          <p className="text-gray-500 text-center py-8">No source data available</p>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -429,10 +426,10 @@ export default function MaterialMovementAnalyticsPage() {
                     {chartData.movementTrends.map((trend, index) => (
                       <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
                         <div className="text-sm font-medium text-gray-900">
-                          {new Date(trend.date).toLocaleDateString('id-ID', { 
-                            weekday: 'short', 
-                            month: 'short', 
-                            day: 'numeric' 
+                          {new Date(trend.date).toLocaleDateString('id-ID', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
                           })}
                         </div>
                         <div className="flex items-center space-x-4">
@@ -466,7 +463,7 @@ export default function MaterialMovementAnalyticsPage() {
                         Purchase Automation Rate
                       </dt>
                       <dd className="mt-1 text-3xl font-semibold text-blue-600">
-                        {analytics.movementsBySource?.find(s => s.movementSource === 'purchase') ? 
+                        {analytics.movementsBySource?.find(s => s.movementSource === 'purchase') ?
                           getPercentage(
                             analytics.movementsBySource.find(s => s.movementSource === 'purchase').dataValues?.count || 0,
                             analytics.totalMovements

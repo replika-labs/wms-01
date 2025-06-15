@@ -11,7 +11,7 @@ export default function CreateUserPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const router = useRouter();
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,7 +22,7 @@ export default function CreateUserPage() {
     role: 'penjahit', // Default role
     loginEnabled: true
   });
-  
+
   const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
@@ -46,31 +46,31 @@ export default function CreateUserPage() {
 
   const validateForm = () => {
     const errors = {};
-    
+
     if (!formData.name.trim()) {
       errors.name = 'Name is required';
     }
-    
+
     if (!formData.email.trim()) {
       errors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       errors.email = 'Email is invalid';
     }
-    
+
     if (!formData.password) {
       errors.password = 'Password is required';
     } else if (formData.password.length < 6) {
       errors.password = 'Password must be at least 6 characters';
     }
-    
+
     if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = 'Passwords do not match';
     }
-    
+
     if (!formData.role) {
       errors.role = 'Role is required';
     }
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -85,15 +85,15 @@ export default function CreateUserPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setLoading(true);
     setError('');
     setSuccess('');
-    
+
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/auth/users', {
@@ -112,10 +112,10 @@ export default function CreateUserPage() {
           loginEnabled: formData.loginEnabled
         })
       });
-      
+
       if (!res.ok) {
         const errorData = await res.json();
-        
+
         // Specifically handle email already exists error
         if (errorData.message && errorData.message.includes('email already exists')) {
           setFormErrors(prev => ({
@@ -124,12 +124,13 @@ export default function CreateUserPage() {
           }));
           throw new Error('Email already exists in the system');
         }
-        
+
         throw new Error(errorData.message || 'Failed to create user');
       }
-      
+
       setSuccess('User created successfully');
-      
+      setTimeout(() => setSuccess(''), 3000);
+
       // Reset form
       setFormData({
         name: '',
@@ -141,15 +142,16 @@ export default function CreateUserPage() {
         role: 'penjahit',
         loginEnabled: true
       });
-      
+
       // Redirect to users list after a delay
       setTimeout(() => {
         router.push('/dashboard/users');
       }, 2000);
-      
+
     } catch (err) {
       console.error('Failed to create user:', err);
       setError(err.message || 'Failed to create user');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setLoading(false);
     }

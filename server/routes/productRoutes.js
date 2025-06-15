@@ -13,7 +13,9 @@ const {
   getProductVariations,
   bulkDeleteProducts,
   bulkActivateProducts,
-  bulkDeactivateProducts
+  bulkDeactivateProducts,
+  checkProductDeletable,
+  checkBulkDeleteProducts
 } = require('../controllers/productController');
 
 const {
@@ -55,6 +57,12 @@ router.get('/', protect, getProducts);
 
 // GET /api/products/:id - Get single product by ID with all relationships
 router.get('/:id', protect, getProductById);
+
+// GET /api/products/:id/check-delete - Check if a single product can be deleted
+router.get('/:id/check-delete', protect, adminOnly, checkProductDeletable);
+
+// POST /api/products/check-bulk-delete - Check if multiple products can be deleted
+router.post('/check-bulk-delete', protect, adminOnly, checkBulkDeleteProducts);
 
 // POST /api/products - Create new product with photos (protected by middleware protect and adminOnly)
 router.post('/', protect, adminOnly, uploadProductPhotos, createProduct);

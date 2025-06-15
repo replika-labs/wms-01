@@ -14,7 +14,7 @@ export default function EditUserPage({ params }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const router = useRouter();
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -25,7 +25,7 @@ export default function EditUserPage({ params }) {
     role: '',
     loginEnabled: true
   });
-  
+
   const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
@@ -57,12 +57,12 @@ export default function EditUserPage({ params }) {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (!res.ok) throw new Error('Failed to fetch user data');
-      
+
       const userData = await res.json();
       setUserData(userData);
-      
+
       setFormData({
         name: userData.name || '',
         email: userData.email || '',
@@ -73,10 +73,11 @@ export default function EditUserPage({ params }) {
         role: userData.role || 'penjahit',
         loginEnabled: userData.loginEnabled !== undefined ? userData.loginEnabled : true
       });
-      
+
     } catch (err) {
       console.error('Failed to fetch user data:', err);
       setError('Failed to load user data. Please try again.');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setLoading(false);
     }
@@ -84,30 +85,30 @@ export default function EditUserPage({ params }) {
 
   const validateForm = () => {
     const errors = {};
-    
+
     if (!formData.name.trim()) {
       errors.name = 'Name is required';
     }
-    
+
     if (!formData.email.trim()) {
       errors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       errors.email = 'Email is invalid';
     }
-    
+
     // Password is optional during edit, but if provided, must match confirmation
     if (formData.password && formData.password.length < 6) {
       errors.password = 'Password must be at least 6 characters';
     }
-    
+
     if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = 'Passwords do not match';
     }
-    
+
     if (!formData.role) {
       errors.role = 'Role is required';
     }
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -122,15 +123,15 @@ export default function EditUserPage({ params }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setSaving(true);
     setError('');
     setSuccess('');
-    
+
     // Create update payload - omit password if not provided
     const updatePayload = {
       name: formData.name,
@@ -140,12 +141,12 @@ export default function EditUserPage({ params }) {
       role: formData.role,
       loginEnabled: formData.loginEnabled
     };
-    
+
     // Only include password if it was entered
     if (formData.password) {
       updatePayload.password = formData.password;
     }
-    
+
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/auth/users/${userId}`, {
@@ -156,22 +157,23 @@ export default function EditUserPage({ params }) {
         },
         body: JSON.stringify(updatePayload)
       });
-      
+
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || 'Failed to update user');
       }
-      
+
       setSuccess('User updated successfully');
-      
+
       // Redirect to users list after a delay
       setTimeout(() => {
         router.push('/dashboard/users');
       }, 2000);
-      
+
     } catch (err) {
       console.error('Failed to update user:', err);
       setError(err.message || 'Failed to update user');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setSaving(false);
     }
@@ -319,7 +321,7 @@ export default function EditUserPage({ params }) {
                   )}
                 </div>
 
-                                <div>                  <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">                    Role                  </label>                  <select                    id="role"                    name="role"                    className={`w-full px-4 py-2 border rounded-lg ${formErrors.role ? 'border-red-500' : 'border-gray-300'}`}                    value={formData.role}                    onChange={handleChange}                  >                    <option value="penjahit">Penjahit</option>                    <option value="admin">Admin</option>                  </select>                  {formErrors.role && (                    <p className="mt-1 text-sm text-red-600">{formErrors.role}</p>                  )}                </div>
+                <div>                  <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">                    Role                  </label>                  <select id="role" name="role" className={`w-full px-4 py-2 border rounded-lg ${formErrors.role ? 'border-red-500' : 'border-gray-300'}`} value={formData.role} onChange={handleChange}                  >                    <option value="penjahit">Penjahit</option>                    <option value="admin">Admin</option>                  </select>                  {formErrors.role && (<p className="mt-1 text-sm text-red-600">{formErrors.role}</p>)}                </div>
 
                 <div className="flex items-center">
                   <input

@@ -106,6 +106,7 @@ export default function ProductsPage() {
     } catch (error) {
       console.error('Error fetching products:', error);
       setError('Failed to load products');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setLoading(false);
     }
@@ -150,6 +151,7 @@ export default function ProductsPage() {
     } catch (error) {
       console.error('Error fetching products:', error);
       setError('Failed to load products');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setLoading(false);
     }
@@ -224,13 +226,6 @@ export default function ProductsPage() {
   const handleBulkAction = async () => {
     if (!bulkAction || selectedProducts.length === 0) return;
 
-    // Confirm bulk delete
-    if (bulkAction === 'delete') {
-      if (!confirm(`Are you sure you want to delete ${selectedProducts.length} products? This action cannot be undone.`)) {
-        return;
-      }
-    }
-
     // Handle export separately (placeholder for future implementation)
     if (bulkAction === 'export') {
       alert('Export functionality will be implemented soon');
@@ -238,6 +233,45 @@ export default function ProductsPage() {
       return;
     }
 
+    // For bulk delete, we'll check first
+    if (bulkAction === 'delete') {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:8080/api/products/check-bulk-delete`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ productIds: selectedProducts }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.canDelete) {
+          // If all products can be deleted, show confirmation
+          if (confirm(`Are you sure you want to delete ${selectedProducts.length} products? This action cannot be undone.`)) {
+            await performBulkDelete();
+          }
+        } else {
+          // If some products can't be deleted, show error
+          setError('Some products cannot be deleted because they are already used in existing orders. Only products that have never been ordered can be deleted.');
+          setTimeout(() => setError(''), 3000);
+        }
+      } catch (error) {
+        console.error('Check bulk delete failed:', error);
+        setError('Failed to check if products can be deleted');
+        setTimeout(() => setError(''), 3000);
+      }
+      return;
+    }
+
+    // For other bulk actions, proceed as normal
+    await performBulkAction();
+  };
+
+  // Separate function for performing bulk delete/action
+  const performBulkAction = async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:8080/api/products/bulk/${bulkAction}`, {
@@ -252,18 +286,18 @@ export default function ProductsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        refreshProducts(); // Use refreshProducts to get latest data
+        refreshProducts();
         setSelectedProducts([]);
         setBulkAction('');
-
-        // Show success message (you can enhance this with a proper toast notification)
         alert(data.message || `Bulk ${bulkAction} completed successfully`);
       } else {
-        throw new Error(data.message || `Failed to ${bulkAction} products`);
+        setError(data.message || `Failed to ${bulkAction} products`);
+        setTimeout(() => setError(''), 3000);
       }
     } catch (error) {
       console.error('Bulk action failed:', error);
       setError(error.message || `Failed to ${bulkAction} products`);
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -279,15 +313,59 @@ export default function ProductsPage() {
         },
       });
 
+      const data = await response.json();
+
       if (response.ok) {
         setDeleteConfirm({ show: false, productId: null, productName: '' });
         refreshProducts(); // Use refreshProducts to get latest data
+        alert('Product deleted successfully');
       } else {
-        throw new Error('Failed to delete product');
+        // Handle specific error message for products used in orders
+        if (data.message?.includes('Cannot delete products that are used in existing orders')) {
+          setError('This product cannot be deleted because it is already used in existing orders. Only products that have never been ordered can be deleted.');
+          setTimeout(() => setError(''), 3000);
+        } else {
+          setError(data.message || 'Failed to delete product');
+          setTimeout(() => setError(''), 3000);
+        }
       }
     } catch (error) {
       console.error('Delete failed:', error);
       setError('Failed to delete product');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  // Check if product can be deleted
+  const checkProductDeletable = async (productId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8080/api/products/${productId}/check-delete`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.canDelete) {
+        // If product can be deleted, show confirmation modal
+        const product = products.find(p => p.id === productId);
+        setDeleteConfirm({
+          show: true,
+          productId: productId,
+          productName: product?.name || 'this product'
+        });
+      } else {
+        // If product cannot be deleted, show error message directly
+        setError('This product cannot be deleted because it is already used in existing orders. Only products that have never been ordered can be deleted.');
+        setTimeout(() => setError(''), 3000);
+      }
+    } catch (error) {
+      console.error('Check delete failed:', error);
+      setError('Failed to check if product can be deleted');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -315,13 +393,13 @@ export default function ProductsPage() {
                 <span>🔄</span>
                 <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
               </button>
-              <Link
+              {/* <Link
                 href="/dashboard/products/analytics"
                 className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center space-x-2"
               >
                 <span>📊</span>
                 <span>Analytics</span>
-              </Link>
+              </Link> */}
               <Link
                 href="/dashboard/products/create"
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center space-x-2"
@@ -511,7 +589,7 @@ export default function ProductsPage() {
           )}
 
           {/* Products Content */}
-          {!loading && !error && (
+          {!loading && (
             <>
               {viewMode === 'table' ? (
                 <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
@@ -635,11 +713,7 @@ export default function ProductsPage() {
                                 </Link>
                               )}
                               <button
-                                onClick={() => setDeleteConfirm({
-                                  show: true,
-                                  productId: product.id,
-                                  productName: product.name
-                                })}
+                                onClick={() => checkProductDeletable(product.id)}
                                 className="text-red-600 hover:text-red-900"
                               >
                                 Delete
@@ -744,34 +818,34 @@ export default function ProductsPage() {
               )}
             </>
           )}
-
-          {/* Delete Confirmation Modal */}
-          {deleteConfirm.show && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Product</h3>
-                <p className="text-gray-600 mb-6">
-                  Are you sure you want to delete &quot;{deleteConfirm.productName}&quot;? This action cannot be undone.
-                </p>
-                <div className="flex justify-end space-x-4">
-                  <button
-                    onClick={() => setDeleteConfirm({ show: false, productId: null, productName: '' })}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => handleDeleteProduct(deleteConfirm.productId)}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </DashboardLayout>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Product</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete &quot;{deleteConfirm.productName}&quot;? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setDeleteConfirm({ show: false, productId: null, productName: '' })}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteProduct(deleteConfirm.productId)}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AuthWrapper>
   );
 } 

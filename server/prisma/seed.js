@@ -24,22 +24,22 @@ const generateMaterialCode = (totalUnits, materialName) => {
 }
 
 async function main() {
-    console.log('Starting database seeding...')
+    console.log('Starting hijab WMS database seeding...')
 
     try {
         // Create admin user
         const hashedPassword = await bcrypt.hash('admin123', 10)
 
         const adminUser = await prisma.user.upsert({
-            where: { email: 'admin@wms.com' },
+            where: { email: 'admin@hijabwms.com' },
             update: {},
             create: {
-                name: 'Administrator',
-                email: 'admin@wms.com',
+                name: 'Hijab Store Administrator',
+                email: 'admin@hijabwms.com',
                 passwordHash: hashedPassword,
                 role: 'ADMIN',
-                phone: '+1234567890',
-                whatsappPhone: '+1234567890',
+                phone: '+62812345678',
+                whatsappPhone: '+62812345678',
                 isActive: true,
                 loginEnabled: true
             }
@@ -49,15 +49,15 @@ async function main() {
 
         // Create operator user
         const operatorUser = await prisma.user.upsert({
-            where: { email: 'operator@wms.com' },
+            where: { email: 'operator@hijabwms.com' },
             update: {},
             create: {
                 name: 'Warehouse Operator',
-                email: 'operator@wms.com',
+                email: 'operator@hijabwms.com',
                 passwordHash: hashedPassword,
                 role: 'OPERATOR',
-                phone: '+1234567891',
-                whatsappPhone: '+1234567891',
+                phone: '+62812345679',
+                whatsappPhone: '+62812345679',
                 isActive: true,
                 loginEnabled: true
             }
@@ -65,34 +65,35 @@ async function main() {
 
         console.log('✓ Operator user created:', operatorUser.email)
 
-        // Create sample materials with new schema (without pricePerUnit and supplier)
+        // Create hijab-related materials with purchase history
         const materialData = [
             {
                 material: {
-                    name: 'Steel Sheets',
-                    description: 'High quality steel sheets for manufacturing',
-                    code: generateMaterialCode(50, 'Steel Sheets'),
-                    unit: 'pcs',
-                    qtyOnHand: 50.0,
-                    minStock: 5.0,
-                    maxStock: 100.0,
-                    reorderPoint: 10.0,
-                    reorderQty: 25.0,
-                    attributeType: 'Raw Materials',
-                    attributeValue: 'Steel'
+                    name: 'Chiffon Fabric',
+                    description: 'High quality chiffon fabric for premium hijabs',
+                    code: generateMaterialCode(100, 'Chiffon Fabric'),
+                    unit: 'meter',
+                    qtyOnHand: 100.0,
+                    minStock: 10.0,
+                    maxStock: 200.0,
+                    reorderPoint: 20.0,
+                    reorderQty: 50.0,
+                    location: 'Fabric Storage A1',
+                    attributeType: 'Fabric',
+                    attributeValue: 'Chiffon'
                 },
                 purchases: [
                     {
-                        supplier: 'Steel Supply Co.',
-                        quantity: 30.0,
-                        pricePerUnit: 25.50,
+                        supplier: 'Premium Textile Indonesia',
+                        quantity: 60.0,
+                        pricePerUnit: 45000,
                         purchaseDate: new Date('2024-01-15'),
                         status: 'RECEIVED'
                     },
                     {
-                        supplier: 'Steel Supply Co.',
-                        quantity: 20.0,
-                        pricePerUnit: 26.00,
+                        supplier: 'Premium Textile Indonesia',
+                        quantity: 40.0,
+                        pricePerUnit: 47000,
                         purchaseDate: new Date('2024-02-10'),
                         status: 'RECEIVED'
                     }
@@ -100,30 +101,31 @@ async function main() {
             },
             {
                 material: {
-                    name: 'Electronic Components',
-                    description: 'Various electronic components and circuits',
-                    code: generateMaterialCode(200, 'Electronic Components'),
-                    unit: 'pcs',
-                    qtyOnHand: 200.0,
-                    minStock: 20.0,
-                    maxStock: 500.0,
-                    reorderPoint: 50.0,
-                    reorderQty: 100.0,
-                    attributeType: 'Components',
-                    attributeValue: 'Electronic'
+                    name: 'Voile Fabric',
+                    description: 'Soft and breathable voile fabric for daily hijabs',
+                    code: generateMaterialCode(150, 'Voile Fabric'),
+                    unit: 'meter',
+                    qtyOnHand: 150.0,
+                    minStock: 15.0,
+                    maxStock: 300.0,
+                    reorderPoint: 30.0,
+                    reorderQty: 75.0,
+                    location: 'Fabric Storage A2',
+                    attributeType: 'Fabric',
+                    attributeValue: 'Voile'
                 },
                 purchases: [
                     {
-                        supplier: 'Electronics Hub',
-                        quantity: 150.0,
-                        pricePerUnit: 5.25,
+                        supplier: 'Hijab Fabric Supplier',
+                        quantity: 100.0,
+                        pricePerUnit: 35000,
                         purchaseDate: new Date('2024-01-20'),
                         status: 'RECEIVED'
                     },
                     {
-                        supplier: 'Electronics Hub',
+                        supplier: 'Hijab Fabric Supplier',
                         quantity: 50.0,
-                        pricePerUnit: 5.00,
+                        pricePerUnit: 36000,
                         purchaseDate: new Date('2024-02-05'),
                         status: 'RECEIVED'
                     }
@@ -131,23 +133,24 @@ async function main() {
             },
             {
                 material: {
-                    name: 'Plastic Housing',
-                    description: 'Durable plastic housing units',
-                    code: generateMaterialCode(75, 'Plastic Housing'),
-                    unit: 'pcs',
-                    qtyOnHand: 75.0,
-                    minStock: 10.0,
-                    maxStock: 150.0,
-                    reorderPoint: 20.0,
-                    reorderQty: 50.0,
-                    attributeType: 'Components',
-                    attributeValue: 'Plastic'
+                    name: 'Cotton Jersey',
+                    description: 'Comfortable cotton jersey for inner hijabs',
+                    code: generateMaterialCode(80, 'Cotton Jersey'),
+                    unit: 'meter',
+                    qtyOnHand: 80.0,
+                    minStock: 8.0,
+                    maxStock: 160.0,
+                    reorderPoint: 15.0,
+                    reorderQty: 40.0,
+                    location: 'Fabric Storage B1',
+                    attributeType: 'Fabric',
+                    attributeValue: 'Cotton Jersey'
                 },
                 purchases: [
                     {
-                        supplier: 'Plastic Manufacturing Ltd.',
-                        quantity: 75.0,
-                        pricePerUnit: 12.00,
+                        supplier: 'Cotton Textile Co.',
+                        quantity: 80.0,
+                        pricePerUnit: 28000,
                         purchaseDate: new Date('2024-01-25'),
                         status: 'RECEIVED'
                     }
@@ -155,23 +158,24 @@ async function main() {
             },
             {
                 material: {
-                    name: 'Aluminum Rods',
-                    description: 'High-grade aluminum rods for structural components',
-                    code: generateMaterialCode(30, 'Aluminum Rods'),
-                    unit: 'pcs',
-                    qtyOnHand: 30.0,
+                    name: 'Silk Satin',
+                    description: 'Luxurious silk satin for premium hijab collection',
+                    code: generateMaterialCode(50, 'Silk Satin'),
+                    unit: 'meter',
+                    qtyOnHand: 50.0,
                     minStock: 5.0,
-                    maxStock: 80.0,
+                    maxStock: 100.0,
                     reorderPoint: 10.0,
-                    reorderQty: 20.0,
-                    attributeType: 'Raw Materials',
-                    attributeValue: 'Aluminum'
+                    reorderQty: 25.0,
+                    location: 'Premium Storage C1',
+                    attributeType: 'Fabric',
+                    attributeValue: 'Silk Satin'
                 },
                 purchases: [
                     {
-                        supplier: 'Metal Works Ltd.',
-                        quantity: 30.0,
-                        pricePerUnit: 18.75,
+                        supplier: 'Luxury Silk Imports',
+                        quantity: 50.0,
+                        pricePerUnit: 85000,
                         purchaseDate: new Date('2024-01-30'),
                         status: 'RECEIVED'
                     }
@@ -179,31 +183,107 @@ async function main() {
             },
             {
                 material: {
-                    name: 'Rubber Gaskets',
-                    description: 'Weather-resistant rubber gaskets and seals',
-                    code: generateMaterialCode(150, 'Rubber Gaskets'),
+                    name: 'Hijab Pins',
+                    description: 'Decorative and functional hijab pins',
+                    code: generateMaterialCode(500, 'Hijab Pins'),
                     unit: 'pcs',
-                    qtyOnHand: 150.0,
-                    minStock: 25.0,
-                    maxStock: 300.0,
-                    reorderPoint: 40.0,
-                    reorderQty: 75.0,
-                    attributeType: 'Components',
-                    attributeValue: 'Rubber'
+                    qtyOnHand: 500.0,
+                    minStock: 50.0,
+                    maxStock: 1000.0,
+                    reorderPoint: 100.0,
+                    reorderQty: 200.0,
+                    location: 'Accessories Storage D1',
+                    attributeType: 'Accessories',
+                    attributeValue: 'Pins'
                 },
                 purchases: [
                     {
-                        supplier: 'Rubber Solutions',
-                        quantity: 100.0,
-                        pricePerUnit: 3.50,
+                        supplier: 'Hijab Accessories Supplier',
+                        quantity: 300.0,
+                        pricePerUnit: 5000,
                         purchaseDate: new Date('2024-02-01'),
                         status: 'RECEIVED'
                     },
                     {
-                        supplier: 'Rubber Solutions',
-                        quantity: 50.0,
-                        pricePerUnit: 3.25,
+                        supplier: 'Hijab Accessories Supplier',
+                        quantity: 200.0,
+                        pricePerUnit: 4800,
                         purchaseDate: new Date('2024-02-15'),
+                        status: 'RECEIVED'
+                    }
+                ]
+            },
+            {
+                material: {
+                    name: 'Magnetic Hijab Clips',
+                    description: 'Modern magnetic clips for easy hijab styling',
+                    code: generateMaterialCode(200, 'Magnetic Clips'),
+                    unit: 'pcs',
+                    qtyOnHand: 200.0,
+                    minStock: 20.0,
+                    maxStock: 400.0,
+                    reorderPoint: 40.0,
+                    reorderQty: 100.0,
+                    location: 'Accessories Storage D2',
+                    attributeType: 'Accessories',
+                    attributeValue: 'Magnetic Clips'
+                },
+                purchases: [
+                    {
+                        supplier: 'Modern Hijab Solutions',
+                        quantity: 200.0,
+                        pricePerUnit: 12000,
+                        purchaseDate: new Date('2024-02-05'),
+                        status: 'RECEIVED'
+                    }
+                ]
+            },
+            {
+                material: {
+                    name: 'Hijab Caps/Ciput',
+                    description: 'Inner caps for comfortable hijab wearing',
+                    code: generateMaterialCode(100, 'Hijab Caps'),
+                    unit: 'pcs',
+                    qtyOnHand: 100.0,
+                    minStock: 10.0,
+                    maxStock: 200.0,
+                    reorderPoint: 20.0,
+                    reorderQty: 50.0,
+                    location: 'Inner Wear Storage E1',
+                    attributeType: 'Inner Wear',
+                    attributeValue: 'Caps'
+                },
+                purchases: [
+                    {
+                        supplier: 'Hijab Essentials Co.',
+                        quantity: 100.0,
+                        pricePerUnit: 15000,
+                        purchaseDate: new Date('2024-02-08'),
+                        status: 'RECEIVED'
+                    }
+                ]
+            },
+            {
+                material: {
+                    name: 'Lace Trim',
+                    description: 'Decorative lace trim for hijab edges',
+                    code: generateMaterialCode(300, 'Lace Trim'),
+                    unit: 'meter',
+                    qtyOnHand: 300.0,
+                    minStock: 30.0,
+                    maxStock: 600.0,
+                    reorderPoint: 60.0,
+                    reorderQty: 150.0,
+                    location: 'Trim Storage F1',
+                    attributeType: 'Trim',
+                    attributeValue: 'Lace'
+                },
+                purchases: [
+                    {
+                        supplier: 'Decorative Trims Ltd.',
+                        quantity: 300.0,
+                        pricePerUnit: 8000,
+                        purchaseDate: new Date('2024-02-12'),
                         status: 'RECEIVED'
                     }
                 ]
@@ -272,64 +352,74 @@ async function main() {
             }
         }
 
-        console.log('✓ Sample materials and purchase history created')
+        console.log('✓ Hijab materials and purchase history created')
 
-        // Create sample products
-        const steelSheets = await prisma.material.findFirst({ where: { name: 'Steel Sheets' } })
-        const electronicComponents = await prisma.material.findFirst({ where: { name: 'Electronic Components' } })
-        const plasticHousing = await prisma.material.findFirst({ where: { name: 'Plastic Housing' } })
-        const aluminumRods = await prisma.material.findFirst({ where: { name: 'Aluminum Rods' } })
+        // Create hijab products
+        const chiffonFabric = await prisma.material.findFirst({ where: { name: 'Chiffon Fabric' } })
+        const voileFabric = await prisma.material.findFirst({ where: { name: 'Voile Fabric' } })
+        const cottonJersey = await prisma.material.findFirst({ where: { name: 'Cotton Jersey' } })
+        const silkSatin = await prisma.material.findFirst({ where: { name: 'Silk Satin' } })
 
         const products = [
             {
-                name: 'Basic Widget',
-                code: 'WIDGET001',
-                materialId: steelSheets?.id,
-                category: 'Hardware',
-                price: 45.00,
+                name: 'Premium Chiffon Hijab',
+                code: 'HIJ-CHF-001',
+                materialId: chiffonFabric?.id,
+                category: 'Premium Hijabs',
+                price: 125000,
                 unit: 'pcs',
-                description: 'Standard industrial widget made from steel',
-                defaultTarget: 20
+                description: 'Elegant chiffon hijab perfect for formal occasions',
+                defaultTarget: 50
             },
             {
-                name: 'Electronic Device',
-                code: 'DEVICE001',
-                materialId: electronicComponents?.id,
-                category: 'Electronics',
-                price: 125.00,
+                name: 'Daily Voile Hijab',
+                code: 'HIJ-VOI-001',
+                materialId: voileFabric?.id,
+                category: 'Daily Hijabs',
+                price: 85000,
                 unit: 'pcs',
-                description: 'Multi-purpose electronic device',
-                defaultTarget: 10
+                description: 'Comfortable voile hijab for everyday wear',
+                defaultTarget: 100
             },
             {
-                name: 'Assembly Kit',
-                code: 'KIT001',
-                materialId: steelSheets?.id,
-                category: 'Kits',
-                price: 85.00,
+                name: 'Cotton Inner Hijab',
+                code: 'HIJ-CTN-001',
+                materialId: cottonJersey?.id,
+                category: 'Inner Hijabs',
+                price: 45000,
                 unit: 'pcs',
-                description: 'Complete assembly kit with all components',
-                defaultTarget: 15
+                description: 'Soft cotton inner hijab for comfort',
+                defaultTarget: 75
             },
             {
-                name: 'Protective Housing',
-                code: 'HOUSING001',
-                materialId: plasticHousing?.id,
-                category: 'Enclosures',
-                price: 65.00,
+                name: 'Luxury Silk Hijab',
+                code: 'HIJ-SLK-001',
+                materialId: silkSatin?.id,
+                category: 'Luxury Hijabs',
+                price: 250000,
                 unit: 'pcs',
-                description: 'Durable plastic protective housing',
+                description: 'Premium silk hijab for special occasions',
                 defaultTarget: 25
             },
             {
-                name: 'Structural Frame',
-                code: 'FRAME001',
-                materialId: aluminumRods?.id,
-                category: 'Structures',
-                price: 95.00,
+                name: 'Square Chiffon Hijab',
+                code: 'HIJ-SQR-001',
+                materialId: chiffonFabric?.id,
+                category: 'Square Hijabs',
+                price: 95000,
                 unit: 'pcs',
-                description: 'Lightweight aluminum structural frame',
-                defaultTarget: 12
+                description: 'Versatile square chiffon hijab',
+                defaultTarget: 60
+            },
+            {
+                name: 'Instant Voile Hijab',
+                code: 'HIJ-INS-001',
+                materialId: voileFabric?.id,
+                category: 'Instant Hijabs',
+                price: 75000,
+                unit: 'pcs',
+                description: 'Easy-to-wear instant hijab',
+                defaultTarget: 80
             }
         ]
 
@@ -341,67 +431,84 @@ async function main() {
             })
         }
 
-        console.log('✓ Sample products created')
+        console.log('✓ Hijab products created')
 
-        // Create sample product colors
+        // Create hijab-specific colors
         const productColors = [
-            // Basic colors
-            { colorName: 'Ash Brown', colorCode: 'ASHBR' },
-            { colorName: 'Ash Grey', colorCode: 'ASHGR' },
-            { colorName: 'Beige', colorCode: 'BEIG' },
-            { colorName: 'Burgundy', colorCode: 'BGDY' },
+            // Basic hijab colors
             { colorName: 'Black', colorCode: 'BLCK' },
-            { colorName: 'Baby Pink', colorCode: 'BPNK' },
-            { colorName: 'Broken White', colorCode: 'BW' },
-            { colorName: 'Cloud', colorCode: 'CLD' },
-            { colorName: 'Cotton', colorCode: 'CTN' },
-            { colorName: 'Dark Ash', colorCode: 'DASH' },
-            { colorName: 'Dark Navy', colorCode: 'DNVY' },
-            { colorName: 'Dark Olive', colorCode: 'DOLV' },
-            { colorName: 'Dusty Pink', colorCode: 'DPNK' },
-            { colorName: 'Forest Green', colorCode: 'FGRN' },
-            { colorName: 'Grey', colorCode: 'GREY' },
-            { colorName: 'Hunter Green', colorCode: 'HGRN' },
-            { colorName: 'Ivory', colorCode: 'IVRY' },
-            { colorName: 'Khaki', colorCode: 'KHAK' },
-            { colorName: 'Light Blue', colorCode: 'LBLU' },
-            { colorName: 'Light Grey', colorCode: 'LGRY' },
-            { colorName: 'Maroon', colorCode: 'MARN' },
-            { colorName: 'Mustard', colorCode: 'MSTD' },
-            { colorName: 'Navy', colorCode: 'NAVY' },
-            { colorName: 'Nude', colorCode: 'NUDE' },
-            { colorName: 'Olive', colorCode: 'OLIV' },
-            { colorName: 'Pink', colorCode: 'PINK' },
-            { colorName: 'Purple', colorCode: 'PRPL' },
-            { colorName: 'Red', colorCode: 'RED' },
-            { colorName: 'Sage Green', colorCode: 'SGRN' },
-            { colorName: 'Tan', colorCode: 'TAN' },
-            { colorName: 'Teal', colorCode: 'TEAL' },
             { colorName: 'White', colorCode: 'WHT' },
-            { colorName: 'Wine', colorCode: 'WINE' },
-            { colorName: 'Yellow', colorCode: 'YLLOW' }
+            { colorName: 'Broken White', colorCode: 'BW' },
+            { colorName: 'Cream', colorCode: 'CRM' },
+            { colorName: 'Beige', colorCode: 'BEIG' },
+            { colorName: 'Nude', colorCode: 'NUDE' },
+            { colorName: 'Dusty Pink', colorCode: 'DPNK' },
+            { colorName: 'Baby Pink', colorCode: 'BPNK' },
+            { colorName: 'Soft Pink', colorCode: 'SPNK' },
+            { colorName: 'Rose Gold', colorCode: 'RGLD' },
+            { colorName: 'Navy Blue', colorCode: 'NAVY' },
+            { colorName: 'Royal Blue', colorCode: 'RBLU' },
+            { colorName: 'Sky Blue', colorCode: 'SBLU' },
+            { colorName: 'Powder Blue', colorCode: 'PBLU' },
+            { colorName: 'Sage Green', colorCode: 'SGRN' },
+            { colorName: 'Olive Green', colorCode: 'OLIV' },
+            { colorName: 'Forest Green', colorCode: 'FGRN' },
+            { colorName: 'Mint Green', colorCode: 'MINT' },
+            { colorName: 'Lavender', colorCode: 'LAVD' },
+            { colorName: 'Purple', colorCode: 'PRPL' },
+            { colorName: 'Plum', colorCode: 'PLUM' },
+            { colorName: 'Burgundy', colorCode: 'BGDY' },
+            { colorName: 'Maroon', colorCode: 'MARN' },
+            { colorName: 'Wine Red', colorCode: 'WINE' },
+            { colorName: 'Coral', colorCode: 'CORL' },
+            { colorName: 'Peach', colorCode: 'PECH' },
+            { colorName: 'Mustard', colorCode: 'MSTD' },
+            { colorName: 'Camel', colorCode: 'CAML' },
+            { colorName: 'Taupe', colorCode: 'TAUP' },
+            { colorName: 'Grey', colorCode: 'GREY' },
+            { colorName: 'Light Grey', colorCode: 'LGRY' },
+            { colorName: 'Charcoal', colorCode: 'CHAR' },
+            { colorName: 'Mocha', colorCode: 'MOCH' },
+            { colorName: 'Chocolate', colorCode: 'CHOC' }
         ];
 
-        // Create sample product variations (sizes)
+        // Create hijab-specific variations (sizes and styles)
         const productVariations = [
-            // Standard sizes
-            { variationType: 'Size', variationValue: '180x60' },
-            { variationType: 'Size', variationValue: '190x70' },
-            { variationType: 'Size', variationValue: '200x200' },
+            // Hijab sizes
+            { variationType: 'Size', variationValue: '110x110 cm' },
+            { variationType: 'Size', variationValue: '120x120 cm' },
+            { variationType: 'Size', variationValue: '130x130 cm' },
+            { variationType: 'Size', variationValue: '140x140 cm' },
+            { variationType: 'Size', variationValue: '150x150 cm' },
+            { variationType: 'Size', variationValue: '160x160 cm' },
+            { variationType: 'Size', variationValue: '170x170 cm' },
+            { variationType: 'Size', variationValue: '180x180 cm' },
+            { variationType: 'Size', variationValue: '200x200 cm' },
 
-            // Additional size variations
-            { variationType: 'Size', variationValue: 'XS' },
-            { variationType: 'Size', variationValue: 'S' },
-            { variationType: 'Size', variationValue: 'M' },
-            { variationType: 'Size', variationValue: 'L' },
-            { variationType: 'Size', variationValue: 'XL' },
-            { variationType: 'Size', variationValue: 'XXL' },
+            // Rectangle sizes
+            { variationType: 'Size', variationValue: '70x180 cm' },
+            { variationType: 'Size', variationValue: '75x200 cm' },
+            { variationType: 'Size', variationValue: '80x200 cm' },
 
-            // Style variations
-            { variationType: 'Style', variationValue: 'Regular' },
-            { variationType: 'Style', variationValue: 'Slim' },
-            { variationType: 'Style', variationValue: 'Loose' },
-            { variationType: 'Style', variationValue: 'Oversized' },
+            // Hijab styles
+            { variationType: 'Style', variationValue: 'Plain' },
+            { variationType: 'Style', variationValue: 'Printed' },
+            { variationType: 'Style', variationValue: 'Embroidered' },
+            { variationType: 'Style', variationValue: 'Lace Edge' },
+            { variationType: 'Style', variationValue: 'Sequined' },
+            { variationType: 'Style', variationValue: 'Pleated' },
+            { variationType: 'Style', variationValue: 'Textured' },
+            { variationType: 'Style', variationValue: 'Ombre' },
+            { variationType: 'Style', variationValue: 'Two-Tone' },
+
+            // Hijab types
+            { variationType: 'Type', variationValue: 'Square' },
+            { variationType: 'Type', variationValue: 'Rectangle' },
+            { variationType: 'Type', variationValue: 'Instant' },
+            { variationType: 'Type', variationValue: 'Shawl' },
+            { variationType: 'Type', variationValue: 'Pashmina' },
+            { variationType: 'Type', variationValue: 'Khimar' },
+            { variationType: 'Type', variationValue: 'Bergo' }
         ];
 
         // Create standalone colors and variations
@@ -437,7 +544,7 @@ async function main() {
                     data: {
                         variationType: variation.variationType,
                         variationValue: variation.variationValue,
-                        priceAdjustment: Math.random() > 0.7 ? (Math.random() * 20000) : null, // 30% chance of price adjustment
+                        priceAdjustment: Math.random() > 0.8 ? (Math.random() * 25000) : null, // 20% chance of price adjustment
                         isActive: true
                     }
                 });
@@ -466,43 +573,75 @@ async function main() {
             });
         }
 
-        console.log('✓ Sample product colors and variations created')
+        console.log('✓ Hijab colors and variations created')
 
-        // Create sample contacts
+        // Create hijab-related contacts
         const contacts = [
             {
-                name: 'Production Worker A',
-                phone: '+1234567891',
-                whatsappPhone: '+1234567891',
-                email: 'worker.a@company.com',
+                name: 'Siti Aminah',
+                phone: '+628123456789',
+                whatsappPhone: '+628123456789',
+                email: 'siti.aminah@hijabstore.com',
                 contactType: 'WORKER',
-                company: 'Internal Production Team',
-                notes: 'Experienced production worker'
+                company: 'Hijab Production Team',
+                notes: 'Experienced hijab seamstress and quality control'
             },
             {
-                name: 'Manufacturing Partner Ltd.',
-                phone: '+1234567892',
-                email: 'orders@manufacturingpartner.com',
+                name: 'Premium Textile Indonesia',
+                phone: '+62215551234',
+                email: 'orders@premiumtextile.co.id',
                 contactType: 'SUPPLIER',
-                company: 'Manufacturing Partner Ltd.',
-                address: '123 Industrial Ave, Manufacturing District'
+                company: 'Premium Textile Indonesia',
+                address: 'Jl. Industri Tekstil No. 123, Bandung, Jawa Barat'
             },
             {
-                name: 'Customer Corp',
-                phone: '+1234567893',
-                email: 'procurement@customercorp.com',
+                name: 'Hijab Fabric Supplier',
+                phone: '+62215551235',
+                email: 'sales@hijabfabric.co.id',
+                contactType: 'SUPPLIER',
+                company: 'Hijab Fabric Supplier',
+                address: 'Jl. Kain Hijab No. 45, Solo, Jawa Tengah'
+            },
+            {
+                name: 'Luxury Silk Imports',
+                phone: '+62215551236',
+                email: 'info@luxurysilk.co.id',
+                contactType: 'SUPPLIER',
+                company: 'Luxury Silk Imports',
+                address: 'Jl. Sutra Mewah No. 78, Jakarta Pusat'
+            },
+            {
+                name: 'Hijab Boutique Jakarta',
+                phone: '+62215551237',
+                email: 'order@hijabboutique.com',
                 contactType: 'CUSTOMER',
-                company: 'Customer Corp',
-                address: '456 Business St, Commercial District'
+                company: 'Hijab Boutique Jakarta',
+                address: 'Jl. Fashion No. 90, Jakarta Selatan'
             },
             {
-                name: 'Quality Control Specialist',
-                phone: '+1234567894',
-                whatsappPhone: '+1234567894',
-                email: 'qc.specialist@company.com',
+                name: 'Muslimah Fashion Store',
+                phone: '+62215551238',
+                email: 'procurement@muslimahfashion.com',
+                contactType: 'CUSTOMER',
+                company: 'Muslimah Fashion Store',
+                address: 'Jl. Busana Muslim No. 12, Surabaya, Jawa Timur'
+            },
+            {
+                name: 'Fatimah Zahra',
+                phone: '+628123456790',
+                whatsappPhone: '+628123456790',
+                email: 'fatimah.zahra@hijabstore.com',
                 contactType: 'WORKER',
-                company: 'Internal QC Team',
-                notes: 'Handles quality assurance and testing'
+                company: 'Hijab Design Team',
+                notes: 'Creative designer specializing in modern hijab styles'
+            },
+            {
+                name: 'Hijab Accessories Supplier',
+                phone: '+62215551239',
+                email: 'sales@hijabaccessories.co.id',
+                contactType: 'SUPPLIER',
+                company: 'Hijab Accessories Supplier',
+                address: 'Jl. Aksesoris Hijab No. 34, Yogyakarta'
             }
         ]
 
@@ -518,27 +657,45 @@ async function main() {
             }
         }
 
-        console.log('✓ Sample contacts created')
+        console.log('✓ Hijab-related contacts created')
 
-        // Create sample inventaris (general inventory items)
+        // Create hijab-specific inventory items only
         const inventarisItems = [
             {
-                name: 'Office Supplies',
-                quantity: 50,
-                unit: 'pcs',
-                notes: 'Various office supplies and stationery'
+                name: 'Hijab Sewing Machines',
+                quantity: 5,
+                unit: 'units',
+                notes: 'Specialized sewing machines for hijab production'
             },
             {
-                name: 'Safety Equipment',
-                quantity: 25,
+                name: 'Hijab Cutting Tables',
+                quantity: 3,
+                unit: 'units',
+                notes: 'Large cutting tables for hijab fabric preparation'
+            },
+            {
+                name: 'Hijab Measuring Tools',
+                quantity: 20,
                 unit: 'sets',
-                notes: 'Safety helmets, gloves, and protective gear'
+                notes: 'Rulers, measuring tapes, and cutting tools for hijab sizing'
             },
             {
-                name: 'Cleaning Supplies',
-                quantity: 30,
+                name: 'Hijab Packaging Materials',
+                quantity: 500,
                 unit: 'pcs',
-                notes: 'Cleaning materials and maintenance supplies'
+                notes: 'Branded boxes, bags, and labels for hijab packaging'
+            },
+            {
+                name: 'Hijab Display Mannequins',
+                quantity: 15,
+                unit: 'pcs',
+                notes: 'Head mannequins specifically for hijab display'
+            },
+            {
+                name: 'Hijab Storage Boxes',
+                quantity: 100,
+                unit: 'pcs',
+                notes: 'Organized storage boxes for hijab inventory management'
             }
         ]
 
@@ -554,9 +711,9 @@ async function main() {
             }
         }
 
-        console.log('✓ Sample inventaris items created')
+        console.log('✓ Hijab-specific inventory items created')
 
-        console.log('Database seeding completed successfully!')
+        console.log('Hijab WMS database seeding completed successfully!')
 
     } catch (error) {
         console.error('Error during seeding:', error)

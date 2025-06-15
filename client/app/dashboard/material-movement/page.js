@@ -131,6 +131,7 @@ export default function MaterialMovementPage() {
 
       } catch (err) {
         setError(err.message);
+        setTimeout(() => setError(null), 3000);
         console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
@@ -206,6 +207,7 @@ export default function MaterialMovementPage() {
   const handleEdit = (movement) => {
     if (movement.purchaseLogId) {
       setError('Cannot edit purchase-generated movements');
+      setTimeout(() => setError(null), 3000);
       return;
     }
 
@@ -225,6 +227,7 @@ export default function MaterialMovementPage() {
   const handleDelete = async (movement) => {
     if (movement.purchaseLogId) {
       setError('Cannot delete purchase-generated movements');
+      setTimeout(() => setError(null), 3000);
       return;
     }
 
@@ -249,6 +252,7 @@ export default function MaterialMovementPage() {
       const result = await response.json();
       if (result.success) {
         setSuccess('Movement deleted successfully');
+        setTimeout(() => setSuccess(null), 3000);
         // Refresh data
         setFilter({ ...filter });
       } else {
@@ -257,6 +261,7 @@ export default function MaterialMovementPage() {
 
     } catch (err) {
       setError(err.message);
+      setTimeout(() => setError(null), 3000);
     }
   };
 
@@ -317,6 +322,7 @@ export default function MaterialMovementPage() {
       // Reset form and fetch updated data
       resetForm();
       setSuccess(`Movement ${editingMovement ? 'updated' : 'created'} successfully`);
+      setTimeout(() => setSuccess(null), 3000);
 
       // Refresh data
       setTimeout(() => {
@@ -325,6 +331,7 @@ export default function MaterialMovementPage() {
 
     } catch (err) {
       setError(err.message);
+      setTimeout(() => setError(null), 3000);
       console.error('Error submitting movement:', err);
     } finally {
       setIsSubmitting(false);
@@ -671,10 +678,7 @@ export default function MaterialMovementPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {movement.purchaseLog ? (
                                 <div>
-                                  <div className="font-medium">{movement.purchaseLog.supplier}</div>
-                                  <div className="text-xs text-gray-400">
-                                    {formatDate(movement.purchaseLog.purchaseDate)}
-                                  </div>
+                                  <div className="font-medium">Buy from: {movement.purchaseLog.supplier}</div>
                                 </div>
                               ) : '-'}
                             </td>
