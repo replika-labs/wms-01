@@ -898,12 +898,16 @@ function MaterialsManagementPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
                     >
+                      <option value="board_feet">Board Feet</option>
+                      <option value="sqft">Square Feet</option>
+                      <option value="sheets">Sheets</option>
+                      <option value="panels">Panels</option>
+                      <option value="sets">Sets</option>
+                      <option value="pairs">Pairs</option>
                       <option value="pcs">Pieces</option>
-                      <option value="meter">Meter</option>
-                      <option value="yard">Yard</option>
-                      <option value="roll">Roll</option>
                       <option value="kg">Kilogram</option>
                       <option value="liter">Liter</option>
+                      <option value="meter">Meter</option>
                     </select>
                   </div>
 
@@ -917,10 +921,11 @@ function MaterialsManagementPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Attribute Type</option>
-                      <option value="Fabric">Fabric</option>
-                      <option value="Accessories">Accessories</option>
-                      <option value="Inner Wear">Inner Wear</option>
-                      <option value="Trim">Trim</option>
+                      <option value="Wood">Wood</option>
+                      <option value="Upholstery">Upholstery</option>
+                      <option value="Hardware">Hardware</option>
+                      <option value="Glass">Glass</option>
+                      <option value="Finishing">Finishing</option>
                     </select>
                   </div>
 
@@ -932,7 +937,7 @@ function MaterialsManagementPage() {
                       type="text"
                       value={formData.attributeValue}
                       onChange={(e) => setFormData({ ...formData, attributeValue: e.target.value })}
-                      placeholder="e.g., Chiffon, Voile, Pins, Clips"
+                      placeholder="e.g., Oak, Teak, Hinges, Tempered Glass"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -1052,12 +1057,16 @@ function MaterialsManagementPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       required
                     >
+                      <option value="board_feet">Board Feet</option>
+                      <option value="sqft">Square Feet</option>
+                      <option value="sheets">Sheets</option>
+                      <option value="panels">Panels</option>
+                      <option value="sets">Sets</option>
+                      <option value="pairs">Pairs</option>
                       <option value="pcs">Pieces</option>
-                      <option value="meter">Meter</option>
-                      <option value="yard">Yard</option>
-                      <option value="roll">Roll</option>
                       <option value="kg">Kilogram</option>
                       <option value="liter">Liter</option>
+                      <option value="meter">Meter</option>
                     </select>
                   </div>
 
@@ -1071,10 +1080,11 @@ function MaterialsManagementPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Attribute Type</option>
-                      <option value="Fabric">Fabric</option>
-                      <option value="Accessories">Accessories</option>
-                      <option value="Inner Wear">Inner Wear</option>
-                      <option value="Trim">Trim</option>
+                      <option value="Wood">Wood</option>
+                      <option value="Upholstery">Upholstery</option>
+                      <option value="Hardware">Hardware</option>
+                      <option value="Glass">Glass</option>
+                      <option value="Finishing">Finishing</option>
                     </select>
                   </div>
 
@@ -1086,7 +1096,7 @@ function MaterialsManagementPage() {
                       type="text"
                       value={formData.attributeValue}
                       onChange={(e) => setFormData({ ...formData, attributeValue: e.target.value })}
-                      placeholder="e.g., Chiffon, Voile, Pins, Clips"
+                      placeholder="e.g., Oak, Teak, Hinges, Tempered Glass"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>

@@ -251,7 +251,7 @@ export default function ProductsPage() {
         if (response.ok && data.canDelete) {
           // If all products can be deleted, show confirmation
           if (confirm(`Are you sure you want to delete ${selectedProducts.length} products? This action cannot be undone.`)) {
-            await performBulkDelete();
+            await performBulkAction();
           }
         } else {
           // If some products can't be deleted, show error
@@ -266,6 +266,15 @@ export default function ProductsPage() {
       return;
     }
 
+    // For activate/deactivate actions, show confirmation
+    if (bulkAction === 'activate' || bulkAction === 'deactivate') {
+      const actionText = bulkAction === 'activate' ? 'activate' : 'deactivate';
+      if (confirm(`Are you sure you want to ${actionText} ${selectedProducts.length} products?`)) {
+        await performBulkAction();
+      }
+      return;
+    }
+
     // For other bulk actions, proceed as normal
     await performBulkAction();
   };
@@ -274,13 +283,32 @@ export default function ProductsPage() {
   const performBulkAction = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8080/api/products/bulk/${bulkAction}`, {
+
+      // Determine the correct API endpoint and payload based on action
+      let endpoint = '';
+      let payload = { productIds: selectedProducts };
+
+      switch (bulkAction) {
+        case 'delete':
+          endpoint = 'http://localhost:8080/api/products/bulk/delete';
+          break;
+        case 'activate':
+          endpoint = 'http://localhost:8080/api/products/bulk/activate';
+          break;
+        case 'deactivate':
+          endpoint = 'http://localhost:8080/api/products/bulk/deactivate';
+          break;
+        default:
+          endpoint = `http://localhost:8080/api/products/bulk/${bulkAction}`;
+      }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ productIds: selectedProducts }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -289,7 +317,12 @@ export default function ProductsPage() {
         refreshProducts();
         setSelectedProducts([]);
         setBulkAction('');
-        alert(data.message || `Bulk ${bulkAction} completed successfully`);
+
+        // Show success message
+        const actionText = bulkAction === 'activate' ? 'activated' :
+          bulkAction === 'deactivate' ? 'deactivated' :
+            bulkAction === 'delete' ? 'deleted' : bulkAction;
+        alert(data.message || `${selectedProducts.length} products ${actionText} successfully`);
       } else {
         setError(data.message || `Failed to ${bulkAction} products`);
         setTimeout(() => setError(''), 3000);
@@ -385,6 +418,28 @@ export default function ProductsPage() {
               <p className="text-gray-600">Manage your product catalog</p>
             </div>
             <div className="flex items-center space-x-3">
+              {/* View Toggle */}
+              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`px-3 py-1 rounded text-sm font-medium transition-colors ${viewMode === 'table'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                >
+                  📋 Table
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`px-3 py-1 rounded text-sm font-medium transition-colors ${viewMode === 'grid'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                >
+                  🔲 Grid
+                </button>
+              </div>
+
               <button
                 onClick={refreshProducts}
                 disabled={loading}
@@ -495,14 +550,14 @@ export default function ProductsPage() {
               </div>
 
               <div className=" flex items-end">
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="w-full py-2 px-4 border mb-1 border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                   Clear All
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="w-full py-2 px-4 border mb-1 border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Clear All
+                </button>
+              </div>
             </div>
           </div>
 
@@ -517,6 +572,42 @@ export default function ProductsPage() {
           {error && (
             <div className="bg-red-600 border border-red-700 text-white px-4 py-3 rounded-lg">
               {error}
+            </div>
+          )}
+
+          {/* Bulk Actions Bar */}
+          {!loading && selectedProducts.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm font-medium text-blue-900">
+                    {selectedProducts.length} product{selectedProducts.length > 1 ? 's' : ''} selected
+                  </span>
+                  <select
+                    value={bulkAction}
+                    onChange={(e) => setBulkAction(e.target.value)}
+                    className="px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Select Action</option>
+                    <option value="delete">Delete Selected</option>
+                    <option value="activate">Activate Selected</option>
+                    <option value="deactivate">Deactivate Selected</option>
+                  </select>
+                  <button
+                    onClick={handleBulkAction}
+                    disabled={!bulkAction}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Apply Action
+                  </button>
+                </div>
+                <button
+                  onClick={() => setSelectedProducts([])}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  Clear Selection
+                </button>
+              </div>
             </div>
           )}
 

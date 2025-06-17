@@ -12,8 +12,8 @@ export default function CreateOrderManagement() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [tailors, setTailors] = useState([]);
-  const [refreshingTailors, setRefreshingTailors] = useState(false);
+  const [workers, setWorkers] = useState([]);
+  const [refreshingWorkers, setRefreshingWorkers] = useState(false);
 
   const [formData, setFormData] = useState({
     customerNote: '',
@@ -24,13 +24,13 @@ export default function CreateOrderManagement() {
     products: [] // Array of { productId, quantity }
   });
 
-  // Fetch tailors on component mount
+  // Fetch workers on component mount
   useEffect(() => {
-    const fetchTailors = async () => {
+    const fetchWorkers = async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) {
-          console.warn('No authentication token for loading tailors');
+          console.warn('No authentication token for loading workers');
           return;
         }
 
@@ -44,26 +44,26 @@ export default function CreateOrderManagement() {
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
-            setTailors(data.contacts || []);
+            setWorkers(data.contacts || []);
           } else {
-            console.error('Failed to load tailors:', data.message);
+            console.error('Failed to load workers:', data.message);
           }
         } else {
-          console.error('Tailors API error:', response.status, response.statusText);
+          console.error('Workers API error:', response.status, response.statusText);
         }
       } catch (err) {
-        console.error('Error loading tailors:', err);
-        // Don't show error for tailors, just log it
+        console.error('Error loading workers:', err);
+        // Don't show error for workers, just log it
       }
     };
 
-    fetchTailors();
+    fetchWorkers();
   }, []);
 
-  // Manual refresh tailors function
-  const handleRefreshTailors = async () => {
+  // Manual refresh workers function
+  const handleRefreshWorkers = async () => {
     try {
-      setRefreshingTailors(true);
+      setRefreshingWorkers(true);
 
       const token = localStorage.getItem('token');
       if (!token) {
@@ -80,20 +80,20 @@ export default function CreateOrderManagement() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setTailors(data.contacts || []);
-          setSuccess('Tailors list refreshed successfully!');
+          setWorkers(data.contacts || []);
+          setSuccess('Workers list refreshed successfully!');
           setTimeout(() => setSuccess(''), 3000);
         } else {
-          throw new Error(data.message || 'Failed to refresh tailors');
+          throw new Error(data.message || 'Failed to refresh workers');
         }
       } else {
         throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      setError('Failed to refresh tailors: ' + error.message);
+      setError('Failed to refresh workers: ' + error.message);
       setTimeout(() => setError(''), 5000);
     } finally {
-      setRefreshingTailors(false);
+      setRefreshingWorkers(false);
     }
   };
 
@@ -292,10 +292,10 @@ export default function CreateOrderManagement() {
                     </select>
                   </div>
 
-                  {/* Tailor Assignment */}
+                  {/* Worker Assignment */}
                   <div>
                     <label htmlFor="workerContactId" className="block text-sm font-medium text-gray-700 mb-1">
-                      Assigned Tailor
+                      Assigned Worker
                     </label>
                     <div className="flex items-center space-x-2">
                       <select
@@ -305,21 +305,21 @@ export default function CreateOrderManagement() {
                         onChange={handleInputChange}
                         className="flex-1 px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       >
-                        <option value="">Select Tailor (Optional)</option>
-                        {tailors.map(tailor => (
-                          <option key={tailor.id} value={tailor.id}>
-                            {tailor.name}
+                        <option value="">Select Worker (Optional)</option>
+                        {workers.map(worker => (
+                          <option key={worker.id} value={worker.id}>
+                            {worker.name}
                           </option>
                         ))}
                       </select>
                       <button
                         type="button"
-                        onClick={handleRefreshTailors}
-                        disabled={refreshingTailors}
+                        onClick={handleRefreshWorkers}
+                        disabled={refreshingWorkers}
                         className="px-2 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Refresh tailors list"
+                        title="Refresh workers list"
                       >
-                        {refreshingTailors ? (
+                        {refreshingWorkers ? (
                           <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -332,7 +332,7 @@ export default function CreateOrderManagement() {
                       </button>
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
-                      Assign a tailor to this order for progress tracking
+                      Assign a worker to this order for progress tracking
                     </p>
                   </div>
                 </div>
@@ -408,11 +408,11 @@ export default function CreateOrderManagement() {
           <div className="mt-8 bg-blue-600 border border-blue-700 rounded-lg p-6">
             <h3 className="text-lg font-medium text-white mb-2">Enhanced Features</h3>
             <ul className="text-sm text-blue-100 space-y-1">
-              <li>• <strong>Tailor Assignment:</strong> Assign orders directly to tailors for better tracking</li>
+              <li>• <strong>Worker Assignment:</strong> Assign orders directly to workers for better tracking</li>
               <li>• <strong>Material Stock Checking:</strong> Automatic material availability verification</li>
               <li>• <strong>Purchase Alerts:</strong> Automatic alerts when materials are low</li>
               <li>• <strong>Progress Tracking:</strong> Integrated progress reporting system</li>
-              <li>• <strong>WhatsApp Integration:</strong> Direct communication with assigned tailors</li>
+              <li>• <strong>WhatsApp Integration:</strong> Direct communication with assigned workers</li>
             </ul>
           </div>
         </div>
